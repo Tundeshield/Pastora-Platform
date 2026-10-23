@@ -13,7 +13,7 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test": "tsx --test src/lib/policies.test.ts src/test/api.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:emulator": "tsx --test src/test/emulator/rules.test.ts src/test/emulator/api.emulator.test.ts"
+    "test:emulator": "tsx --test --test-concurrency=1 src/test/emulator/rules.test.ts src/test/emulator/api.emulator.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
