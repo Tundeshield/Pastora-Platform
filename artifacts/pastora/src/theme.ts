@@ -4,7 +4,11 @@ export type ThemeName = Palette;
 
 export type Appearance = { theme: Palette; fontFamily: FontFamily; fontSize: FontSize };
 
-export const DEFAULT_APPEARANCE: Appearance = { theme: "warm-cream", fontFamily: "inter", fontSize: "normal" };
+export const DEFAULT_APPEARANCE: Appearance = {
+  theme: "warm-cream",
+  fontFamily: "inter",
+  fontSize: "normal",
+};
 
 const STORAGE_KEY = "pastora-appearance";
 const LEGACY_THEME_KEY = "pastora-theme";
@@ -19,7 +23,9 @@ function valid(value: Partial<Appearance> | null | undefined): Appearance {
     fontFamily: FONTS.includes(value?.fontFamily as FontFamily)
       ? (value!.fontFamily as FontFamily)
       : DEFAULT_APPEARANCE.fontFamily,
-    fontSize: SIZES.includes(value?.fontSize as FontSize) ? (value!.fontSize as FontSize) : DEFAULT_APPEARANCE.fontSize,
+    fontSize: SIZES.includes(value?.fontSize as FontSize)
+      ? (value!.fontSize as FontSize)
+      : DEFAULT_APPEARANCE.fontSize,
   };
 }
 

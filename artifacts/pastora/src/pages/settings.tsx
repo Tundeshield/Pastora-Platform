@@ -45,7 +45,13 @@ const PALETTE_OPTIONS: {
     className: "cool-option",
     icon: Moon,
   },
-  { value: "sage", label: "Sage", description: "Soft sage green, warm ivory, deep forest text", className: "sage-option", icon: Leaf },
+  {
+    value: "sage",
+    label: "Sage",
+    description: "Soft sage green, warm ivory, deep forest text",
+    className: "sage-option",
+    icon: Leaf,
+  },
   {
     value: "heritage-blue",
     label: "Heritage Blue",
@@ -86,7 +92,11 @@ export function SettingsPage() {
   const [appearance, setAppearance] = useState<Appearance>(storedAppearance());
   useEffect(() => {
     if (q.data) {
-      setAppearance({ theme: q.data.theme as Palette, fontFamily: q.data.fontFamily, fontSize: q.data.fontSize });
+      setAppearance({
+        theme: q.data.theme as Palette,
+        fontFamily: q.data.fontFamily,
+        fontSize: q.data.fontSize,
+      });
     }
   }, [q.data]);
   // Each choice applies immediately and saves only that one field, so changing the

@@ -54,7 +54,11 @@ export function OnboardingPage() {
       {
         onSuccess: (created) => {
           qc.setQueryData(getGetSessionQueryKey(), created);
-          applyAppearance({ theme: created.theme, fontFamily: created.fontFamily, fontSize: created.fontSize });
+          applyAppearance({
+            theme: created.theme,
+            fontFamily: created.fontFamily,
+            fontSize: created.fontSize,
+          });
           setLocation("/app");
         },
       },
