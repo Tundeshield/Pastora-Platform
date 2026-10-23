@@ -7,6 +7,9 @@
  */
 import type { Config, Context } from "@netlify/functions";
 import inject from "light-my-request";
+// Kept external (it reads protobuf files from disk). This explicit import lets
+// Netlify's file tracer find it and its dependencies; firebase-admin loads it lazily.
+import "@google-cloud/firestore";
 
 import app from "../../src/app";
 

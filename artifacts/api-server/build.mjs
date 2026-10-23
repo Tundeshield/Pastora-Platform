@@ -21,10 +21,16 @@ async function buildAll() {
   await rm(netlifyDir, { recursive: true, force: true });
   // One sub-directory per function: Netlify uses api/api.mjs as the entry point and
   // ships the pino helper files next to it.
-  await bundle({ api: path.resolve(artifactDir, "netlify/functions/api.mts") }, path.join(netlifyDir, "api"));
+  // firebase-admin is compiled in (not external) because its token verification
+  // require()s an ES-module-only package (jose), which crashes on runtimes without
+  // require(esm). Firestore's Google Cloud client stays external: it loads
+  // protobuf files from disk.
+  await bundle({ api: path.resolve(artifactDir, "netlify/functions/api.mts") }, path.join(netlifyDir, "api"), {
+    bundled: ["firebase-admin", "firebase-functions"],
+  });
 }
 
-async function bundle(entry, outdir) {
+async function bundle(entry, outdir, { bundled = [] } = {}) {
   await esbuild({
     entryPoints: typeof entry === "string" ? [entry] : entry,
     platform: "node",
@@ -38,7 +44,28 @@ async function bundle(entry, outdir) {
     // Examples of unbundleable packages:
     // - uses native modules and loads them dynamically (e.g. sharp)
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
-    external: [
+    external: EXTERNALS.filter((name) => !bundled.includes(name)),
+    sourcemap: "linked",
+    plugins: [
+      // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
+      esbuildPluginPino({ transports: ["pino-pretty"] })
+    ],
+    // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
+    banner: {
+      js: `import { createRequire as __bannerCrReq } from 'node:module';
+import __bannerPath from 'node:path';
+import __bannerUrl from 'node:url';
+
+globalThis.require = __bannerCrReq(import.meta.url);
+globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
+globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+    `,
+    },
+  });
+}
+
+// Some packages cannot be bundled (native modules, files read from disk, etc.).
+const EXTERNALS = [
       "*.node",
       "sharp",
       "better-sqlite3",
@@ -112,25 +139,7 @@ async function bundle(entry, outdir) {
       "puppeteer",
       "puppeteer-core",
       "electron",
-    ],
-    sourcemap: "linked",
-    plugins: [
-      // pino relies on workers to handle logging, instead of externalizing it we use a plugin to handle it
-      esbuildPluginPino({ transports: ["pino-pretty"] })
-    ],
-    // Make sure packages that are cjs only (e.g. express) but are bundled continue to work in our esm output file
-    banner: {
-      js: `import { createRequire as __bannerCrReq } from 'node:module';
-import __bannerPath from 'node:path';
-import __bannerUrl from 'node:url';
-
-globalThis.require = __bannerCrReq(import.meta.url);
-globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
-globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
-    `,
-    },
-  });
-}
+];
 
 buildAll().catch((err) => {
   console.error(err);

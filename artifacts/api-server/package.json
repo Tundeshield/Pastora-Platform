@@ -16,6 +16,7 @@
     "test:emulator": "tsx --test --test-concurrency=1 src/test/emulator/rules.test.ts src/test/emulator/api.emulator.test.ts"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^9.3.1",
     "@workspace/api-zod": "workspace:*",
     "cors": "^2.8.6",
     "express": "^5.3.0",
