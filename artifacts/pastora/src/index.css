@@ -301,3 +301,5 @@ body { font-size: calc(16px * var(--text-scale)); }
  .discretion { margin:0 25px 58px; padding:26px; grid-template-columns:1fr; gap:16px; }
  .discretion h2 { font-size:calc(30px * var(--text-scale)); }
 }
+.principles, .discretion { width:min(1096px, calc(100% - 80px)); }
+@media (max-width:680px) { .principles, .discretion { width:auto; } }
