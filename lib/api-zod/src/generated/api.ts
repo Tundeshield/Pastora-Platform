@@ -44,7 +44,10 @@ export const GetSessionResponse = zod.object({
   "timeZone": zod.string(),
   "logoUrl": zod.string().nullable()
 }),zod.null()]),
-  "subscriptionStatus": zod.enum(['setup_required', 'active', 'trialing', 'grace_period', 'read_only', 'cancelled'])
+  "subscriptionStatus": zod.enum(['setup_required', 'active', 'trialing', 'grace_period', 'read_only', 'cancelled']),
+  "theme": zod.enum(['warm-cream', 'modern-cool']),
+  "emailVerified": zod.boolean(),
+  "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.')
 })
 
 
@@ -85,7 +88,10 @@ export const CreateWorkspaceResponse = zod.object({
   "timeZone": zod.string(),
   "logoUrl": zod.string().nullable()
 }),zod.null()]),
-  "subscriptionStatus": zod.enum(['setup_required', 'active', 'trialing', 'grace_period', 'read_only', 'cancelled'])
+  "subscriptionStatus": zod.enum(['setup_required', 'active', 'trialing', 'grace_period', 'read_only', 'cancelled']),
+  "theme": zod.enum(['warm-cream', 'modern-cool']),
+  "emailVerified": zod.boolean(),
+  "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.')
 })
 
 
@@ -173,6 +179,8 @@ export const submitPublicRequestBodyPreferredAvailabilityMax = 500;
 
 export const submitPublicRequestBodyCampaignMax = 120;
 
+export const submitPublicRequestBodyQrCodeIdMax = 64;
+
 
 
 export const SubmitPublicRequestBody = zod.object({
@@ -187,7 +195,8 @@ export const SubmitPublicRequestBody = zod.object({
   "permissionToContact": zod.boolean(),
   "shareWithPrayerTeam": zod.boolean(),
   "preferredDate": zod.coerce.date().nullish(),
-  "campaign": zod.string().max(submitPublicRequestBodyCampaignMax).nullish()
+  "campaign": zod.string().max(submitPublicRequestBodyCampaignMax).nullish(),
+  "qrCodeId": zod.string().max(submitPublicRequestBodyQrCodeIdMax).nullish()
 })
 
 export const SubmitPublicRequestResponse = zod.object({
@@ -647,6 +656,8 @@ export const ListExpensesResponseItem = zod.object({
   "requesterId": zod.string(),
   "receiptPath": zod.string().nullable(),
   "paymentReference": zod.string().nullable(),
+  "approvedBy": zod.string().nullish(),
+  "clarification": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 export const ListExpensesResponse = zod.array(ListExpensesResponseItem)
@@ -688,6 +699,8 @@ export const CreateExpenseResponse = zod.object({
   "requesterId": zod.string(),
   "receiptPath": zod.string().nullable(),
   "paymentReference": zod.string().nullable(),
+  "approvedBy": zod.string().nullish(),
+  "clarification": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -726,6 +739,8 @@ export const UpdateExpenseResponse = zod.object({
   "requesterId": zod.string(),
   "receiptPath": zod.string().nullable(),
   "paymentReference": zod.string().nullable(),
+  "approvedBy": zod.string().nullish(),
+  "clarification": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 
@@ -865,5 +880,102 @@ export const ListPlatformWorkspacesResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListPlatformWorkspacesResponse = zod.array(ListPlatformWorkspacesResponseItem)
+
+
+/**
+ * @summary Count a visit from a scanned QR link (no personal data is stored)
+ */
+export const RecordQrVisitParams = zod.object({
+  "qrCodeId": zod.coerce.string()
+})
+
+export const RecordQrVisitResponse = zod.void()
+
+
+/**
+ * @summary List church members and pending invitations (owner and pastor only)
+ */
+export const GetTeamResponse = zod.object({
+  "members": zod.array(zod.object({
+  "id": zod.string(),
+  "uid": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['owner', 'pastor', 'counsellor', 'staff', 'department_leader', 'finance']),
+  "department": zod.string().nullable(),
+  "active": zod.boolean(),
+  "isCurrentUser": zod.boolean()
+})),
+  "invitations": zod.array(zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "department": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Invite a person by email to join the church with a role (owner only)
+ */
+export const createInvitationBodyEmailMax = 254;
+
+export const createInvitationBodyDepartmentMax = 120;
+
+
+
+export const CreateInvitationBody = zod.object({
+  "email": zod.string().email().max(createInvitationBodyEmailMax),
+  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "department": zod.string().max(createInvitationBodyDepartmentMax).nullish()
+})
+
+export const CreateInvitationResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "department": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Revoke a pending invitation (owner only)
+ */
+export const RevokeInvitationParams = zod.object({
+  "invitationId": zod.coerce.string()
+})
+
+export const RevokeInvitationResponse = zod.void()
+
+
+/**
+ * @summary Change a member's role, department or access (owner only; never your own)
+ */
+export const UpdateMemberParams = zod.object({
+  "membershipId": zod.coerce.string()
+})
+
+export const updateMemberBodyDepartmentMax = 120;
+
+
+
+export const UpdateMemberBody = zod.object({
+  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).optional().describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "department": zod.string().max(updateMemberBodyDepartmentMax).nullish(),
+  "active": zod.boolean().optional()
+})
+
+export const UpdateMemberResponse = zod.object({
+  "id": zod.string(),
+  "uid": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['owner', 'pastor', 'counsellor', 'staff', 'department_leader', 'finance']),
+  "department": zod.string().nullable(),
+  "active": zod.boolean(),
+  "isCurrentUser": zod.boolean()
+})
 
 

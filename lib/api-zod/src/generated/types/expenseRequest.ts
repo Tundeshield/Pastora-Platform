@@ -23,5 +23,9 @@ export interface ExpenseRequest {
   receiptPath: string | null;
   /** @nullable */
   paymentReference: string | null;
+  /** @nullable */
+  approvedBy?: string | null;
+  /** @nullable */
+  clarification?: string | null;
   createdAt: Date;
 }

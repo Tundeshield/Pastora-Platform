@@ -21,6 +21,7 @@ tags:
   - name: settings
   - name: notifications
   - name: platform
+  - name: team
 paths:
   /healthz:
     get:
@@ -600,6 +601,96 @@ paths:
                   $ref: "#/components/schemas/PlatformWorkspace"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /public/qr-codes/{qrCodeId}/visit:
+    post:
+      operationId: recordQrVisit
+      tags: [public-care]
+      summary: Count a visit from a scanned QR link (no personal data is stored)
+      parameters:
+        - $ref: "#/components/parameters/QrCodeId"
+      responses:
+        "204":
+          description: Visit counted (or silently ignored for unknown or paused links)
+  /team:
+    get:
+      operationId: getTeam
+      tags: [team]
+      summary: List church members and pending invitations (owner and pastor only)
+      responses:
+        "200":
+          description: Team overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamOverview"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /team/invitations:
+    post:
+      operationId: createInvitation
+      tags: [team]
+      summary: Invite a person by email to join the church with a role (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationInput"
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamInvitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: The person already belongs to a workspace or is already invited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /team/invitations/{invitationId}:
+    delete:
+      operationId: revokeInvitation
+      tags: [team]
+      summary: Revoke a pending invitation (owner only)
+      parameters:
+        - $ref: "#/components/parameters/InvitationId"
+      responses:
+        "204":
+          description: Invitation revoked
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /team/members/{membershipId}:
+    patch:
+      operationId: updateMember
+      tags: [team]
+      summary: Change a member's role, department or access (owner only; never your own)
+      parameters:
+        - $ref: "#/components/parameters/MembershipId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamMember"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   parameters:
     Slug:
@@ -641,6 +732,18 @@ components:
         type: string
     ExpenseId:
       name: expenseId
+      in: path
+      required: true
+      schema:
+        type: string
+    InvitationId:
+      name: invitationId
+      in: path
+      required: true
+      schema:
+        type: string
+    MembershipId:
+      name: membershipId
       in: path
       required: true
       schema:
@@ -740,7 +843,15 @@ components:
         subscriptionStatus:
           type: string
           enum: [setup_required, active, trialing, grace_period, read_only, cancelled]
-      required: [user, church, subscriptionStatus]
+        theme:
+          type: string
+          enum: [warm-cream, modern-cool]
+        emailVerified:
+          type: boolean
+        invitationPending:
+          type: boolean
+          description: True when an invitation is waiting for this email but the email is not yet verified.
+      required: [user, church, subscriptionStatus, theme, emailVerified, invitationPending]
     WorkspaceInput:
       type: object
       properties:
@@ -856,6 +967,9 @@ components:
         campaign:
           type: ["string", "null"]
           maxLength: 120
+        qrCodeId:
+          type: ["string", "null"]
+          maxLength: 64
       required: [type, anonymous, message, permissionToContact, shareWithPrayerTeam]
     PublicRequestReceipt:
       type: object
@@ -1228,6 +1342,10 @@ components:
           type: ["string", "null"]
         paymentReference:
           type: ["string", "null"]
+        approvedBy:
+          type: ["string", "null"]
+        clarification:
+          type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
@@ -1386,3 +1504,78 @@ components:
           type: string
           format: date-time
       required: [id, name, status, plan, createdAt]
+    MemberRole:
+      type: string
+      enum: [pastor, counsellor, staff, department_leader, finance]
+      description: Roles an owner can grant. The owner role is never granted through the API.
+    TeamMember:
+      type: object
+      properties:
+        id:
+          type: string
+        uid:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [owner, pastor, counsellor, staff, department_leader, finance]
+        department:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        isCurrentUser:
+          type: boolean
+      required: [id, uid, name, email, role, department, active, isCurrentUser]
+    TeamInvitation:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        department:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, email, role, department, createdAt]
+    TeamOverview:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamMember"
+        invitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamInvitation"
+      required: [members, invitations]
+    InvitationInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        department:
+          type: ["string", "null"]
+          maxLength: 120
+      required: [email, role]
+    MemberUpdate:
+      type: object
+      properties:
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        department:
+          type: ["string", "null"]
+          maxLength: 120
+        active:
+          type: boolean

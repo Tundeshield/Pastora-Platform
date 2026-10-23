@@ -47,4 +47,9 @@ export interface PublicRequestInput {
      * @nullable
      */
   campaign?: string | null;
+  /**
+     * @maxLength 64
+     * @nullable
+     */
+  qrCodeId?: string | null;
 }
