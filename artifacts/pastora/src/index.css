@@ -277,3 +277,27 @@ body { font-size: calc(16px * var(--text-scale)); }
 .choice-chip.selected { border-color:hsl(var(--primary)); outline:2px solid hsl(var(--primary)); outline-offset:1px; }
 .choice-chip:focus-visible, .theme-option:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:2px; }
 .size-chip span { line-height:1; font-weight:600; }
+
+/* ===== Landing page (updated copy) ===== */
+.manifesto-text { max-width:620px; color:hsl(var(--muted-foreground)); font-size:calc(14px * var(--text-scale)); line-height:1.85; margin:0; padding-top:20px; border-top:1px solid hsl(var(--border)); }
+.feature-intro p { max-width:380px; }
+.principles.two-up { grid-template-columns:repeat(2,1fr); padding-top:40px; }
+.principles .chapter { display:block; }
+.principles h3 { font-size:calc(24px * var(--text-scale)); }
+.principles.two-up p { font-size:calc(13px * var(--text-scale)); max-width:420px; }
+.discretion { max-width:1096px; margin:0 auto 97px; padding:48px; display:grid; grid-template-columns:auto 1fr; gap:32px; align-items:start; border:1px solid hsl(var(--card-border)); border-radius:14px; background:hsl(var(--card)); }
+.discretion-mark { width:52px; height:52px; display:grid; place-items:center; border-radius:50%; background:hsl(var(--secondary)); color:hsl(var(--primary)); }
+.discretion h2 { font-size:calc(38px * var(--text-scale)); line-height:1.08; margin:12px 0 14px; letter-spacing:-.03em; }
+.discretion p:not(.eyebrow) { max-width:560px; color:hsl(var(--muted-foreground)); font-size:calc(13px * var(--text-scale)); line-height:1.8; margin:0 0 18px; }
+.discretion-tagline { display:inline-block; padding-top:14px; border-top:1px solid hsl(var(--border)); color:hsl(var(--primary)); font:italic calc(16px * var(--text-scale)) var(--app-font-serif); }
+.closing-cta { gap:40px; }
+.closing-cta h2 { margin-top:0; }
+.closing-text { max-width:520px; margin:18px 0 0; color:hsl(var(--primary-foreground)/.78); font-size:calc(13px * var(--text-scale)); line-height:1.8; }
+.closing-text.strong { margin-top:10px; color:hsl(var(--primary-foreground)); font-weight:600; }
+.closing-cta .button { flex:none; }
+@media (max-width:900px) { .discretion { margin:0 40px 80px; } }
+@media (max-width:680px) {
+ .principles.two-up { grid-template-columns:1fr; padding-top:20px; }
+ .discretion { margin:0 25px 58px; padding:26px; grid-template-columns:1fr; gap:16px; }
+ .discretion h2 { font-size:calc(30px * var(--text-scale)); }
+}

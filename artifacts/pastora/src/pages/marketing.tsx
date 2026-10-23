@@ -1,11 +1,4 @@
-import {
-  getGetSetupStatusQueryKey,
-  getHealthCheckQueryKey,
-  getListPlansQueryKey,
-  useGetSetupStatus,
-  useHealthCheck,
-  useListPlans,
-} from "@workspace/api-client-react";
+import { getListPlansQueryKey, useListPlans } from "@workspace/api-client-react";
 import {
   ArrowDownRight,
   ArrowRight,
@@ -13,6 +6,7 @@ import {
   Check,
   FileText,
   HeartHandshake,
+  LockKeyhole,
   ShieldCheck,
 } from "lucide-react";
 import { Link } from "wouter";
@@ -20,8 +14,6 @@ import { Link } from "wouter";
 import { Button, EmptyState, ErrorPanel, PublicFrame, SkeletonRows } from "@/components/ui-kit";
 
 export function HomePage() {
-  const health = useHealthCheck({ query: { queryKey: getHealthCheckQueryKey(), retry: 1 } });
-  const setup = useGetSetupStatus({ query: { queryKey: getGetSetupStatusQueryKey(), retry: 1 } });
   return (
     <PublicFrame>
       <main>
@@ -36,8 +28,9 @@ export function HomePage() {
               <em>Less paperwork.</em>
             </h1>
             <p className="hero-description">
-              Pastora brings pastoral care and church responsibilities into one thoughtful workspace—so the
-              people in front of you stay at the centre.
+              Pastora brings prayer requests, counselling, appointments and everyday church responsibilities
+              into one thoughtful workspace—so you can care for people without losing track of what needs your
+              attention.
             </p>
             <div className="hero-actions">
               <Link href="/sign-up" className="button primary">
@@ -49,10 +42,10 @@ export function HomePage() {
             </div>
             <div className="hero-note">
               <span className="note-dot" />
-              Made for the everyday rhythm of church life
+              Made for the everyday rhythm of church life.
             </div>
           </div>
-          <div className="hero-art enter">
+          <div className="hero-art enter" aria-hidden="true">
             <div className="arch arch-back" />
             <div className="arch arch-front">
               <div className="art-sun" />
@@ -77,38 +70,16 @@ export function HomePage() {
             </div>
           </div>
         </section>
-        <div className="readiness-strip">
-          <div>
-            <span className={`health-dot ${health.isError ? "off" : ""}`} />
-            <span>
-              {health.isLoading
-                ? "Checking workspace connection…"
-                : health.isError
-                  ? "Workspace connection unavailable"
-                  : "Workspace connection ready"}
-            </span>
-          </div>
-          <span>
-            {setup.data?.firebaseConfigured
-              ? "Account setup is available"
-              : setup.isLoading
-                ? "Checking account setup…"
-                : "Account setup needs configuration"}
-          </span>
-        </div>
         <section className="manifesto">
-          <p className="eyebrow">The shape of the work</p>
           <h2 className="serif">
-            Ministry has a thousand small motions.
+            The work of ministry,
             <br />
-            <em>Pastora helps you hold them gently.</em>
+            <em>held together.</em>
           </h2>
-          <div className="manifesto-bottom">
-            <span>People first. Follow-through, always.</span>
-            <Link href="/features" className="under-link">
-              See what fits your church <ArrowRight size={15} />
-            </Link>
-          </div>
+          <p className="manifesto-text">
+            Ministry happens in conversations, requests, appointments and the little things that need
+            following up. Pastora helps you keep them organised, so fewer things slip through the cracks.
+          </p>
         </section>
         <section className="feature-band">
           <article className="feature-intro">
@@ -118,12 +89,15 @@ export function HomePage() {
               <br />
               <em>the person.</em>
             </h2>
-            <p>Prayer, counselling and follow-up deserve a thoughtful home—not another thread to lose.</p>
+            <p>
+              Give prayer requests and counselling enquiries a dedicated place. Review them, protect sensitive
+              information and keep track of the people who need your attention.
+            </p>
             <Link href="/features" className="under-link">
-              Pastoral care <ArrowRight size={15} />
+              Explore pastoral care <ArrowRight size={15} />
             </Link>
           </article>
-          <div className="feature-visual">
+          <div className="feature-visual" aria-hidden="true">
             <div className="care-paper">
               <div className="paper-top">
                 <span>CARE INBOX</span>
@@ -151,34 +125,53 @@ export function HomePage() {
             <div className="visual-leaf leaf-2" />
           </div>
         </section>
-        <section className="principles">
+        <section className="principles two-up">
           <div>
-            <span className="principle-index">I</span>
-            <h3>Care, kept close</h3>
-            <p>A restricted pastoral inbox keeps sensitive care apart from everyday church operations.</p>
+            <span className="chapter">02 / Follow through</span>
+            <h3>Remember what needs doing.</h3>
+            <p>
+              Keep appointments, tasks, reminders, department reports and expense approvals organised in one
+              workspace. Know what needs your attention without carrying everything in your head.
+            </p>
           </div>
           <div>
-            <span className="principle-index">II</span>
-            <h3>Follow-through, made visible</h3>
-            <p>Appointments, tasks, reports and expenses stay clear without taking over the day.</p>
+            <span className="chapter">03 / Find your rhythm</span>
+            <h3>A workspace that fits your church.</h3>
+            <p>
+              Set up your church workspace, organise responsibilities and give your team a clearer way to work
+              together. Start with what you need and grow at your own pace.
+            </p>
+          </div>
+        </section>
+        <section className="discretion">
+          <div className="discretion-mark">
+            <LockKeyhole size={22} />
           </div>
           <div>
-            <span className="principle-index">III</span>
-            <h3>Your church, your pace</h3>
-            <p>Set up a workspace around the people and rhythms you already serve.</p>
+            <p className="eyebrow">Care, kept close.</p>
+            <h2 className="serif">Pastoral care deserves discretion.</h2>
+            <p>
+              Pastora helps keep sensitive requests and counselling notes accessible only to authorised
+              people, separate from everyday church administration.
+            </p>
+            <span className="discretion-tagline">Private care. Thoughtful follow-through.</span>
           </div>
         </section>
         <section className="closing-cta">
           <div>
-            <p className="eyebrow">A little more breathing room</p>
             <h2 className="serif">
-              Return your attention
+              Less to carry.
               <br />
-              to <em>what matters.</em>
+              <em>More room to care.</em>
             </h2>
+            <p className="closing-text">
+              You don't need another complicated system. You need a clearer way to keep up with the people and
+              responsibilities entrusted to you.
+            </p>
+            <p className="closing-text strong">Pastora gives your ministry a place to begin.</p>
           </div>
           <Link href="/sign-up" className="button cream-button">
-            Set up your workspace <ArrowRight size={16} />
+            Begin with your church <ArrowRight size={16} />
           </Link>
         </section>
       </main>

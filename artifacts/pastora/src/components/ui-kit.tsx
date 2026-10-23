@@ -79,7 +79,7 @@ export function Footer() {
   return (
     <footer className="footer">
       <Brand compact />
-      <span>Make room for the work that matters.</span>
+      <span>Your ministry. A steadier way forward.</span>
       <div>
         <Link href="/privacy">Privacy</Link>
         <Link href="/terms">Terms</Link>
