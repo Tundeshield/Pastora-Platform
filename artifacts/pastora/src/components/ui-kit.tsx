@@ -3,7 +3,7 @@ import { type ReactNode } from "react";
 import { Link } from "wouter";
 
 import { useAuth } from "@/auth";
-import { DoorMark } from "@/components/logo";
+import { PastoraMark } from "@/components/logo";
 import { apiErrorMessage } from "@/firebase-auth";
 
 export function Button({
@@ -35,7 +35,7 @@ export function Button({
 export function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/" className="brand" data-testid="link-home" aria-label="Pastora home">
-      <DoorMark size={compact ? 22 : 26} />
+      <PastoraMark size={compact ? 26 : 30} />
       <span>
         pastora<small>{compact ? "" : " care & calling"}</small>
       </span>

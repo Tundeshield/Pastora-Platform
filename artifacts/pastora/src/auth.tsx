@@ -1,4 +1,4 @@
-import { DoorMark } from "@/components/logo";
+import { PastoraMark } from "@/components/logo";
 import { firebaseAuth, onAuthStateChanged, reload, signOut, type User } from "@/firebase-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -97,7 +97,7 @@ export function safeNext(next: string | null): string | null {
 export function FullPageMessage({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="full-page-message" role="status" aria-live="polite">
-      <DoorMark size={34} className="pulse" />
+      <PastoraMark size={38} className="pulse" />
       <p className="serif">{title}</p>
       {children}
     </div>

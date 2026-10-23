@@ -378,13 +378,13 @@ body { font-size: calc(16px * var(--text-scale)); }
   .discretion { margin-bottom:56px; }
 }
 
-/* ===== Pastora mark: palette-aware colours =====================================
+/* ===== Pastora compass mark: palette-aware colours ============================
    Warm Cream values are the official brand colours (also used by favicon.svg). */
-:root { --logo-door:#345647; --logo-light:#e2b874; }
-[data-theme="modern-cool"] { --logo-door:#3d5a75; --logo-light:#f0d9a8; }
-[data-theme="sage"] { --logo-door:#446951; --logo-light:#e9cf8e; }
-[data-theme="heritage-blue"] { --logo-door:#2c3e63; --logo-light:#c9a45c; }
-[data-theme="forest-dark"] { --logo-door:#d6ae5c; --logo-light:#f7ecd0; }
-.door-mark { display:block; flex:none; }
+:root { --logo-ring:#345647; --logo-north:#c8954f; --logo-south:#345647; }
+[data-theme="modern-cool"] { --logo-ring:#3d5a75; --logo-north:#c9974f; --logo-south:#3d5a75; }
+[data-theme="sage"] { --logo-ring:#446951; --logo-north:#c3974a; --logo-south:#446951; }
+[data-theme="heritage-blue"] { --logo-ring:#2c3e63; --logo-north:#b8914a; --logo-south:#2c3e63; }
+[data-theme="forest-dark"] { --logo-ring:#d6ae5c; --logo-north:#f3e3bd; --logo-south:#d6ae5c; }
+.pastora-mark { display:block; flex:none; }
 .brand { gap:11px; }
-.full-page-message .door-mark.pulse { animation:pastora-pulse 1.6s ease-in-out infinite; }
+.full-page-message .pastora-mark.pulse { animation:pastora-pulse 1.6s ease-in-out infinite; }

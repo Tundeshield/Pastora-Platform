@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Pastora">
   <rect width="64" height="64" rx="14" fill="#f7f1e4"/>
-  <path d="M15 54 V27 A17 17 0 0 1 49 27 V54 Z" fill="#345647"/>
-  <path d="M25 54 V31.5 A7 7 0 0 1 39 31.5 V54 Z" fill="#e2b874"/>
+  <g transform="translate(32 32) scale(.62)">
+    <circle r="36" fill="none" stroke="#345647" stroke-width="6"/>
+    <g transform="rotate(35)">
+      <path d="M0 -29 C11 -15 9 -4 0 0 C-9 -4 -11 -15 0 -29 Z" fill="#c8954f"/>
+      <path d="M0 29 C11 15 9 4 0 0 C-9 4 -11 15 0 29 Z" fill="#345647"/>
+    </g>
+    <circle r="3.5" fill="#f7f1e4"/>
+  </g>
 </svg>
