@@ -212,16 +212,16 @@ a { color: inherit; text-decoration: none; }
   --chart-1: 140 21% 34%; --chart-2: 40 45% 58%; --chart-3: 95 26% 55%; --chart-4: 180 18% 45%; --chart-5: 15 35% 55%;
 }
 [data-theme="heritage-blue"] {
-  --background: 210 24% 95%; --foreground: 218 36% 17%;
-  --card: 210 30% 99%; --card-foreground: 218 36% 17%; --card-border: 212 18% 84%;
-  --popover: 210 30% 99%; --popover-foreground: 218 36% 17%; --popover-border: 212 18% 84%;
+  --background: 216 33% 94%; --foreground: 218 36% 17%;
+  --card: 216 40% 99%; --card-foreground: 218 36% 17%; --card-border: 212 18% 84%;
+  --popover: 216 40% 99%; --popover-foreground: 218 36% 17%; --popover-border: 212 18% 84%;
   --primary: 218 38% 28%; --primary-foreground: 42 40% 96%;
-  --secondary: 212 22% 88%; --secondary-foreground: 218 36% 17%;
-  --muted: 212 18% 90%; --muted-foreground: 215 14% 41%;
+  --secondary: 216 28% 87%; --secondary-foreground: 218 36% 17%;
+  --muted: 216 24% 89%; --muted-foreground: 215 14% 41%;
   --accent: 42 52% 80%; --accent-foreground: 38 52% 27%;
   --destructive: 2 53% 46%; --destructive-foreground: 42 40% 96%;
   --border: 212 18% 83%; --input: 212 18% 83%; --ring: 218 38% 38%;
-  --sidebar: 214 24% 91%; --sidebar-foreground: 218 36% 17%; --sidebar-border: 212 18% 82%;
+  --sidebar: 218 34% 90%; --sidebar-foreground: 218 36% 17%; --sidebar-border: 212 18% 82%;
   --sidebar-primary: 218 38% 28%; --sidebar-primary-foreground: 42 40% 96%; --sidebar-accent: 212 22% 86%; --sidebar-accent-foreground: 218 36% 17%; --sidebar-ring: 218 38% 38%;
   --chart-1: 218 38% 32%; --chart-2: 40 55% 52%; --chart-3: 205 30% 55%; --chart-4: 350 25% 50%; --chart-5: 170 20% 42%;
 }
