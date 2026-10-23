@@ -7,6 +7,10 @@
 [build.environment]
   NODE_VERSION = "22"
   PNPM_VERSION = "10.28.0"
+  # The project ID, service-account email and VITE_* web config are public
+  # identifiers (they ship in the browser bundle). Keep scanning everything else —
+  # above all FIREBASE_PRIVATE_KEY, which must never appear in code or build output.
+  SECRETS_SCAN_OMIT_KEYS = "FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,VITE_FIREBASE_API_KEY,VITE_FIREBASE_AUTH_DOMAIN,VITE_FIREBASE_PROJECT_ID,VITE_FIREBASE_STORAGE_BUCKET,VITE_FIREBASE_MESSAGING_SENDER_ID,VITE_FIREBASE_APP_ID"
 
 [functions]
   # Pre-bundled by `pnpm --filter @workspace/api-server build` from
