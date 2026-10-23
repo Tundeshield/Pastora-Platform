@@ -7,7 +7,7 @@ import {
   GetSetupStatusResponse,
   ListPlansResponse,
 } from "@workspace/api-zod";
-import { FieldValue } from "firebase-admin/firestore";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import { firebaseAuth } from "../middlewares/firebase-auth";
 import {
   authenticatedUser,
@@ -16,8 +16,15 @@ import {
   iso,
   listTenantDocuments,
   tenantFor,
+  tenantForUser,
 } from "../lib/pastora-data";
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
+import {
+  acceptPendingInvitation,
+  createWorkspaceForUser,
+  hasPendingInvitation,
+  WorkspaceConflictError,
+} from "../lib/workspace-service";
 
 const router: IRouter = Router();
 
@@ -73,6 +80,52 @@ router.get("/plans", (_req, res) => {
   res.json(ListPlansResponse.parse(plans));
 });
 
+function churchSummary(id: string, data: Record<string, unknown>) {
+  return {
+    id,
+    name: data.name,
+    slug: data.slug,
+    country: data.country ?? "Not set",
+    timeZone: data.timeZone ?? "UTC",
+    logoUrl: data.logoUrl ?? null,
+  };
+}
+
+async function buildSession(user: DecodedIdToken) {
+  const { db } = getFirebaseServices();
+  let context = await tenantForUser(user);
+  if (!context && (await acceptPendingInvitation(user))) {
+    context = await tenantForUser(user);
+  }
+  const profile = await db.collection("users").doc(user.uid).get();
+  const displayName =
+    (typeof profile.get("name") === "string" && profile.get("name")) ||
+    (typeof user.name === "string" ? user.name : null) ||
+    user.email?.split("@")[0] ||
+    "Pastora user";
+  const [church, settings] = context
+    ? await Promise.all([
+        db.collection("churches").doc(context.churchId).get(),
+        db.collection("churchSettings").doc(context.churchId).get(),
+      ])
+    : [null, null];
+  const churchData = church?.exists ? (church.data() ?? {}) : null;
+  return GetSessionResponse.parse({
+    user: {
+      uid: user.uid,
+      name: displayName,
+      email: user.email ?? "",
+      role: context?.role ?? "owner",
+    },
+    church: churchData && context ? churchSummary(context.churchId, churchData) : null,
+    subscriptionStatus:
+      typeof churchData?.subscriptionStatus === "string" ? churchData.subscriptionStatus : "setup_required",
+    theme: settings?.get("theme") === "modern-cool" ? "modern-cool" : "warm-cream",
+    emailVerified: user.email_verified === true,
+    invitationPending: !context && user.email_verified !== true ? await hasPendingInvitation(user.email) : false,
+  });
+}
+
 router.get("/session", firebaseAuth, async (req, res): Promise<void> => {
   try {
     const user = authenticatedUser(req);
@@ -80,44 +133,10 @@ router.get("/session", firebaseAuth, async (req, res): Promise<void> => {
       res.status(401).json({ error: "Sign in to continue." });
       return;
     }
-    const context = await tenantFor(req);
-    const { db } = getFirebaseServices();
-    const profile = await db.collection("users").doc(user.uid).get();
-    const displayName =
-      (typeof profile.get("name") === "string" && profile.get("name")) ||
-      (typeof user.name === "string" ? user.name : null) ||
-      user.email?.split("@")[0] ||
-      "Pastora user";
-    const church = context
-      ? await db.collection("churches").doc(context.churchId).get()
-      : null;
-    const churchData = church?.exists ? church.data() ?? {} : null;
-    res.json(
-      GetSessionResponse.parse({
-        user: {
-          uid: user.uid,
-          name: displayName,
-          email: user.email ?? "",
-          role: context?.role ?? "owner",
-        },
-        church: churchData
-          ? {
-              id: context?.churchId,
-              name: churchData.name,
-              slug: churchData.slug,
-              country: churchData.country ?? "Not set",
-              timeZone: churchData.timeZone ?? "UTC",
-              logoUrl: churchData.logoUrl ?? null,
-            }
-          : null,
-        subscriptionStatus:
-          typeof churchData?.subscriptionStatus === "string"
-            ? churchData.subscriptionStatus
-            : "setup_required",
-      }),
-    );
+    res.json(await buildSession(user));
   } catch (error) {
     if (failFirebaseSetup(res, error)) return;
+    req.log.error({ error }, "Unable to load session");
     res.status(400).json({ error: errorMessage(error, "Unable to load your session.") });
   }
 });
@@ -125,128 +144,29 @@ router.get("/session", firebaseAuth, async (req, res): Promise<void> => {
 router.post("/onboarding", firebaseAuth, async (req, res): Promise<void> => {
   const parsed = CreateWorkspaceBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.message });
+    res.status(400).json({ error: "Please complete all required workspace fields." });
     return;
   }
-
+  const user = authenticatedUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Sign in to continue." });
+    return;
+  }
+  if (user.email_verified !== true) {
+    res.status(403).json({ error: "Verify your email address before creating a church workspace." });
+    return;
+  }
   try {
-    const user = authenticatedUser(req);
-    if (!user) {
-      res.status(401).json({ error: "Sign in to continue." });
-      return;
-    }
-    const { db } = getFirebaseServices();
-    const existingMembership = await db
-      .collection("churchMemberships")
-      .where("uid", "==", user.uid)
-      .where("active", "==", true)
-      .limit(1)
-      .get();
-    if (!existingMembership.empty) {
-      res.status(409).json({ error: "This account already belongs to a church workspace." });
-      return;
-    }
-
-    const baseSlug =
-      parsed.data.churchName
-        .normalize("NFKD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "")
-        .slice(0, 56) || "church";
-    let slug = baseSlug;
-    let suffix = 2;
-    while (!(await db.collection("churches").where("slug", "==", slug).limit(1).get()).empty) {
-      slug = `${baseSlug}-${suffix}`;
-      suffix += 1;
-    }
-
-    const churchRef = db.collection("churches").doc();
-    const membershipRef = db.collection("churchMemberships").doc();
-    const settingsRef = db.collection("churchSettings").doc(churchRef.id);
-    const subscriptionRef = db.collection("subscriptions").doc(churchRef.id);
-    const now = FieldValue.serverTimestamp();
-    const church = {
-      name: parsed.data.churchName.trim(),
-      slug,
-      phone: parsed.data.phone ?? null,
-      country: parsed.data.country,
-      timeZone: parsed.data.timeZone,
-      logoUrl: null,
-      ownerUid: user.uid,
-      status: "active",
-      subscriptionStatus: "setup_required",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const userRef = db.collection("users").doc(user.uid);
-    const batch = db.batch();
-    batch.set(churchRef, church);
-    batch.set(membershipRef, {
-      churchId: churchRef.id,
-      uid: user.uid,
-      role: "owner",
-      active: true,
-      createdAt: now,
-    });
-    batch.set(settingsRef, {
-      churchId: churchRef.id,
-      theme: parsed.data.theme,
-      welcomeMessage: "You are welcome to reach out. Our pastoral care team is here to listen.",
-      emergencyNotice:
-        "Pastora is not an emergency response service or a replacement for professional healthcare.",
-      appointmentDurationMinutes: 45,
-      appointmentEnabled: true,
-      publicPortalEnabled: true,
-      categories: ["General", "Family", "Health", "Guidance"],
-      retentionDays: 0,
-      createdAt: now,
-      updatedAt: now,
-    });
-    batch.set(subscriptionRef, {
-      churchId: churchRef.id,
-      planId: "starter",
-      status: "setup_required",
-      billingProvider: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-    batch.set(
-      userRef,
-      {
-        uid: user.uid,
-        name: parsed.data.pastorName.trim(),
-        email: user.email ?? "",
-        updatedAt: now,
-      },
-      { merge: true },
-    );
-    await batch.commit();
-
-    res.status(201).json(
-      CreateWorkspaceResponse.parse({
-        user: {
-          uid: user.uid,
-          name: parsed.data.pastorName.trim(),
-          email: user.email ?? "",
-          role: "owner",
-        },
-        church: {
-          id: churchRef.id,
-          name: church.name,
-          slug: church.slug,
-          country: church.country,
-          timeZone: church.timeZone,
-          logoUrl: null,
-        },
-        subscriptionStatus: "setup_required",
-      }),
-    );
+    const result = await createWorkspaceForUser(user, parsed.data);
+    res.status(result.created ? 201 : 200).json(CreateWorkspaceResponse.parse(await buildSession(user)));
   } catch (error) {
     if (failFirebaseSetup(res, error)) return;
+    if (error instanceof WorkspaceConflictError) {
+      res.status(409).json({ error: error.message });
+      return;
+    }
     req.log.error({ error }, "Unable to create church workspace");
-    res.status(500).json({ error: "Unable to create the church workspace." });
+    res.status(500).json({ error: "Unable to create the church workspace. Please try again." });
   }
 });
 

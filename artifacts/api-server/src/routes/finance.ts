@@ -17,14 +17,14 @@ import {
   listTenantDocuments,
   notifyChurchRoles,
   recordWithId,
-  tenantDocument,
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
-import { canApproveExpense, canRecordExpensePayment } from "../lib/policies";
+import { canApproveExpense, canRecordExpensePayment, expenseTransitionAllowed } from "../lib/policies";
 
 const router: IRouter = Router();
 const approvers = ["owner", "pastor"] as const;
+const submitters = ["owner", "pastor", "staff", "department_leader", "finance"] as const;
 
 router.get("/expenses", firebaseAuth, async (req, res): Promise<void> => {
   try {
@@ -34,7 +34,7 @@ router.get("/expenses", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening expenses." });
       return;
     }
-    if (!hasRole(context, [...approvers, "finance"])) {
+    if (!hasRole(context, [...submitters])) {
       res.status(403).json({ error: "Your role cannot view financial requests." });
       return;
     }
@@ -80,7 +80,7 @@ router.post("/expenses", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before submitting expenses." });
       return;
     }
-    if (!hasRole(context, ["owner", "pastor", "staff", "department_leader", "finance"])) {
+    if (!hasRole(context, [...submitters])) {
       res.status(403).json({ error: "Your role cannot submit expense requests." });
       return;
     }
@@ -140,78 +140,95 @@ router.patch("/expenses/:expenseId", firebaseAuth, async (req, res): Promise<voi
       res.status(409).json({ error: "Complete church onboarding before updating expenses." });
       return;
     }
-    const record = await tenantDocument(
-      "financialRequests",
-      params.data.expenseId,
-      context.churchId,
-    );
-    if (!record) {
-      res.status(404).json({ error: "Expense request not found." });
+    const status = parsed.data.status;
+    if (!status) {
+      res.status(400).json({ error: "Choose an action for this expense." });
       return;
     }
-    const status = parsed.data.status;
-    if (status === "paid") {
-      if (record.data.status !== "approved") {
-        res.status(409).json({ error: "Only an approved expense can be recorded as paid." });
-        return;
+    const { db } = getFirebaseServices();
+    const ref = db.collection("financialRequests").doc(params.data.expenseId);
+    // Read, authorise and write inside one transaction so two reviewers can never
+    // both act on the same request, and the status machine cannot be bypassed.
+    const outcome = await db.runTransaction(async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists || snap.get("churchId") !== context.churchId) {
+        return { code: 404, error: "Expense request not found." } as const;
       }
-      if (!canRecordExpensePayment({
-        role: context.role,
+      const current = snap.data() ?? {};
+      if (!expenseTransitionAllowed(current.status, status)) {
+        return {
+          code: 409,
+          error:
+            current.status === "paid"
+              ? "A recorded payment cannot be changed."
+              : current.status === "approved"
+                ? "This expense is already approved. Only a finance officer can record its payment."
+                : `This expense can no longer be changed (status: ${String(current.status)}).`,
+        } as const;
+      }
+      const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+      if (status === "paid") {
+        if (
+          !canRecordExpensePayment({
+            role: context.role,
+            actorUid: user.uid,
+            requesterUid: current.requesterId,
+            approverUid: current.approvedBy,
+            currentStatus: current.status,
+          })
+        ) {
+          return {
+            code: 403,
+            error: "A finance officer who is neither the requester nor the approver must record the payment.",
+          } as const;
+        }
+        const reference = parsed.data.paymentReference?.trim();
+        if (!reference) {
+          return { code: 400, error: "Add the real payment reference after the payment has been made." } as const;
+        }
+        update.status = "paid";
+        update.paymentReference = reference;
+        update.paymentRecordedBy = user.uid;
+        update.paymentRecordedAt = FieldValue.serverTimestamp();
+      } else {
+        if (current.requesterId === user.uid) {
+          return { code: 403, error: "You cannot review your own expense request." } as const;
+        }
+        if (!canApproveExpense(context.role, user.uid, current.requesterId)) {
+          return { code: 403, error: "Only a pastor or the church owner can review expense requests." } as const;
+        }
+        if (status === "clarification" && !parsed.data.clarification?.trim()) {
+          return { code: 400, error: "Explain what needs clarification." } as const;
+        }
+        update.status = status;
+        update.reviewedBy = user.uid;
+        update.reviewedAt = FieldValue.serverTimestamp();
+        if (parsed.data.clarification !== undefined) update.clarification = parsed.data.clarification;
+        if (status === "approved") {
+          update.approvedBy = user.uid;
+          update.approvedAt = FieldValue.serverTimestamp();
+          // Freeze what was approved so later edits elsewhere can be detected.
+          update.approvedAmount = current.amount;
+        }
+      }
+      tx.update(ref, update);
+      tx.set(db.collection("auditLogs").doc(), {
+        churchId: context.churchId,
         actorUid: user.uid,
-        requesterUid: record.data.requesterId,
-        approverUid: record.data.approvedBy,
-        currentStatus: record.data.status,
-      })) {
-        res.status(403).json({
-          error: "A finance officer who is neither the requester nor approver must record the payment.",
-        });
-        return;
-      }
-      if (!parsed.data.paymentReference?.trim()) {
-        res.status(400).json({
-          error: "Add the real payment reference after the payment has been made.",
-        });
-        return;
-      }
-    } else {
-      if (!status || !canApproveExpense(context.role, user.uid, record.data.requesterId)) {
-        res.status(403).json({ error: "Only a pastor can approve, reject or request clarification." });
-        return;
-      }
-      if (record.data.requesterId === user.uid) {
-        res.status(403).json({ error: "You cannot approve your own expense request." });
-        return;
-      }
-      if (record.data.status === "paid") {
-        res.status(409).json({ error: "A recorded payment cannot be changed here." });
-        return;
-      }
-    }
-    const update: Record<string, unknown> = {
-      updatedAt: FieldValue.serverTimestamp(),
-    };
-    if (status === "paid") {
-      update.status = "paid";
-      update.paymentReference = parsed.data.paymentReference?.trim();
-      update.paymentRecordedBy = user.uid;
-      update.paymentRecordedAt = FieldValue.serverTimestamp();
-    } else if (status) {
-      update.status = status;
-      update.reviewedBy = user.uid;
-      update.reviewedAt = FieldValue.serverTimestamp();
-      if (parsed.data.clarification !== undefined) {
-        update.clarification = parsed.data.clarification;
-      }
-      if (status === "approved") update.approvedBy = user.uid;
-    }
-    await record.ref.update(update);
-    await getFirebaseServices().db.collection("auditLogs").add({
-      churchId: context.churchId,
-      actorUid: user.uid,
-      action: status === "paid" ? "expense_payment_recorded" : `expense_${status}`,
-      recordId: params.data.expenseId,
-      createdAt: FieldValue.serverTimestamp(),
+        action: status === "paid" ? "expense_payment_recorded" : `expense_${status}`,
+        recordId: ref.id,
+        fromStatus: current.status,
+        toStatus: status,
+        amount: current.amount,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return { code: 200 } as const;
     });
+    if (outcome.code !== 200) {
+      res.status(outcome.code).json({ error: outcome.error });
+      return;
+    }
+    const record = { ref };
     const saved = await record.ref.get();
     res.json(
       UpdateExpenseResponse.parse(recordWithId(saved.id, saved.data() ?? {})),
