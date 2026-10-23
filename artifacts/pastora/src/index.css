@@ -363,3 +363,17 @@ body { font-size: calc(16px * var(--text-scale)); }
   .record-actions form { max-width:none; }
   .auth-form>.button { justify-self:stretch; }
 }
+
+/* ===== Landing page: one shared content edge at every width =====================
+   Every section uses the same side gutter, so headings, text and cards line up
+   down the page: 1096px content centred on wide screens, 48px on tablets and
+   small laptops, 24px on phones. */
+:root { --page-gutter: max(calc((100% - 1096px) / 2), 48px); }
+.hero-section, .manifesto, .feature-band, .closing-cta { max-width:none; padding-left:var(--page-gutter); padding-right:var(--page-gutter); }
+.principles, .discretion { max-width:none; width:auto; margin-left:var(--page-gutter); margin-right:var(--page-gutter); }
+.discretion { margin-top:0; margin-bottom:97px; }
+@media (max-width:900px) { .hero-section { gap:36px; } .feature-band { gap:40px; } }
+@media (max-width:680px) {
+  :root { --page-gutter: 24px; }
+  .discretion { margin-bottom:56px; }
+}
