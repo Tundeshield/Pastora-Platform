@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 
+import { AuthProvider } from "@/auth";
 import { WorkspaceLayout } from "@/components/workspace-layout";
 import { AppointmentsPage } from "@/pages/appointments";
 import { AuthPage } from "@/pages/auth";
@@ -16,27 +16,26 @@ import { ReportsPage } from "@/pages/reports";
 import { RequestsPage } from "@/pages/requests";
 import { SettingsPage } from "@/pages/settings";
 import { TasksPage } from "@/pages/tasks";
+import { TeamPage } from "@/pages/team";
+import { applyTheme, storedTheme } from "@/theme";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false } },
+});
+
+// Apply the remembered theme before first paint of the app.
+applyTheme(storedTheme());
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <ThemeRoot />
-        <Router />
-      </WouterRouter>
+      <AuthProvider>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+      </AuthProvider>
     </QueryClientProvider>
   );
-}
-
-function ThemeRoot() {
-  const [theme, setTheme] = useState(() => localStorage.getItem("pastora-theme") || "warm-cream");
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("pastora-theme", theme);
-  }, [theme]);
-  return null;
 }
 
 function Router() {
@@ -91,6 +90,11 @@ function Router() {
       <Route path="/app/expenses">
         <WorkspaceLayout>
           <ExpensesPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/team">
+        <WorkspaceLayout>
+          <TeamPage />
         </WorkspaceLayout>
       </Route>
       <Route path="/app/settings">

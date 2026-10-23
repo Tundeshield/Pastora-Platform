@@ -9,7 +9,17 @@ import {
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { Badge, Button, EmptyState, ErrorPanel, Field, PageHeading, SkeletonRows } from "@/components/ui-kit";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorPanel,
+  Field,
+  MutationError,
+  PageHeading,
+  SkeletonRows,
+} from "@/components/ui-kit";
+import { apiErrorMessage } from "@/firebase-auth";
 
 export function AppointmentsPage() {
   const q = useListAppointments({ query: { queryKey: getListAppointmentsQueryKey(), retry: 1 } });
@@ -101,10 +111,14 @@ export function AppointmentsPage() {
           </Button>
         </form>
       )}
+      <MutationError errors={[create.error, update.error]} />
       {q.isLoading ? (
         <SkeletonRows />
       ) : q.isError ? (
-        <ErrorPanel text="Appointments are unavailable." retry={() => void q.refetch()} />
+        <ErrorPanel
+          text={apiErrorMessage(q.error, "Appointments are unavailable.")}
+          retry={() => void q.refetch()}
+        />
       ) : q.data?.length ? (
         <div className="table-card">
           <div className="table-head">

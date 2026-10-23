@@ -8,7 +8,17 @@ import {
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { Badge, Button, EmptyState, ErrorPanel, Field, PageHeading, SkeletonRows } from "@/components/ui-kit";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorPanel,
+  Field,
+  MutationError,
+  PageHeading,
+  SkeletonRows,
+} from "@/components/ui-kit";
+import { apiErrorMessage } from "@/firebase-auth";
 
 export function ReportsPage() {
   const q = useListReports({ query: { queryKey: getListReportsQueryKey(), retry: 1 } });
@@ -97,10 +107,14 @@ export function ReportsPage() {
           </Button>
         </form>
       )}
+      <MutationError errors={[create.error, review.error]} />
       {q.isLoading ? (
         <SkeletonRows />
       ) : q.isError ? (
-        <ErrorPanel text="Department reports are unavailable." retry={() => void q.refetch()} />
+        <ErrorPanel
+          text={apiErrorMessage(q.error, "Department reports are unavailable.")}
+          retry={() => void q.refetch()}
+        />
       ) : q.data?.length ? (
         <div className="record-list">
           {q.data.map((report) => (

@@ -11,12 +11,31 @@ import {
   Receipt,
   ShieldCheck,
 } from "lucide-react";
-import { Link } from "wouter";
+import { useEffect } from "react";
+import { Link, useLocation } from "wouter";
+
+import { useSession } from "@/auth";
 
 import { Badge, EmptyState, ErrorPanel, PageHeading, SkeletonRows } from "@/components/ui-kit";
 
+function greeting(): string {
+  const hour = new Date().getHours();
+  return hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.";
+}
+
 export function DashboardPage() {
-  const dashboard = useGetDashboard({ query: { queryKey: getGetDashboardQueryKey(), retry: 1 } });
+  const session = useSession();
+  const role = session.data?.user.role;
+  const [, setLocation] = useLocation();
+  const hasOverview = role === "owner" || role === "pastor" || role === "counsellor" || role === "staff";
+  // Finance and department leaders have no overview; send them to their main page.
+  useEffect(() => {
+    if (role === "finance") setLocation("/app/expenses", { replace: true });
+    if (role === "department_leader") setLocation("/app/reports", { replace: true });
+  }, [role, setLocation]);
+  const dashboard = useGetDashboard({
+    query: { queryKey: getGetDashboardQueryKey(), retry: 1, enabled: hasOverview },
+  });
   const summary = dashboard.data;
   const metrics = [
     [
@@ -61,7 +80,7 @@ export function DashboardPage() {
     <div className="enter">
       <PageHeading
         eyebrow="Pastora / Today"
-        title="Good morning."
+        title={greeting()}
         subtitle="A clear view of what needs your attention, and what can wait."
         action={
           <Link href="/app/tasks" className="button primary">

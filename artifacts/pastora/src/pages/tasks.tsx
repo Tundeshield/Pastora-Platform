@@ -2,7 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Task } from "@workspace/api-client-react";
 import {
   getGetDashboardQueryKey,
+  getGetTeamQueryKey,
   getListTasksQueryKey,
+  useGetTeam,
   useCreateTask,
   useListTasks,
   useUpdateTask,
@@ -10,7 +12,17 @@ import {
 import { ArrowRight, Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { Button, EmptyState, ErrorPanel, Field, PageHeading, SkeletonRows } from "@/components/ui-kit";
+import { useSession } from "@/auth";
+import {
+  Button,
+  EmptyState,
+  ErrorPanel,
+  Field,
+  MutationError,
+  PageHeading,
+  SkeletonRows,
+} from "@/components/ui-kit";
+import { apiErrorMessage } from "@/firebase-auth";
 
 export function TasksPage() {
   const q = useListTasks({ query: { queryKey: getListTasksQueryKey(), retry: 1 } });
@@ -18,7 +30,19 @@ export function TasksPage() {
   const update = useUpdateTask();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: "", description: "", priority: "normal", dueAt: "" });
+  const session = useSession();
+  const canAssign = session.data?.user.role === "owner" || session.data?.user.role === "pastor";
+  const team = useGetTeam({ query: { queryKey: getGetTeamQueryKey(), enabled: canAssign, retry: 1 } });
+  const members = (team.data?.members ?? []).filter((m) => m.active);
+  const nameFor = (uid: string) =>
+    uid === session.data?.user.uid ? "you" : (members.find((m) => m.uid === uid)?.name ?? "a team member");
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    priority: "normal",
+    dueAt: "",
+    assignedTo: "",
+  });
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: getListTasksQueryKey() });
     void qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
@@ -30,6 +54,7 @@ export function TasksPage() {
         data: {
           ...form,
           description: form.description || null,
+          assignedTo: form.assignedTo || null,
           priority: form.priority as "low" | "normal" | "high",
           dueAt: form.dueAt ? new Date(form.dueAt).toISOString() : null,
         },
@@ -38,6 +63,7 @@ export function TasksPage() {
         onSuccess: () => {
           invalidate();
           setOpen(false);
+          setForm({ title: "", description: "", priority: "normal", dueAt: "", assignedTo: "" });
         },
       },
     );
@@ -69,6 +95,21 @@ export function TasksPage() {
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </Field>
+          {canAssign && (
+            <Field label="Assign to">
+              <select
+                value={form.assignedTo}
+                onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
+              >
+                <option value="">Not assigned</option>
+                {members.map((m) => (
+                  <option key={m.uid} value={m.uid}>
+                    {m.isCurrentUser ? `${m.name} (you)` : m.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
           <Field label="Priority">
             <select value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
               <option value="low">Low</option>
@@ -88,16 +129,21 @@ export function TasksPage() {
           </Button>
         </form>
       )}
+      <MutationError errors={[create.error, update.error]} />
       {q.isLoading ? (
         <SkeletonRows />
       ) : q.isError ? (
-        <ErrorPanel text="Tasks are unavailable." retry={() => void q.refetch()} />
+        <ErrorPanel
+          text={apiErrorMessage(q.error, "Tasks are unavailable.")}
+          retry={() => void q.refetch()}
+        />
       ) : q.data?.length ? (
         <div className="task-board">
           {q.data.map((task) => (
             <TaskCard
               key={task.id}
               task={task}
+              assigneeName={nameFor}
               onStatus={(status) =>
                 update.mutate({ taskId: task.id, data: { status } }, { onSuccess: invalidate })
               }
@@ -117,8 +163,10 @@ export function TasksPage() {
 export function TaskCard({
   task,
   onStatus,
+  assigneeName,
 }: {
   task: Task;
+  assigneeName: (uid: string) => string;
   onStatus: (s: "todo" | "in_progress" | "blocked" | "completed") => void;
 }) {
   return (
@@ -129,7 +177,7 @@ export function TaskCard({
         {task.description && <p>{task.description}</p>}
         <small>
           {task.dueAt ? `Due ${new Date(task.dueAt).toLocaleDateString()}` : "No due date"}
-          {task.assignedTo ? ` · Assigned ${task.assignedTo}` : ""}
+          {task.assignedTo ? ` · Assigned to ${assigneeName(task.assignedTo)}` : ""}
         </small>
       </div>
       <select

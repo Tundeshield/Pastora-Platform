@@ -17,10 +17,11 @@ import {
   EmptyState,
   ErrorPanel,
   Field,
+  MutationError,
   PageHeading,
   SkeletonRows,
-  StatusLine,
 } from "@/components/ui-kit";
+import { apiErrorMessage } from "@/firebase-auth";
 
 export function RequestsPage() {
   const q = useListRequests(undefined, { query: { queryKey: getListRequestsQueryKey(), retry: 1 } });
@@ -93,18 +94,18 @@ export function RequestsPage() {
               Cancel
             </Button>
           </div>
-          {create.isError && <StatusLine error>Request could not be saved.</StatusLine>}
         </form>
       )}
       <div className="care-private-banner">
         <LockKeyhole size={17} />
         <span>Restricted pastoral care. Do not share sensitive details outside this inbox.</span>
       </div>
+      <MutationError errors={[create.error, update.error, addNote.error]} />
       {q.isLoading ? (
         <SkeletonRows />
       ) : q.isError ? (
         <ErrorPanel
-          text="Requests are unavailable or your role does not permit access."
+          text={apiErrorMessage(q.error, "Requests are unavailable or your role does not permit access.")}
           retry={() => void q.refetch()}
         />
       ) : q.data?.length ? (

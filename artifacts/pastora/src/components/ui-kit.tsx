@@ -2,6 +2,9 @@ import { Activity, ArrowRight, CircleHelp, Sparkles } from "lucide-react";
 import { type ReactNode } from "react";
 import { Link } from "wouter";
 
+import { useAuth } from "@/auth";
+import { apiErrorMessage } from "@/firebase-auth";
+
 export function Button({
   children,
   onClick,
@@ -42,6 +45,8 @@ export function Brand({ compact = false }: { compact?: boolean }) {
 }
 
 export function Header({ app = false }: { app?: boolean }) {
+  const { status } = useAuth();
+  const signedIn = app || status === "signed-in";
   return (
     <header className="topbar">
       <Brand />
@@ -51,7 +56,7 @@ export function Header({ app = false }: { app?: boolean }) {
         <Link href="/support">Support</Link>
       </nav>
       <div className="header-actions">
-        {app ? (
+        {signedIn ? (
           <Link className="text-link" href="/app">
             Workspace <ArrowRight size={15} />
           </Link>
@@ -202,6 +207,18 @@ export function EmptyState({ title, description }: { title: string; description:
       </span>
       <h3>{title}</h3>
       <p>{description}</p>
+    </div>
+  );
+}
+
+/** Shows the first server error from a set of mutations, in plain language. */
+export function MutationError({ errors }: { errors: unknown[] }) {
+  const error = errors.find(Boolean);
+  if (!error) return null;
+  return (
+    <div className="inline-error" role="alert">
+      <CircleHelp size={15} />
+      <span>{apiErrorMessage(error)}</span>
     </div>
   );
 }

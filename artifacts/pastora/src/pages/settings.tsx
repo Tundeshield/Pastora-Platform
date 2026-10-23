@@ -13,10 +13,13 @@ import {
   EmptyState,
   ErrorPanel,
   Field,
+  MutationError,
   PageHeading,
   SkeletonRows,
   Toggle,
 } from "@/components/ui-kit";
+import { apiErrorMessage } from "@/firebase-auth";
+import { applyTheme, storedTheme } from "@/theme";
 
 export function SettingsPage() {
   const q = useGetSettings({ query: { queryKey: getGetSettingsQueryKey(), retry: 1 } });
@@ -27,12 +30,15 @@ export function SettingsPage() {
     if (q.data && !local)
       setLocal({ ...q.data, theme: q.data.theme === "modern-cool" ? "modern-cool" : "warm-cream" });
   }, [q.data, local]);
-  const [themeChoice, setThemeChoice] = useState(localStorage.getItem("pastora-theme") || "warm-cream");
+  const [themeChoice, setThemeChoice] = useState<string>(storedTheme());
+  const [saved, setSaved] = useState(false);
   const save = (payload: Record<string, unknown>) =>
     update.mutate(
       { data: payload },
       {
         onSuccess: (data) => {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2500);
           qc.setQueryData(getGetSettingsQueryKey(), data);
           void qc.invalidateQueries({ queryKey: getGetSessionQueryKey() });
         },
@@ -57,7 +63,10 @@ export function SettingsPage() {
           title="Settings"
           subtitle="Church details and workspace preferences."
         />
-        <ErrorPanel text="Church settings are unavailable." retry={() => void q.refetch()} />
+        <ErrorPanel
+          text={apiErrorMessage(q.error, "Church settings are unavailable.")}
+          retry={() => void q.refetch()}
+        />
       </>
     );
   if (!local)
@@ -74,6 +83,12 @@ export function SettingsPage() {
         title="Settings"
         subtitle="Church details, public care and workspace preferences."
       />
+      <MutationError errors={[update.error]} />
+      {saved && (
+        <div className="inline-success" role="status">
+          Settings saved.
+        </div>
+      )}
       <div className="settings-stack">
         <section className="settings-section">
           <div>
@@ -177,15 +192,14 @@ export function SettingsPage() {
           <div>
             <p className="eyebrow">Workspace feel</p>
             <h2 className="serif">Choose your palette</h2>
-            <p>Your preference is saved on this device.</p>
+            <p>Applies to everyone in this workspace and follows you to any device.</p>
           </div>
           <div className="theme-options">
             <button
               className={`theme-option cream-option ${themeChoice === "warm-cream" ? "selected" : ""}`}
               onClick={() => {
                 setThemeChoice("warm-cream");
-                document.documentElement.dataset.theme = "warm-cream";
-                localStorage.setItem("pastora-theme", "warm-cream");
+                applyTheme("warm-cream");
                 save({ theme: "warm-cream" });
               }}
             >
@@ -197,8 +211,7 @@ export function SettingsPage() {
               className={`theme-option cool-option ${themeChoice === "modern-cool" ? "selected" : ""}`}
               onClick={() => {
                 setThemeChoice("modern-cool");
-                document.documentElement.dataset.theme = "modern-cool";
-                localStorage.setItem("pastora-theme", "modern-cool");
+                applyTheme("modern-cool");
                 save({ theme: "modern-cool" });
               }}
             >

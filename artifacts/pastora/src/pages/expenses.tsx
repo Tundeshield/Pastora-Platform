@@ -5,11 +5,23 @@ import {
   useCreateExpense,
   useListExpenses,
   useUpdateExpense,
+  type ExpenseRequest,
 } from "@workspace/api-client-react";
 import { Check, CircleHelp, Plus, Receipt, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { Badge, Button, EmptyState, ErrorPanel, Field, PageHeading, SkeletonRows } from "@/components/ui-kit";
+import { useSession } from "@/auth";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  ErrorPanel,
+  Field,
+  MutationError,
+  PageHeading,
+  SkeletonRows,
+} from "@/components/ui-kit";
+import { apiErrorMessage } from "@/firebase-auth";
 
 export function ExpensesPage() {
   const q = useListExpenses({ query: { queryKey: getListExpensesQueryKey(), retry: 1 } });
@@ -18,6 +30,14 @@ export function ExpensesPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ description: "", purpose: "", amount: "", department: "" });
+  const session = useSession();
+  const me = session.data?.user;
+  const canReview = (x: ExpenseRequest) =>
+    (me?.role === "owner" || me?.role === "pastor") &&
+    x.requesterId !== me.uid &&
+    (x.status === "submitted" || x.status === "clarification");
+  const canRecordPayment = (x: ExpenseRequest) =>
+    me?.role === "finance" && x.status === "approved" && x.requesterId !== me.uid && x.approvedBy !== me.uid;
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: getListExpensesQueryKey() });
     void qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
@@ -94,10 +114,14 @@ export function ExpensesPage() {
           </Button>
         </form>
       )}
+      <MutationError errors={[create.error, update.error]} />
       {q.isLoading ? (
         <SkeletonRows />
       ) : q.isError ? (
-        <ErrorPanel text="Expense requests are unavailable." retry={() => void q.refetch()} />
+        <ErrorPanel
+          text={apiErrorMessage(q.error, "Expense requests are unavailable.")}
+          retry={() => void q.refetch()}
+        />
       ) : q.data?.length ? (
         <div className="table-card">
           <div className="table-head expense-head">
@@ -119,7 +143,7 @@ export function ExpensesPage() {
               </b>
               <Badge label={x.status} />
               <div className="expense-actions">
-                {x.status === "submitted" ? (
+                {canReview(x) ? (
                   <>
                     <button
                       onClick={() =>
@@ -128,48 +152,60 @@ export function ExpensesPage() {
                           { onSuccess: invalidate },
                         )
                       }
-                      aria-label="Approve expense"
+                      aria-label={`Approve ${x.description}`}
+                      title="Approve"
                     >
                       <Check size={17} />
                     </button>
                     <button
-                      onClick={() =>
-                        update.mutate(
-                          { expenseId: x.id, data: { status: "rejected" } },
-                          { onSuccess: invalidate },
-                        )
-                      }
-                      aria-label="Reject expense"
-                    >
-                      <X size={17} />
-                    </button>
-                    <button
                       onClick={() => {
-                        const text = window.prompt("What needs clarification?");
-                        if (text)
+                        if (window.confirm(`Reject “${x.description}”? This cannot be undone.`))
                           update.mutate(
-                            { expenseId: x.id, data: { status: "clarification", clarification: text } },
+                            { expenseId: x.id, data: { status: "rejected" } },
                             { onSuccess: invalidate },
                           );
                       }}
-                      aria-label="Request clarification"
+                      aria-label={`Reject ${x.description}`}
+                      title="Reject"
                     >
-                      <CircleHelp size={17} />
+                      <X size={17} />
                     </button>
+                    {x.status === "submitted" && (
+                      <button
+                        onClick={() => {
+                          const text = window.prompt("What needs clarification?")?.trim();
+                          if (text)
+                            update.mutate(
+                              { expenseId: x.id, data: { status: "clarification", clarification: text } },
+                              { onSuccess: invalidate },
+                            );
+                        }}
+                        aria-label={`Ask for clarification on ${x.description}`}
+                        title="Ask for clarification"
+                      >
+                        <CircleHelp size={17} />
+                      </button>
+                    )}
                   </>
-                ) : x.status === "approved" ? (
+                ) : canRecordPayment(x) ? (
                   <button
                     onClick={() => {
-                      const ref = window.prompt("Payment reference (optional)");
-                      if (ref !== null)
+                      const ref = window
+                        .prompt("Payment reference (bank transfer or receipt number)")
+                        ?.trim();
+                      if (ref)
                         update.mutate(
-                          { expenseId: x.id, data: { status: "paid", paymentReference: ref || null } },
+                          { expenseId: x.id, data: { status: "paid", paymentReference: ref } },
                           { onSuccess: invalidate },
                         );
                     }}
                   >
-                    Mark paid
+                    Record payment
                   </button>
+                ) : x.status === "paid" && x.paymentReference ? (
+                  <small>Ref {x.paymentReference}</small>
+                ) : x.status === "clarification" && x.clarification ? (
+                  <small title={x.clarification}>Asked: {x.clarification}</small>
                 ) : (
                   <span>—</span>
                 )}
