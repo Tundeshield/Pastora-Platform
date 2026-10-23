@@ -16,7 +16,7 @@ import { Link, useLocation } from "wouter";
 
 import { useSession } from "@/auth";
 
-import { Badge, EmptyState, ErrorPanel, PageHeading, SkeletonRows } from "@/components/ui-kit";
+import { Badge, EmptyState, ErrorPanel, PageHeading, SkeletonRows, formatLabel } from "@/components/ui-kit";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -171,7 +171,7 @@ export function AppointmentRow({ item }: { item: Appointment }) {
         <b>{item.requesterName}</b>
         <small>
           {new Date(item.startAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} ·{" "}
-          {item.format}
+          {formatLabel(item.format)}
         </small>
       </div>
       <Badge label={item.status} />

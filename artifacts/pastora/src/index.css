@@ -303,3 +303,63 @@ body { font-size: calc(16px * var(--text-scale)); }
 }
 .principles, .discretion { width:min(1096px, calc(100% - 80px)); }
 @media (max-width:680px) { .principles, .discretion { width:auto; } }
+
+/* ===== UI polish: form spacing and controls ===================================== */
+/* Account forms (sign in, create account, reset, verify) */
+.auth-card>p:not(.eyebrow) { margin:0 0 24px; }
+.auth-form { display:grid; gap:18px; margin-top:4px; }
+.auth-form>.button { justify-self:start; margin-top:6px; }
+.auth-card .status-line { margin-top:14px; }
+.auth-links { margin-top:24px; }
+
+/* Fields keep their natural height; rows line up at the top. */
+.field { align-content:start; gap:8px; }
+.form-card,.inline-form,.portal-form,.settings-fields { align-items:start; }
+.inline-form,.grid-form { gap:18px 16px; }
+.inline-form>.button,.grid-form>.button,.inline-form>.form-actions { align-self:end; }
+.field textarea { line-height:1.6; }
+
+/* One consistent dropdown with a proper chevron and room around the text. */
+.field select,.record-actions select,.table-row select,.task-card select,.team-row select {
+  -webkit-appearance:none; appearance:none; cursor:pointer;
+  padding-right:38px; background-repeat:no-repeat; background-position:right 13px center; background-size:14px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23778579' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+.record-actions select,.table-row select,.task-card select,.team-row select { min-height:38px; padding-top:7px; padding-bottom:7px; padding-left:12px; font-size:calc(11px * var(--text-scale)); }
+.record-actions select { min-width:150px; }
+.team-row select { width:100%; max-width:220px; border:1px solid hsl(var(--input)); border-radius:7px; background-color:hsl(var(--background)); color:hsl(var(--foreground)); }
+.field select:focus,.record-actions select:focus,.table-row select:focus,.task-card select:focus,.team-row select:focus { border-color:hsl(var(--ring)); box-shadow:0 0 0 2px hsl(var(--ring)/.12); outline:none; }
+.record-actions form input { min-height:38px; padding:8px 12px; font-size:calc(11px * var(--text-scale)); }
+.record-actions form button { min-width:42px; }
+.record-actions { gap:12px; margin-top:18px; padding-top:16px; }
+
+/* Record cards (care inbox, department reports) */
+.record-card { padding:22px 24px; }
+.record-card>p { margin:12px 0 0; max-width:820px; color:hsl(var(--foreground)); font-size:calc(12px * var(--text-scale)); line-height:1.75; }
+.record-card>p b { font-weight:600; }
+.record-head small { display:block; margin-top:2px; }
+.request-message { margin:14px 0 10px; }
+.record-meta { margin-top:4px; }
+.review-comment { border-radius:7px; padding:12px 14px; }
+
+/* Team table: header aligned with rows */
+.team-row { grid-template-columns:1.4fr 1fr .9fr 150px; min-width:0; gap:16px; }
+.team-row.table-head { padding:12px 18px; font-size:calc(8px * var(--text-scale)); }
+.team-row>:last-child { justify-self:end; }
+.team-row .button { min-height:36px; padding:0 14px; font-size:calc(11px * var(--text-scale)); }
+.section-title { margin:40px 0 14px; }
+
+/* Only the role under the church name is capitalised, never email addresses. */
+.profile-row small { text-transform:none; }
+.workspace-switch small { text-transform:none; }
+
+@media (max-width:680px) {
+  .team-row.table-head { display:none; }
+  .team-row { grid-template-columns:1fr; }
+  .team-row>:last-child { justify-self:start; }
+  .team-row select { max-width:none; }
+  .record-card { padding:18px; }
+  .record-actions select { width:100%; }
+  .record-actions form { max-width:none; }
+  .auth-form>.button { justify-self:stretch; }
+}

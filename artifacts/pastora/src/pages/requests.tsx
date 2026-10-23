@@ -20,6 +20,7 @@ import {
   MutationError,
   PageHeading,
   SkeletonRows,
+  formatDateTime,
 } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 
@@ -149,7 +150,7 @@ export function RequestCard({
         <div>
           <span className="type-label">{r.type}</span>
           <h3>{r.anonymous ? "Anonymous" : r.name || "Name not provided"}</h3>
-          <small>{new Date(r.createdAt).toLocaleString()}</small>
+          <small>{formatDateTime(r.createdAt)}</small>
         </div>
         <Badge label={r.status} />
       </div>

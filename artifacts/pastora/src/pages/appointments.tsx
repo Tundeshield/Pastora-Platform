@@ -18,6 +18,7 @@ import {
   MutationError,
   PageHeading,
   SkeletonRows,
+  formatLabel,
 } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 
@@ -134,7 +135,7 @@ export function AppointmentsPage() {
               <span>
                 {new Date(a.startAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
               </span>
-              <span>{a.format}</span>
+              <span>{formatLabel(a.format)}</span>
               <Badge label={a.status} />
               <select
                 value={a.status}

@@ -222,3 +222,15 @@ export function MutationError({ errors }: { errors: unknown[] }) {
     </div>
   );
 }
+
+const FORMAT_LABELS: Record<string, string> = { "in-person": "In person", phone: "Phone", video: "Video" };
+
+/** "in-person" → "In person" for appointment formats. */
+export function formatLabel(format: string): string {
+  return FORMAT_LABELS[format] ?? format;
+}
+
+/** A date and time without seconds, e.g. "23 Oct 2026, 08:50". */
+export function formatDateTime(value: string | Date): string {
+  return new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
