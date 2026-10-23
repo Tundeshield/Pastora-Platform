@@ -101,7 +101,10 @@ environment variables (Site configuration → Environment variables):
 | `FIREBASE_CLIENT_EMAIL` | Functions | Service account `client_email` |
 | `FIREBASE_PRIVATE_KEY` | Functions, **secret** | Service account `private_key` (paste as-is, including the BEGIN/END lines) |
 
-Keep the `VITE_*` variables scoped to **Builds** only: Netlify Functions share a ~4 KB
+Also set `AWS_LAMBDA_JS_RUNTIME` = `nodejs22.x` (Netlify reads it from the UI/API only,
+not from `netlify.toml`): firebase-admin's token verification needs Node 22.12+.
+
+On paid Netlify plans, keep the `VITE_*` variables scoped to **Builds** only: Netlify Functions share a ~4 KB
 environment limit, and the private key needs most of it.
 
 Then in the Firebase console for the project:
