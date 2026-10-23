@@ -1,264 +1,121 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
-import { Link, Route, Router as WouterRouter, Switch, useLocation, useParams } from 'wouter';
-import {
-  Activity, ArrowDownRight, ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCheck, ChevronDown,
-  CircleHelp, ClipboardList, Clock3, FileText, HeartHandshake, LayoutDashboard, LockKeyhole,
-  LogIn, Menu, Moon, MoreHorizontal, Plus, QrCode, Receipt, Settings2, ShieldCheck, Sparkles, Sun,
-  X,
-} from 'lucide-react';
-import {
-  useHealthCheck, useGetSetupStatus, useGetSession, useCreateWorkspace, useGetDashboard, useGetPublicChurch,
-  useSubmitPublicRequest, useListRequests, useCreateRequest, useUpdateRequest, useAddRequestNote,
-  useListAppointments, useCreateAppointment, useUpdateAppointment, useListTasks, useCreateTask, useUpdateTask,
-  useListQrCodes, useCreateQrCode, useUpdateQrCode, useListReports, useCreateReport, useReviewReport,
-  useListExpenses, useCreateExpense, useUpdateExpense, useGetSettings, useUpdateSettings, useListNotifications,
-  useMarkNotificationRead, useListPlans, useListPlatformWorkspaces,
-  getHealthCheckQueryKey, getGetSetupStatusQueryKey, getGetSessionQueryKey, getGetDashboardQueryKey,
-  getGetPublicChurchQueryKey, getListRequestsQueryKey, getListAppointmentsQueryKey, getListTasksQueryKey,
-  getListQrCodesQueryKey, getListReportsQueryKey, getListExpensesQueryKey, getGetSettingsQueryKey,
-  getListNotificationsQueryKey, getListPlansQueryKey, getListPlatformWorkspacesQueryKey,
-} from '@workspace/api-client-react';
-import type { Appointment, PastoralRequest, Task } from '@workspace/api-client-react';
-import { firebaseAuth, isFirebaseClientConfigured, createUserWithEmailAndPassword, onAuthStateChanged, sendEmailVerification, sendPasswordResetEmail, signInWithEmailAndPassword } from './firebase-auth';
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { Route, Switch, Router as WouterRouter } from "wouter";
+
+import { WorkspaceLayout } from "@/components/workspace-layout";
+import { AppointmentsPage } from "@/pages/appointments";
+import { AuthPage } from "@/pages/auth";
+import { CarePortalPage } from "@/pages/care-portal";
+import { DashboardPage } from "@/pages/dashboard";
+import { ExpensesPage } from "@/pages/expenses";
+import { DocumentPage, FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
+import { OnboardingPage } from "@/pages/onboarding";
+import { PlatformPage } from "@/pages/platform";
+import { QrPage } from "@/pages/qr-codes";
+import { ReportsPage } from "@/pages/reports";
+import { RequestsPage } from "@/pages/requests";
+import { SettingsPage } from "@/pages/settings";
+import { TasksPage } from "@/pages/tasks";
 
 const queryClient = new QueryClient();
-const navSections = [
-  { label: 'Workspace', items: [
-    { href: '/app', label: 'Overview', icon: LayoutDashboard },
-    { href: '/app/requests', label: 'Care inbox', icon: HeartHandshake },
-    { href: '/app/appointments', label: 'Appointments', icon: CalendarDays },
-    { href: '/app/tasks', label: 'Tasks', icon: ClipboardList },
-  ]},
-  { label: 'Church operations', items: [
-    { href: '/app/qr-codes', label: 'QR links', icon: QrCode },
-    { href: '/app/reports', label: 'Department reports', icon: FileText },
-    { href: '/app/expenses', label: 'Expenses', icon: Receipt },
-  ]},
-];
 
 function App() {
-  return <QueryClientProvider client={queryClient}><WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><ThemeRoot/><Router/></WouterRouter></QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <ThemeRoot />
+        <Router />
+      </WouterRouter>
+    </QueryClientProvider>
+  );
 }
+
 function ThemeRoot() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('pastora-theme') || 'warm-cream');
-  useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('pastora-theme', theme); }, [theme]);
+  const [theme, setTheme] = useState(() => localStorage.getItem("pastora-theme") || "warm-cream");
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem("pastora-theme", theme);
+  }, [theme]);
   return null;
 }
+
 function Router() {
-  return <Switch>
-    <Route path="/" component={HomePage}/>
-    <Route path="/features" component={FeaturesPage}/>
-    <Route path="/pricing" component={PricingPage}/>
-    <Route path="/sign-in"><AuthPage mode="sign-in"/></Route><Route path="/sign-up"><AuthPage mode="sign-up"/></Route>
-    <Route path="/forgot-password"><AuthPage mode="forgot"/></Route><Route path="/verify-email"><AuthPage mode="verify"/></Route>
-    <Route path="/onboarding" component={OnboardingPage}/>
-    <Route path="/app"><WorkspaceLayout><DashboardPage/></WorkspaceLayout></Route>
-    <Route path="/app/requests"><WorkspaceLayout><RequestsPage/></WorkspaceLayout></Route>
-    <Route path="/app/appointments"><WorkspaceLayout><AppointmentsPage/></WorkspaceLayout></Route>
-    <Route path="/app/tasks"><WorkspaceLayout><TasksPage/></WorkspaceLayout></Route>
-    <Route path="/app/qr-codes"><WorkspaceLayout><QrPage/></WorkspaceLayout></Route>
-    <Route path="/app/reports"><WorkspaceLayout><ReportsPage/></WorkspaceLayout></Route>
-    <Route path="/app/expenses"><WorkspaceLayout><ExpensesPage/></WorkspaceLayout></Route>
-    <Route path="/app/settings"><WorkspaceLayout><SettingsPage/></WorkspaceLayout></Route>
-    <Route path="/care/:slug" component={CarePortalPage}/>
-    <Route path="/privacy"><DocumentPage title="Privacy, with care" category="Privacy"/></Route>
-    <Route path="/terms"><DocumentPage title="Terms of use" category="Terms"/></Route>
-    <Route path="/support"><DocumentPage title="A human answer, when you need one" category="Support"/></Route>
-    <Route path="/platform/workspaces"><PlatformPage/></Route>
-    <Route><NotFound/></Route>
-  </Switch>;
+  return (
+    <Switch>
+      <Route path="/" component={HomePage} />
+      <Route path="/features" component={FeaturesPage} />
+      <Route path="/pricing" component={PricingPage} />
+      <Route path="/sign-in">
+        <AuthPage mode="sign-in" />
+      </Route>
+      <Route path="/sign-up">
+        <AuthPage mode="sign-up" />
+      </Route>
+      <Route path="/forgot-password">
+        <AuthPage mode="forgot" />
+      </Route>
+      <Route path="/verify-email">
+        <AuthPage mode="verify" />
+      </Route>
+      <Route path="/onboarding" component={OnboardingPage} />
+      <Route path="/app">
+        <WorkspaceLayout>
+          <DashboardPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/requests">
+        <WorkspaceLayout>
+          <RequestsPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/appointments">
+        <WorkspaceLayout>
+          <AppointmentsPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/tasks">
+        <WorkspaceLayout>
+          <TasksPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/qr-codes">
+        <WorkspaceLayout>
+          <QrPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/reports">
+        <WorkspaceLayout>
+          <ReportsPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/expenses">
+        <WorkspaceLayout>
+          <ExpensesPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/settings">
+        <WorkspaceLayout>
+          <SettingsPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/care/:slug" component={CarePortalPage} />
+      <Route path="/privacy">
+        <DocumentPage title="Privacy, with care" category="Privacy" />
+      </Route>
+      <Route path="/terms">
+        <DocumentPage title="Terms of use" category="Terms" />
+      </Route>
+      <Route path="/support">
+        <DocumentPage title="A human answer, when you need one" category="Support" />
+      </Route>
+      <Route path="/platform/workspaces">
+        <PlatformPage />
+      </Route>
+      <Route>
+        <NotFound />
+      </Route>
+    </Switch>
+  );
 }
-function Button({ children, onClick, variant = 'primary', type = 'button', disabled = false }: { children: ReactNode; onClick?: () => void; variant?: 'primary'|'quiet'|'outline'|'small'; type?: 'button'|'submit'; disabled?: boolean }) {
-  return <button data-testid="button-action" type={type} onClick={onClick} disabled={disabled} className={`button ${variant} ${disabled?'disabled':''}`}>{children}</button>;
-}
-function Brand({ compact = false }: {compact?: boolean}) {
-  return <Link href="/" className="brand" data-testid="link-home"><span className="brand-mark"><span/></span><span>pastora<small>{compact ? '' : ' care & calling'}</small></span></Link>;
-}
-function Header({ app = false }: {app?: boolean}) {
-  return <header className="topbar"><Brand/><nav className="main-nav"><Link href="/features">Platform</Link><Link href="/pricing">Plans</Link><Link href="/support">Support</Link></nav><div className="header-actions">{app ? <Link className="text-link" href="/app">Workspace <ArrowRight size={15}/></Link> : <><Link className="sign-in-link" href="/sign-in">Sign in</Link><Link className="button primary nav-cta" href="/sign-up">Create workspace <ArrowRight size={15}/></Link></>}</div></header>;
-}
-function Footer() {
-  return <footer className="footer"><Brand compact/><span>Make room for the work that matters.</span><div><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/support">Support</Link></div><small>© {new Date().getFullYear()} Pastora</small></footer>;
-}
-function StatusLine({ children, error = false }: {children: ReactNode; error?: boolean}) { return <div className={`status-line ${error?'error':''}`} role="status">{error?<CircleHelp size={16}/>:<Activity size={16}/>}<span>{children}</span></div>; }
-function PublicFrame({ children }: {children: ReactNode}) { return <div className="public-shell grain"><Header/>{children}<Footer/></div>; }
-function HomePage() {
-  const health = useHealthCheck({query:{queryKey:getHealthCheckQueryKey(), retry:1}});
-  const setup = useGetSetupStatus({query:{queryKey:getGetSetupStatusQueryKey(), retry:1}});
-  return <PublicFrame><main>
-    <section className="hero-section">
-      <div className="hero-copy enter"><p className="eyebrow"><span className="eyebrow-line"/>A steadier way to care</p><h1 className="serif">More presence.<br/><em>Less paperwork.</em></h1><p className="hero-description">Pastora brings pastoral care and church responsibilities into one thoughtful workspace—so the people in front of you stay at the centre.</p><div className="hero-actions"><Link href="/sign-up" className="button primary">Begin with your church <ArrowRight size={16}/></Link><Link href="/features" className="text-link">Explore the workspace <ArrowDownRight size={16}/></Link></div><div className="hero-note"><span className="note-dot"/>Made for the everyday rhythm of church life</div></div>
-      <div className="hero-art enter"><div className="arch arch-back"/><div className="arch arch-front"><div className="art-sun"/><div className="art-hill hill-one"/><div className="art-hill hill-two"/><div className="art-stem stem-a"/><div className="art-stem stem-b"/><div className="art-flower flower-a"/><div className="art-flower flower-b"/><div className="art-caption"><span>Care is a practice.</span><span>Keep showing up.</span></div></div><div className="art-note"><HeartHandshake size={18}/><span>A quiet place for<br/>what needs tending.</span></div></div>
-    </section>
-    <div className="readiness-strip"><div><span className={`health-dot ${health.isError?'off':''}`}/><span>{health.isLoading?'Checking workspace connection…':health.isError?'Workspace connection unavailable':'Workspace connection ready'}</span></div><span>{setup.data?.firebaseConfigured ? 'Account setup is available' : setup.isLoading ? 'Checking account setup…' : 'Account setup needs configuration'}</span></div>
-    <section className="manifesto"><p className="eyebrow">The shape of the work</p><h2 className="serif">Ministry has a thousand small motions.<br/><em>Pastora helps you hold them gently.</em></h2><div className="manifesto-bottom"><span>People first. Follow-through, always.</span><Link href="/features" className="under-link">See what fits your church <ArrowRight size={15}/></Link></div></section>
-    <section className="feature-band"><article className="feature-intro"><span className="chapter">01 / Care well</span><h2 className="serif">Make space for<br/><em>the person.</em></h2><p>Prayer, counselling and follow-up deserve a thoughtful home—not another thread to lose.</p><Link href="/features" className="under-link">Pastoral care <ArrowRight size={15}/></Link></article><div className="feature-visual"><div className="care-paper"><div className="paper-top"><span>CARE INBOX</span><span className="mini-status">A quiet reminder</span></div><div className="paper-rule"/><div className="paper-lines"><i/><i/><i/><i/></div><div className="paper-footer"><span className="paper-seal"><HeartHandshake size={18}/></span><span>Private by design<br/><b>Only the right people, in the right place.</b></span></div></div><div className="visual-leaf leaf-1"/><div className="visual-leaf leaf-2"/></div></section>
-    <section className="principles"><div><span className="principle-index">I</span><h3>Care, kept close</h3><p>A restricted pastoral inbox keeps sensitive care apart from everyday church operations.</p></div><div><span className="principle-index">II</span><h3>Follow-through, made visible</h3><p>Appointments, tasks, reports and expenses stay clear without taking over the day.</p></div><div><span className="principle-index">III</span><h3>Your church, your pace</h3><p>Set up a workspace around the people and rhythms you already serve.</p></div></section>
-    <section className="closing-cta"><div><p className="eyebrow">A little more breathing room</p><h2 className="serif">Return your attention<br/>to <em>what matters.</em></h2></div><Link href="/sign-up" className="button cream-button">Set up your workspace <ArrowRight size={16}/></Link></section>
-  </main></PublicFrame>;
-}
-function FeaturesPage() {
-  const modules = [
-    ['Pastoral care','A private inbox for prayer, counselling and general care requests. Keep next steps and follow-up visible without exposing sensitive details elsewhere.','01'],
-    ['Appointments','Receive requests, confirm a time and keep the coming conversations in view.','02'],
-    ['Tasks & follow-through','A clear place for your own work and responsibilities assigned across the workspace.','03'],
-    ['QR links','Create destination links for care, prayer, counselling and appointments.','04'],
-    ['Reports & expenses','Give department leaders a place to report progress and submit expenses for review.','05'],
-    ['Church settings','Shape the public portal, appointment options, theme and retention preferences.','06'],
-  ];
-  return <PublicFrame><main className="inner-page"><div className="inner-heading"><p className="eyebrow">One workspace, thoughtfully held</p><h1 className="serif">The practical side<br/><em>of pastoral care.</em></h1><p>Useful tools for the work that supports ministry—kept calm, clear and close at hand.</p></div><div className="module-list">{modules.map(([title,copy,num])=><article className="module-row" key={title}><span>{num}</span><h2 className="serif">{title}</h2><p>{copy}</p><ArrowUpRight size={18}/></article>)}</div><div className="soft-callout"><HeartHandshake/><p><b>Pastoral care stays restricted.</b><br/>Access to private requests depends on your role and the permissions configured for your church.</p><Link href="/sign-up" className="under-link">Create a workspace <ArrowRight size={15}/></Link></div></main></PublicFrame>;
-}
-function PricingPage() {
-  const plans = useListPlans({query:{queryKey:getListPlansQueryKey(), retry:1}});
-  return <PublicFrame><main className="inner-page pricing-page"><div className="inner-heading"><p className="eyebrow">Plans for church work</p><h1 className="serif">Clear before<br/><em>you commit.</em></h1><p>Plan details appear here only when configured for your workspace. No guessed prices or trial terms.</p></div>{plans.isLoading?<SkeletonRows/>:plans.isError?<ErrorPanel text="Plan information could not be loaded." retry={()=>void plans.refetch()}/>:plans.data?.length?<div className="plan-grid">{plans.data.map(plan=><article className="plan-card" key={plan.id}><span className="eyebrow">{plan.configured?'Available plan':'Plan details pending'}</span><h2 className="serif">{plan.name}</h2><p>{plan.description}</p><div className="plan-price">{plan.configured && plan.monthlyPrice!==null ? <><strong>{plan.billingCurrency||''} {plan.monthlyPrice}</strong><small> per month</small></>:<strong>Contact us for details</strong>}</div><ul>{plan.features.map(f=><li key={f}><Check size={15}/>{f}</li>)}</ul><Button variant="outline" onClick={()=>window.location.assign('/support')}>Ask about this plan <ArrowRight size={14}/></Button></article>)}</div>:<EmptyState title="Plans are being prepared" description="Plan options will appear when the church workspace has configured them."/>}<div className="pricing-footnote"><ShieldCheck size={17}/>Billing is not available until a provider is configured.</div></main></PublicFrame>;
-}
-function AuthPage({mode}:{mode:'sign-in'|'sign-up'|'forgot'|'verify'}) {
-  const setup=useGetSetupStatus({query:{queryKey:getGetSetupStatusQueryKey(),retry:1}});
-  const queryClient=useQueryClient();
-  const [,setLocation]=useLocation();
-  const [email,setEmail]=useState('');const [password,setPassword]=useState('');
-  const [message,setMessage]=useState('');const [error,setError]=useState('');
-  const [busy,setBusy]=useState(false);
-  const copy={ 'sign-in':['Welcome back','Sign in to your church workspace.'], 'sign-up':['A workspace for your church','Start by creating your account.'], forgot:['Recover your account','Password recovery will be available once account services are configured.'], verify:['Check your email','Email verification is available after account services are configured.'] }[mode];
-  const unavailable=setup.isError || !setup.data?.firebaseConfigured || !isFirebaseClientConfigured || !firebaseAuth;
-  const handleSubmit=async(e:FormEvent)=>{
-    e.preventDefault();setError('');setMessage('');setBusy(true);
-    try {
-      if(!firebaseAuth) throw new Error('Firebase Auth is not configured in this frontend.');
-      if(mode==='sign-in') {
-        const credential=await signInWithEmailAndPassword(firebaseAuth,email,password);
-        await queryClient.invalidateQueries({queryKey:getGetSessionQueryKey()});
-        setLocation(credential.user.emailVerified?'/app':'/verify-email');
-      } else if(mode==='sign-up') {
-        const credential=await createUserWithEmailAndPassword(firebaseAuth,email,password);
-        await sendEmailVerification(credential.user);setLocation('/verify-email');
-      } else if(mode==='forgot') {
-        await sendPasswordResetEmail(firebaseAuth,email);setMessage('If the address is registered, a recovery email has been sent.');
-      } else if(mode==='verify'&&firebaseAuth.currentUser) {
-        await sendEmailVerification(firebaseAuth.currentUser);setMessage('Verification email sent. Follow the link in your inbox, then sign in again.');
-      }
-    } catch (reason) { setError(reason instanceof Error?reason.message:'The account action could not be completed.'); }
-    finally { setBusy(false); }
-  };
-  return <div className="auth-shell grain"><Header/><main className="auth-main"><div className="auth-aside"><span className="eyebrow">Pastora / Account</span><h1 className="serif">A quieter place<br/>to <em>keep caring.</em></h1><p>Your church workspace is waiting for the right account setup.</p><div className="auth-aside-mark"><HeartHandshake size={28}/></div></div><section className="auth-card"><Link href="/" className="back-link">← Back to Pastora</Link><p className="eyebrow">{mode==='sign-up'?'Create account':'Your account'}</p><h2 className="serif">{copy[0]}</h2><p>{copy[1]}</p>{unavailable?<div className="setup-callout"><CircleHelp/><div><b>{setup.isLoading?'Checking account configuration':'Account services need setup'}</b><span>{setup.isLoading?'Checking Firebase readiness…':!setup.data?.firebaseConfigured?'Firebase is not configured on the service. No account action has been performed.':'Firebase client configuration is missing from this frontend. Add VITE_FIREBASE_API_KEY, AUTH_DOMAIN, PROJECT_ID and APP_ID.'}</span></div></div>:mode==='verify'&&!firebaseAuth?.currentUser?<div className="setup-callout"><CircleHelp/><div><b>Verification needs your account</b><span>Sign in with the email you registered to request a verification link.</span></div></div>:<form className="auth-form" onSubmit={handleSubmit}>{mode!=='verify'&&<Field label="Email address"><input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)}/></Field>}{(mode==='sign-in'||mode==='sign-up')&&<Field label="Password"><input required type="password" minLength={6} autoComplete={mode==='sign-in'?'current-password':'new-password'} value={password} onChange={e=>setPassword(e.target.value)}/></Field>}<Button type="submit" disabled={busy}>{busy?'Please wait…':mode==='sign-in'?'Sign in':mode==='sign-up'?'Create account':mode==='forgot'?'Send recovery email':'Send verification email'} <ArrowRight size={15}/></Button></form>}{message&&<StatusLine>{message}</StatusLine>}{error&&<StatusLine error>{error}</StatusLine>}<div className="auth-links">{mode!=='sign-in'&&<Link href="/sign-in">Sign in</Link>}{mode!=='sign-up'&&<Link href="/sign-up">Create account</Link>}{mode!=='forgot'&&<Link href="/forgot-password">Forgot password?</Link>}</div></section></main><Footer/></div>;
-}
-function OnboardingPage() {
-  const ready=useGetSetupStatus({query:{queryKey:getGetSetupStatusQueryKey(),retry:1}});
-  const create=useCreateWorkspace(); const qc=useQueryClient(); const [,setLocation]=useLocation();
-  const [userReady,setUserReady]=useState(!!firebaseAuth?.currentUser);
-  useEffect(()=>firebaseAuth?onAuthStateChanged(firebaseAuth,user=>setUserReady(!!user)):undefined,[]);
-  const [form,setForm]=useState({pastorName:'',churchName:'',country:'',timeZone:'UTC',theme:'warm-cream' as 'warm-cream'|'modern-cool'});
-  const submit=(e:FormEvent)=>{e.preventDefault();if(!ready.data?.firebaseConfigured||!userReady)return;create.mutate({data:{...form}}, {onSuccess:()=>{void qc.invalidateQueries({queryKey:getGetSessionQueryKey()});setLocation('/app');}});};
-  const canCreate=!!ready.data?.firebaseConfigured&&isFirebaseClientConfigured&&userReady;
-  return <PublicFrame><main className="inner-page onboarding"><div className="inner-heading"><p className="eyebrow">First, make it yours</p><h1 className="serif">A home for<br/><em>your church.</em></h1><p>Set the foundations for a calm, useful workspace.</p></div><form className="form-card" onSubmit={submit}><Field label="Your name"><input required value={form.pastorName} onChange={e=>setForm({...form,pastorName:e.target.value})}/></Field><Field label="Church name"><input required value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})}/></Field><Field label="Country"><input required value={form.country} onChange={e=>setForm({...form,country:e.target.value})}/></Field><Field label="Time zone"><input required value={form.timeZone} onChange={e=>setForm({...form,timeZone:e.target.value})}/></Field><Field label="Workspace feel"><select value={form.theme} onChange={e=>setForm({...form,theme:e.target.value as 'warm-cream'|'modern-cool'})}><option value="warm-cream">Warm Cream</option><option value="modern-cool">Modern Cool</option></select></Field><StatusLine error={!canCreate}>{ready.isLoading?'Checking account readiness…':ready.isError?'Could not verify account setup.':!ready.data?.firebaseConfigured?'Firebase configuration is needed before workspace creation.':!isFirebaseClientConfigured?'Firebase client configuration is missing.':!userReady?'Sign in before creating a church workspace.':'Account setup is ready.'}</StatusLine><Button type="submit" disabled={!canCreate||create.isPending}>{create.isPending?'Creating…':'Create workspace'} <ArrowRight size={15}/></Button>{!userReady&&isFirebaseClientConfigured&&<Link className="under-link" href="/sign-in">Sign in to continue <ArrowRight size={14}/></Link>}{create.isError&&<StatusLine error>Workspace could not be created. Please try again after setup.</StatusLine>}</form></main></PublicFrame>;
-}
-function WorkspaceLayout({children}:{children:ReactNode}) {
-  const [loc,setLocation]=useLocation(); const [mobile,setMobile]=useState(false);
-  const session=useGetSession({query:{queryKey:getGetSessionQueryKey(),retry:1}});
-  const setup=useGetSetupStatus({query:{queryKey:getGetSetupStatusQueryKey(),retry:1}});
-  const notifications=useListNotifications({query:{queryKey:getListNotificationsQueryKey(),retry:1,enabled:!!session.data,}});
-  const mark=useMarkNotificationRead(); const qc=useQueryClient();
-  const [showNotices,setShowNotices]=useState(false);
-  const doMark=(id:string)=>mark.mutate({notificationId:id},{onSuccess:()=>void qc.invalidateQueries({queryKey:getListNotificationsQueryKey()})});
-  return <div className="workspace-shell"><aside className={`sidebar ${mobile?'show':''}`}><div className="sidebar-brand"><Brand compact/><button className="icon-button mobile-close" onClick={()=>setMobile(false)} aria-label="Close menu"><X size={18}/></button></div><div className="workspace-switch"><span className="church-avatar">P</span><span><b>{session.data?.church?.name||'Church workspace'}</b><small>{session.data?.user?.role||'Workspace'}</small></span><ChevronDown size={15}/></div><div className="sidebar-nav">{navSections.map(section=><div key={section.label}><p className="sidebar-label">{section.label}</p>{section.items.map(item=><Link onClick={()=>setMobile(false)} href={item.href} className={`sidebar-link ${loc===item.href?'active':''}`} key={item.href}><item.icon size={17}/><span>{item.label}</span>{item.href==='/app/requests'&&<i className="nav-dot"/>}</Link>)}</div>)}</div><div className="sidebar-bottom"><Link href="/app/settings" className={`sidebar-link ${loc==='/app/settings'?'active':''}`}><Settings2 size={17}/><span>Settings</span></Link><div className="profile-row"><span className="profile-avatar">{session.data?.user?.name?.slice(0,1)||'P'}</span><span><b>{session.data?.user?.name||'Pastora workspace'}</b><small>{session.data?.user?.email||'Account status'}</small></span><MoreHorizontal size={18}/></div></div></aside><div className="workspace-main"><header className="workspace-topbar"><button className="icon-button mobile-menu" onClick={()=>setMobile(true)} aria-label="Open menu"><Menu size={19}/></button><div className="crumb">Workspace <span>/</span> <b>{pageTitle(loc)}</b></div><div className="top-actions"><span className="workspace-chip"><span className="small-pulse"/>Workspace</span><button className="icon-button notification-button" onClick={()=>setShowNotices(!showNotices)} aria-label="Notifications"><Activity size={18}/>{notifications.data?.some(n=>!n.read)&&<i/>}</button><Link href="/app/settings" className="avatar-small">{session.data?.user?.name?.slice(0,1)||'P'}</Link></div>{showNotices&&<div className="notice-pop"><div className="notice-head"><b>Updates</b><button className="plain-button" onClick={()=>setShowNotices(false)}><X size={15}/></button></div>{notifications.isLoading?<p>Loading notifications…</p>:notifications.isError?<p>Notifications are unavailable.</p>:!notifications.data?.length?<p>No new updates.</p>:notifications.data.map(n=><button className="notice-item" key={n.id} onClick={()=>{doMark(n.id);setShowNotices(false);setLocation(n.targetPath);}}><span>{n.type==='pastoral_request'?'A new care request':n.type==='follow_up'?'A pastoral follow-up':n.title}</span><small>{new Date(n.createdAt).toLocaleDateString()}</small></button>)}</div>}</header><main className="workspace-content">{setup.data?.firebaseConfigured===false&&<div className="setup-banner"><LockKeyhole size={17}/><span>Workspace services need setup. Sign-in and church data remain unavailable until Firebase is configured.</span><Link href="/support">Setup notes <ArrowRight size={14}/></Link></div>}{setup.isError&&<div className="setup-banner"><CircleHelp size={17}/><span>Account readiness could not be checked. Data may be unavailable.</span></div>}{session.isError&&<div className="workspace-gate"><div className="gate-icon"><LockKeyhole/></div><p className="eyebrow">Restricted workspace</p><h2 className="serif">Sign-in required.</h2><p>Pastoral and church workspace information is only shown to authorised members. No sample records are displayed.</p><Link href="/sign-in" className="button primary">Go to sign in <LogIn size={15}/></Link></div>}{children}</main></div></div>;
-}
-function pageTitle(path:string) { return ({'/app':'Overview','/app/requests':'Care inbox','/app/appointments':'Appointments','/app/tasks':'Tasks','/app/qr-codes':'QR links','/app/reports':'Department reports','/app/expenses':'Expenses','/app/settings':'Settings'} as Record<string,string>)[path]||'Workspace'; }
-function PageHeading({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:ReactNode}) { return <div className="page-heading"><div><p className="eyebrow">{eyebrow}</p><h1 className="serif">{title}</h1><p>{subtitle}</p></div>{action}</div>; }
-function DashboardPage() {
-  const dashboard=useGetDashboard({query:{queryKey:getGetDashboardQueryKey(),retry:1}});
-  const summary=dashboard.data;
-  const metrics=[
-    ['Prayer requests',summary?.newPrayerRequests,'/app/requests',HeartHandshake,'A new request needs a first look.'],
-    ['Counselling review',summary?.counsellingAwaitingReview,'/app/requests',ShieldCheck,'Private care awaiting review.'],
-    ['Appointments',summary?.upcomingAppointments,'/app/appointments',CalendarDays,'Upcoming conversations.'],
-    ['Follow-ups due',summary?.followUpsDue,'/app/requests',Clock3,'A next step is due.'],
-    ['Tasks overdue',summary?.overdueTasks,'/app/tasks',ClipboardList,'Work that may need attention.'],
-    ['Reports to review',summary?.reportsAwaitingReview,'/app/reports',FileText,'Department submissions.'],
-    ['Expenses awaiting',summary?.expensesAwaitingApproval,'/app/expenses',Receipt,'Requests for approval.'],
-  ] as const;
-  return <div className="enter"><PageHeading eyebrow="Pastora / Today" title="Good morning." subtitle="A clear view of what needs your attention, and what can wait." action={<Link href="/app/tasks" className="button primary">Open my tasks <ArrowRight size={15}/></Link>}/>{dashboard.isLoading?<SkeletonRows/>:dashboard.isError?<ErrorPanel text="Your workspace overview is unavailable." retry={()=>void dashboard.refetch()}/>:summary?<><div className="metrics-grid">{metrics.map(([label,value,href,Icon,hint])=><Link href={href} className="metric-card" key={label}><div className="metric-top"><span>{label}</span><Icon size={17}/></div><strong>{value??'—'}</strong><small>{hint}</small></Link>)}</div><div className="dashboard-columns"><section className="panel"><div className="panel-heading"><div><p className="eyebrow">Coming up</p><h2 className="serif">Next appointments</h2></div><Link href="/app/appointments" className="under-link">View calendar <ArrowRight size={14}/></Link></div>{summary.nextAppointments.length?summary.nextAppointments.map(a=><AppointmentRow key={a.id} item={a}/>):<EmptyState title="Nothing on the calendar yet" description="Confirmed appointments will appear here."/>}</section><section className="panel follow-panel"><div className="panel-heading"><div><p className="eyebrow">Care, in confidence</p><h2 className="serif">Follow-ups</h2></div><Link href="/app/requests" className="under-link">Open inbox <ArrowRight size={14}/></Link></div>{summary.urgentFollowUps.length?<p className="private-note"><LockKeyhole size={16}/> Sensitive request details are only available in the restricted care inbox.</p>:<EmptyState title="No urgent follow-ups" description="Urgent care follow-ups will be surfaced here without sensitive content."/>}</section></div></>:<EmptyState title="Workspace summary unavailable" description="No dashboard information has been returned."/>}</div>;
-}
-function AppointmentRow({item}:{item:Appointment}) { return <div className="data-row"><div className="date-tile"><b>{new Date(item.startAt).toLocaleDateString(undefined,{day:'2-digit'})}</b><small>{new Date(item.startAt).toLocaleDateString(undefined,{month:'short'})}</small></div><div className="row-main"><b>{item.requesterName}</b><small>{new Date(item.startAt).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})} · {item.format}</small></div><Badge label={item.status}/></div>; }
-function RequestsPage() {
-  const q=useListRequests(undefined,{query:{queryKey:getListRequestsQueryKey(),retry:1}});
-  const create=useCreateRequest(); const update=useUpdateRequest(); const addNote=useAddRequestNote(); const qc=useQueryClient();
-  const [showForm,setShowForm]=useState(false); const [form,setForm]=useState({type:'prayer',name:'',contact:'',category:'',message:''});
-  const invalidate=()=>{void qc.invalidateQueries({queryKey:getListRequestsQueryKey()});void qc.invalidateQueries({queryKey:getGetDashboardQueryKey()});};
-  const submit=(e:FormEvent)=>{e.preventDefault();create.mutate({data:{...form,type:form.type as 'prayer'|'counselling'|'appointment'|'general'}},{onSuccess:()=>{invalidate();setShowForm(false);setForm({type:'prayer',name:'',contact:'',category:'',message:''});}});};
-  return <><PageHeading eyebrow="Private care" title="Care inbox" subtitle="A restricted space for pastoral requests and the next faithful step." action={<Button onClick={()=>setShowForm(!showForm)}><Plus size={16}/> New request</Button>}/>{showForm&&<form className="inline-form" onSubmit={submit}><Field label="Request type"><select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option value="prayer">Prayer</option><option value="counselling">Counselling</option><option value="appointment">Appointment</option><option value="general">General</option></select></Field><Field label="Name (optional)"><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></Field><Field label="Contact (optional)"><input value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/></Field><Field label="Category"><input value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></Field><Field label="Request details"><textarea required value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/></Field><div className="form-actions"><Button type="submit" disabled={create.isPending}>{create.isPending?'Saving…':'Save request'}</Button><Button variant="quiet" onClick={()=>setShowForm(false)}>Cancel</Button></div>{create.isError&&<StatusLine error>Request could not be saved.</StatusLine>}</form>}<div className="care-private-banner"><LockKeyhole size={17}/><span>Restricted pastoral care. Do not share sensitive details outside this inbox.</span></div>{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="Requests are unavailable or your role does not permit access." retry={()=>void q.refetch()}/>:q.data?.length?<div className="record-list">{q.data.map(r=><RequestCard key={r.id} request={r} onUpdate={(status)=>update.mutate({requestId:r.id,data:{status}},{onSuccess:invalidate})} onNote={(note)=>addNote.mutate({requestId:r.id,data:{note}},{onSuccess:invalidate})}/>)}</div>:<EmptyState title="A clear inbox" description="Pastoral requests will be shown here when they are received."/>}</>;
-}
-function RequestCard({request:r,onUpdate,onNote}:{request:PastoralRequest;onUpdate:(s:'acknowledged'|'scheduled'|'resolved'|'closed')=>void;onNote:(n:string)=>void}) {
-  const [note,setNote]=useState('');
-  return <article className="record-card private-card"><div className="record-head"><div><span className="type-label">{r.type}</span><h3>{r.anonymous?'Anonymous':r.name||'Name not provided'}</h3><small>{new Date(r.createdAt).toLocaleString()}</small></div><Badge label={r.status}/></div><p className="request-message">{r.message}</p><div className="record-meta">{r.category&&<span>{r.category}</span>}{r.contact&&<span>{r.contact}</span>}{r.nextAction&&<span>Next: {r.nextAction}</span>}</div><div className="record-actions"><select aria-label="Update request status" value={r.status} onChange={e=>onUpdate(e.target.value as 'acknowledged'|'scheduled'|'resolved'|'closed')}><option value="new">New</option><option value="acknowledged">Acknowledged</option><option value="scheduled">Scheduled</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select><form onSubmit={e=>{e.preventDefault();if(note.trim()){onNote(note);setNote('');}}}><input aria-label="Add a private note" placeholder="Add restricted note…" value={note} onChange={e=>setNote(e.target.value)}/><button aria-label="Save note"><ArrowRight size={15}/></button></form></div></article>;
-}
-function AppointmentsPage() {
-  const q=useListAppointments({query:{queryKey:getListAppointmentsQueryKey(),retry:1}});
-  const create=useCreateAppointment(); const update=useUpdateAppointment();const qc=useQueryClient();const [formOpen,setFormOpen]=useState(false);
-  const [form,setForm]=useState({requesterName:'',contact:'',startAt:'',durationMinutes:'45',format:'in-person'});
-  const invalidate=()=>{void qc.invalidateQueries({queryKey:getListAppointmentsQueryKey()});void qc.invalidateQueries({queryKey:getGetDashboardQueryKey()});};
-  const submit=(e:FormEvent)=>{e.preventDefault();create.mutate({data:{...form,durationMinutes:Number(form.durationMinutes),status:'confirmed',startAt:new Date(form.startAt).toISOString(),format:form.format as 'in-person'|'phone'|'video'}},{onSuccess:()=>{invalidate();setFormOpen(false);}});};
-  return <><PageHeading eyebrow="Time for people" title="Appointments" subtitle="Requests and confirmed conversations, held in one view." action={<Button onClick={()=>setFormOpen(!formOpen)}><Plus size={16}/> Add appointment</Button>}/>{formOpen&&<form className="inline-form grid-form" onSubmit={submit}><Field label="Name"><input required value={form.requesterName} onChange={e=>setForm({...form,requesterName:e.target.value})}/></Field><Field label="Contact"><input value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/></Field><Field label="Date and time"><input required type="datetime-local" value={form.startAt} onChange={e=>setForm({...form,startAt:e.target.value})}/></Field><Field label="Minutes"><input type="number" min="15" max="240" value={form.durationMinutes} onChange={e=>setForm({...form,durationMinutes:e.target.value})}/></Field><Field label="Format"><select value={form.format} onChange={e=>setForm({...form,format:e.target.value})}><option value="in-person">In person</option><option value="phone">Phone</option><option value="video">Video</option></select></Field><Button type="submit" disabled={create.isPending}>{create.isPending?'Saving…':'Save appointment'}</Button></form>}{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="Appointments are unavailable." retry={()=>void q.refetch()}/>:q.data?.length?<div className="table-card"><div className="table-head"><span>Conversation</span><span>Date & time</span><span>Format</span><span>Status</span><span>Update</span></div>{q.data.map(a=><div className="table-row" key={a.id}><b>{a.requesterName}</b><span>{new Date(a.startAt).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'})}</span><span>{a.format}</span><Badge label={a.status}/><select value={a.status} aria-label={`Update ${a.requesterName} appointment`} onChange={e=>update.mutate({appointmentId:a.id,data:{status:e.target.value as 'requested'|'confirmed'|'declined'|'completed'|'cancelled'}},{onSuccess:invalidate})}><option value="requested">Requested</option><option value="confirmed">Confirmed</option><option value="declined">Declined</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></div>)}</div>:<EmptyState title="No appointments yet" description="Appointment requests and scheduled conversations will appear here."/>}</>;
-}
-function TasksPage() {
-  const q=useListTasks({query:{queryKey:getListTasksQueryKey(),retry:1}});const create=useCreateTask();const update=useUpdateTask();const qc=useQueryClient();const [open,setOpen]=useState(false);
-  const [form,setForm]=useState({title:'',description:'',priority:'normal',dueAt:''});
-  const invalidate=()=>{void qc.invalidateQueries({queryKey:getListTasksQueryKey()});void qc.invalidateQueries({queryKey:getGetDashboardQueryKey()});};
-  const submit=(e:FormEvent)=>{e.preventDefault();create.mutate({data:{...form,description:form.description||null,priority:form.priority as 'low'|'normal'|'high',dueAt:form.dueAt?new Date(form.dueAt).toISOString():null}},{onSuccess:()=>{invalidate();setOpen(false);}});};
-  return <><PageHeading eyebrow="Keep the next step close" title="Tasks" subtitle="Personal and assigned responsibilities, without the noise." action={<Button onClick={()=>setOpen(!open)}><Plus size={16}/> New task</Button>}/>{open&&<form className="inline-form grid-form" onSubmit={submit}><Field label="Task"><input required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/></Field><Field label="Description"><input value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></Field><Field label="Priority"><select value={form.priority} onChange={e=>setForm({...form,priority:e.target.value})}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option></select></Field><Field label="Due"><input type="datetime-local" value={form.dueAt} onChange={e=>setForm({...form,dueAt:e.target.value})}/></Field><Button type="submit" disabled={create.isPending}>Save task <ArrowRight size={15}/></Button></form>}{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="Tasks are unavailable." retry={()=>void q.refetch()}/>:q.data?.length?<div className="task-board">{q.data.map(task=><TaskCard key={task.id} task={task} onStatus={status=>update.mutate({taskId:task.id,data:{status}},{onSuccess:invalidate})}/>)}</div>:<EmptyState title="Room for what comes next" description="Create a task when a responsibility needs a name and a next step."/>}</>;
-}
-function TaskCard({task,onStatus}:{task:Task;onStatus:(s:'todo'|'in_progress'|'blocked'|'completed')=>void}) {
-  return <article className="task-card"><div className={`priority-dot ${task.priority}`}/><div className="task-copy"><h3>{task.title}</h3>{task.description&&<p>{task.description}</p>}<small>{task.dueAt?`Due ${new Date(task.dueAt).toLocaleDateString()}`:'No due date'}{task.assignedTo?` · Assigned ${task.assignedTo}`:''}</small></div><select aria-label={`Update ${task.title} status`} value={task.status} onChange={e=>onStatus(e.target.value as 'todo'|'in_progress'|'blocked'|'completed')}><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Completed</option></select></article>;
-}
-function QrPage() {
-  const q=useListQrCodes({query:{queryKey:getListQrCodesQueryKey(),retry:1}});const create=useCreateQrCode();const update=useUpdateQrCode();const qc=useQueryClient();const [open,setOpen]=useState(false);const [name,setName]=useState('');const [destination,setDestination]=useState('care');const [campaign,setCampaign]=useState('');
-  const invalidate=()=>void qc.invalidateQueries({queryKey:getListQrCodesQueryKey()});
-  const submit=(e:FormEvent)=>{e.preventDefault();create.mutate({data:{name,destination:destination as 'care'|'prayer'|'counselling'|'appointments'|'general',campaign:campaign||null}},{onSuccess:()=>{invalidate();setOpen(false);setName('');}});};
-  return <><PageHeading eyebrow="A simple way in" title="QR links" subtitle="Manage the links people can scan to reach your care portal." action={<Button onClick={()=>setOpen(!open)}><Plus size={16}/> Create QR link</Button>}/>{open&&<form className="inline-form grid-form" onSubmit={submit}><Field label="Link name"><input required value={name} onChange={e=>setName(e.target.value)}/></Field><Field label="Destination"><select value={destination} onChange={e=>setDestination(e.target.value)}><option value="care">Care portal</option><option value="prayer">Prayer</option><option value="counselling">Counselling</option><option value="appointments">Appointments</option><option value="general">General request</option></select></Field><Field label="Campaign (optional)"><input value={campaign} onChange={e=>setCampaign(e.target.value)}/></Field><Button type="submit" disabled={create.isPending}>Create link</Button></form>}{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="QR links are unavailable." retry={()=>void q.refetch()}/>:q.data?.length?<><div className="receipt-warning"><QrCode size={16}/> Links are managed here. A downloadable scannable QR image is not included in the current service response.</div><div className="qr-list">{q.data.map(item=><article className="qr-card" key={item.id}><div className="qr-preview"><QrCode size={42}/><span>PASTORA</span></div><div className="qr-info"><div><h3>{item.name}</h3><Badge label={item.active?'active':'inactive'}/></div><p>{item.destination}{item.campaign?` · ${item.campaign}`:''}</p><small>Visits {item.visits} <span>·</span> Submissions {item.submissions}</small></div><Button variant="outline" onClick={()=>update.mutate({qrCodeId:item.id,data:{active:!item.active}},{onSuccess:invalidate})}>{item.active?'Pause link':'Activate link'}</Button></article>)}</div></>:<EmptyState title="No links to share yet" description="Create a QR link to direct people to the public pastoral care portal."/>}</>;
-}
-function ReportsPage() {
-  const q=useListReports({query:{queryKey:getListReportsQueryKey(),retry:1}});const create=useCreateReport();const review=useReviewReport();const qc=useQueryClient();const [open,setOpen]=useState(false);const [form,setForm]=useState({department:'',period:'',activities:'',challenges:'',supportNeeded:'',nextPlans:''});
-  const invalidate=()=>void qc.invalidateQueries({queryKey:getListReportsQueryKey()});
-  const submit=(e:FormEvent)=>{e.preventDefault();create.mutate({data:{...form,challenges:form.challenges||null,supportNeeded:form.supportNeeded||null}},{onSuccess:()=>{invalidate();setOpen(false);}});};
-  return <><PageHeading eyebrow="Shared stewardship" title="Department reports" subtitle="Submissions and review notes from across your church." action={<Button onClick={()=>setOpen(!open)}><Plus size={16}/> Submit report</Button>}/>{open&&<form className="inline-form grid-form" onSubmit={submit}><Field label="Department"><input required value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></Field><Field label="Reporting period"><input required placeholder="e.g. June 2025" value={form.period} onChange={e=>setForm({...form,period:e.target.value})}/></Field><Field label="Activities"><textarea required value={form.activities} onChange={e=>setForm({...form,activities:e.target.value})}/></Field><Field label="Challenges"><textarea value={form.challenges} onChange={e=>setForm({...form,challenges:e.target.value})}/></Field><Field label="Support needed"><textarea value={form.supportNeeded} onChange={e=>setForm({...form,supportNeeded:e.target.value})}/></Field><Field label="Next plans"><textarea required value={form.nextPlans} onChange={e=>setForm({...form,nextPlans:e.target.value})}/></Field><Button type="submit" disabled={create.isPending}>Submit for review</Button></form>}{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="Department reports are unavailable." retry={()=>void q.refetch()}/>:q.data?.length?<div className="record-list">{q.data.map(report=><article className="record-card" key={report.id}><div className="record-head"><div><span className="type-label">{report.period}</span><h3>{report.department}</h3><small>Submitted {new Date(report.createdAt).toLocaleDateString()}</small></div><Badge label={report.status}/></div><p>{report.activities}</p>{report.challenges&&<p><b>Challenges:</b> {report.challenges}</p>}{report.supportNeeded&&<p><b>Support needed:</b> {report.supportNeeded}</p>}<p><b>Next plans:</b> {report.nextPlans}</p>{report.reviewComment&&<div className="review-comment">Review note: {report.reviewComment}</div>}{report.status==='submitted'&&<div className="record-actions"><Button variant="outline" onClick={()=>review.mutate({reportId:report.id,data:{status:'reviewed'}},{onSuccess:invalidate})}>Mark reviewed</Button><Button variant="quiet" onClick={()=>{const comment=window.prompt('What follow-up is needed?');if(comment!==null)review.mutate({reportId:report.id,data:{status:'needs_follow_up',reviewComment:comment}},{onSuccess:invalidate});}}>Request follow-up</Button></div>}</article>)}</div>:<EmptyState title="No reports submitted" description="Department reports will appear here when shared."/>}</>;
-}
-function ExpensesPage() {
-  const q=useListExpenses({query:{queryKey:getListExpensesQueryKey(),retry:1}});const create=useCreateExpense();const update=useUpdateExpense();const qc=useQueryClient();const [open,setOpen]=useState(false);const [form,setForm]=useState({description:'',purpose:'',amount:'',department:''});
-  const invalidate=()=>{void qc.invalidateQueries({queryKey:getListExpensesQueryKey()});void qc.invalidateQueries({queryKey:getGetDashboardQueryKey()});};
-  const submit=(e:FormEvent)=>{e.preventDefault();create.mutate({data:{...form,amount:Number(form.amount),department:form.department||null,receiptPath:null}},{onSuccess:()=>{invalidate();setOpen(false);}});};
-  return <><PageHeading eyebrow="Church operations" title="Expenses" subtitle="Requests for spending, with a clear review path." action={<Button onClick={()=>setOpen(!open)}><Plus size={16}/> Submit expense</Button>}/>{open&&<form className="inline-form grid-form" onSubmit={submit}><Field label="Expense"><input required value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></Field><Field label="Purpose"><textarea required value={form.purpose} onChange={e=>setForm({...form,purpose:e.target.value})}/></Field><Field label="Amount (NGN)"><input required min="0.01" type="number" step="0.01" value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></Field><Field label="Department"><input value={form.department} onChange={e=>setForm({...form,department:e.target.value})}/></Field><div className="receipt-warning"><Receipt size={16}/> Receipt upload is unavailable until secure storage is configured. No file has been uploaded.</div><Button type="submit" disabled={create.isPending}>Submit request</Button></form>}{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="Expense requests are unavailable." retry={()=>void q.refetch()}/>:q.data?.length?<div className="table-card"><div className="table-head expense-head"><span>Expense</span><span>Department</span><span>Amount</span><span>Status</span><span>Review</span></div>{q.data.map(x=><div className="table-row expense-head" key={x.id}><div><b>{x.description}</b><small>{x.purpose}</small></div><span>{x.department||'—'}</span><b>{x.currency} {x.amount.toLocaleString()}</b><Badge label={x.status}/><div className="expense-actions">{x.status==='submitted'?<><button onClick={()=>update.mutate({expenseId:x.id,data:{status:'approved'}},{onSuccess:invalidate})} aria-label="Approve expense"><Check size={17}/></button><button onClick={()=>update.mutate({expenseId:x.id,data:{status:'rejected'}},{onSuccess:invalidate})} aria-label="Reject expense"><X size={17}/></button><button onClick={()=>{const text=window.prompt('What needs clarification?');if(text)update.mutate({expenseId:x.id,data:{status:'clarification',clarification:text}},{onSuccess:invalidate});}} aria-label="Request clarification"><CircleHelp size={17}/></button></>:x.status==='approved'?<button onClick={()=>{const ref=window.prompt('Payment reference (optional)');if(ref!==null)update.mutate({expenseId:x.id,data:{status:'paid',paymentReference:ref||null}},{onSuccess:invalidate});}}>Mark paid</button>:<span>—</span>}</div></div>)}</div>:<EmptyState title="No expenses to review" description="Expense requests will appear here when submitted."/>}</>;
-}
-function SettingsPage() {
-  const q=useGetSettings({query:{queryKey:getGetSettingsQueryKey(),retry:1}});const update=useUpdateSettings();const qc=useQueryClient();
-  const [local,setLocal]=useState<any>(null);
-  useEffect(()=>{if(q.data&&!local)setLocal({...q.data,theme:q.data.theme==='modern-cool'?'modern-cool':'warm-cream'});},[q.data,local]);
-  const [themeChoice,setThemeChoice]=useState(localStorage.getItem('pastora-theme')||'warm-cream');
-  const save=(payload:Record<string,unknown>)=>update.mutate({data:payload},{onSuccess:(data)=>{qc.setQueryData(getGetSettingsQueryKey(),data);void qc.invalidateQueries({queryKey:getGetSessionQueryKey()});}});
-  if(q.isLoading)return <><PageHeading eyebrow="Make it yours" title="Settings" subtitle="Church details and workspace preferences."/><SkeletonRows/></>;
-  if(q.isError)return <><PageHeading eyebrow="Make it yours" title="Settings" subtitle="Church details and workspace preferences."/><ErrorPanel text="Church settings are unavailable." retry={()=>void q.refetch()}/></>;
-  if(!local)return <EmptyState title="Settings not returned" description="No church settings are available for this workspace."/>;
-  return <><PageHeading eyebrow="Make it yours" title="Settings" subtitle="Church details, public care and workspace preferences."/><div className="settings-stack"><section className="settings-section"><div><p className="eyebrow">Church identity</p><h2 className="serif">The essentials</h2><p>Update the details connected to your church workspace.</p></div><div className="settings-fields"><Field label="Church name"><input value={local.church.name} onChange={e=>setLocal({...local,church:{...local.church,name:e.target.value}})}/></Field><Field label="Country"><input value={local.church.country} onChange={e=>setLocal({...local,church:{...local.church,country:e.target.value}})}/></Field><Field label="Time zone"><input value={local.church.timeZone} onChange={e=>setLocal({...local,church:{...local.church,timeZone:e.target.value}})}/></Field><Button onClick={()=>save({name:local.church.name,country:local.church.country,timeZone:local.church.timeZone})}>Save church details</Button></div></section><section className="settings-section"><div><p className="eyebrow">Public care portal</p><h2 className="serif">A welcoming front door</h2><p>These messages are visible to people reaching out.</p></div><div className="settings-fields"><Field label="Welcome message"><textarea value={local.welcomeMessage} onChange={e=>setLocal({...local,welcomeMessage:e.target.value})}/></Field><Field label="Emergency notice"><textarea value={local.emergencyNotice} onChange={e=>setLocal({...local,emergencyNotice:e.target.value})}/></Field><Field label="Request categories (comma separated)"><input value={local.categories.join(', ')} onChange={e=>setLocal({...local,categories:e.target.value.split(',').map((s:string)=>s.trim()).filter(Boolean)})}/></Field><Toggle label="Enable public care portal" value={local.publicPortalEnabled} onChange={v=>setLocal({...local,publicPortalEnabled:v})}/><Toggle label="Allow appointment requests" value={local.appointmentEnabled} onChange={v=>setLocal({...local,appointmentEnabled:v})}/><Button onClick={()=>save({welcomeMessage:local.welcomeMessage,emergencyNotice:local.emergencyNotice,categories:local.categories,publicPortalEnabled:local.publicPortalEnabled,appointmentEnabled:local.appointmentEnabled})}>Save portal settings</Button></div></section><section className="settings-section"><div><p className="eyebrow">Workspace feel</p><h2 className="serif">Choose your palette</h2><p>Your preference is saved on this device.</p></div><div className="theme-options"><button className={`theme-option cream-option ${themeChoice==='warm-cream'?'selected':''}`} onClick={()=>{setThemeChoice('warm-cream');document.documentElement.dataset.theme='warm-cream';localStorage.setItem('pastora-theme','warm-cream');save({theme:'warm-cream'});}}><Sun/><b>Warm Cream</b><small>Soft parchment, leaf green, muted terracotta</small></button><button className={`theme-option cool-option ${themeChoice==='modern-cool'?'selected':''}`} onClick={()=>{setThemeChoice('modern-cool');document.documentElement.dataset.theme='modern-cool';localStorage.setItem('pastora-theme','modern-cool');save({theme:'modern-cool'});}}><Moon/><b>Modern Cool</b><small>Quiet slate, mineral blue, cool sage</small></button></div></section><section className="settings-section"><div><p className="eyebrow">Privacy</p><h2 className="serif">Retention preference</h2><p>Choose how long records are retained where supported.</p></div><div className="settings-fields"><Field label="Retention days"><input type="number" min="0" value={local.retentionDays} onChange={e=>setLocal({...local,retentionDays:Number(e.target.value)})}/></Field><Field label="Default appointment length (minutes)"><input type="number" min="15" max="240" value={local.appointmentDurationMinutes} onChange={e=>setLocal({...local,appointmentDurationMinutes:Number(e.target.value)})}/></Field><Button onClick={()=>save({retentionDays:local.retentionDays,appointmentDurationMinutes:local.appointmentDurationMinutes})}>Save privacy settings</Button></div></section></div></>;
-}
-function CarePortalPage() {
-  const {slug=''}=useParams();const church=useGetPublicChurch(slug,{query:{queryKey:getGetPublicChurchQueryKey(slug),retry:1}});const submit=useSubmitPublicRequest();
-  const [form,setForm]=useState({type:'prayer',name:'',anonymous:false,contact:'',category:'',message:'',permissionToContact:false,shareWithPrayerTeam:false});
-  const [receipt,setReceipt]=useState('');const [notReceived,setNotReceived]=useState(false);
-  const send=(e:FormEvent)=>{e.preventDefault();setNotReceived(false);submit.mutate({slug,data:{...form,type:form.type as 'prayer'|'counselling'|'appointment'|'general',name:form.anonymous?null:form.name||null,contact:form.contact||null,category:form.category||null,preferredFormat:null,preferredAvailability:null,preferredDate:null,campaign:null}},{onSuccess:r=>{if(r.received)setReceipt(r.reference);else setNotReceived(true);}});};
-  return <div className="public-shell care-portal grain"><Header/><main className="portal-main">{church.isLoading?<SkeletonRows/>:church.isError?<div className="portal-error"><HeartHandshake/><h1 className="serif">This care page is unavailable.</h1><p>The church link may be incorrect or its public portal may not be enabled.</p></div>:church.data?<><div className="portal-welcome"><span className="portal-seal"><HeartHandshake size={24}/></span><p className="eyebrow">{church.data.name}</p><h1 className="serif">You don't have to<br/><em>carry it alone.</em></h1><p>{church.data.welcomeMessage}</p>{church.data.emergencyNotice&&<div className="emergency-note"><CircleHelp size={17}/>{church.data.emergencyNotice}</div>}</div>{receipt?<div className="receipt-success"><CheckCheck/><p className="eyebrow">Received</p><h2 className="serif">Thank you for reaching out.</h2><p>Your reference is <b>{receipt}</b>. Your message has been sent to the church.</p><Button variant="outline" onClick={()=>{setReceipt('');setForm({...form,message:''});}}>Send another message</Button></div>:<form className="portal-form" onSubmit={send}><p className="eyebrow">Reach out</p><h2 className="serif">Tell us what’s on your heart.</h2><Field label="How can we help?"><select value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option value="prayer">Prayer</option><option value="counselling">Counselling</option>{church.data.appointmentEnabled&&<option value="appointment">Appointment</option>}<option value="general">Something else</option></select></Field>{church.data.categories.length>0&&<Field label="Category"><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}><option value="">Choose, if helpful</option>{church.data.categories.map(c=><option value={c} key={c}>{c}</option>)}</select></Field>}<Toggle label="I would like to remain anonymous" value={form.anonymous} onChange={v=>setForm({...form,anonymous:v})}/>{!form.anonymous&&<Field label="Your name (optional)"><input value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></Field>}<Field label="A way to reach you (optional)"><input value={form.contact} onChange={e=>setForm({...form,contact:e.target.value})}/></Field><Field label="Your message"><textarea required minLength={1} maxLength={5000} value={form.message} onChange={e=>setForm({...form,message:e.target.value})}/></Field><Toggle label="It is okay for the church to contact me" value={form.permissionToContact} onChange={v=>setForm({...form,permissionToContact:v})}/>{form.type==='prayer'&&<Toggle label="Share this request with the prayer team" value={form.shareWithPrayerTeam} onChange={v=>setForm({...form,shareWithPrayerTeam:v})}/>}<Button type="submit" disabled={submit.isPending}>{submit.isPending?'Sending…':'Send request'} <ArrowRight size={15}/></Button>{submit.isError&&<StatusLine error>Your message was not submitted. Please try again.</StatusLine>}{notReceived&&<StatusLine error>The service did not confirm receipt. Your request has not been shown as submitted.</StatusLine>}<small className="privacy-reminder"><LockKeyhole size={13}/> Your request is handled by the church. Only submit what you feel comfortable sharing.</small></form>}</>:null}</main><Footer/></div>;
-}
-function PlatformPage() {
-  const q=useListPlatformWorkspaces({query:{queryKey:getListPlatformWorkspacesQueryKey(),retry:1}});
-  return <div className="platform-page"><Header app/><main className="inner-page"><PageHeading eyebrow="Platform owner" title="Workspaces" subtitle="Restricted platform operations view."/><div className="care-private-banner"><LockKeyhole size={17}/> Access is role restricted. No workspace records are visible unless your account is authorised.</div>{q.isLoading?<SkeletonRows/>:q.isError?<ErrorPanel text="Workspace list is restricted or unavailable." retry={()=>void q.refetch()}/>:q.data?.length?<div className="table-card"><div className="table-head"><span>Workspace</span><span>Status</span><span>Plan</span><span>Created</span></div>{q.data.map(w=><div className="table-row" key={w.id}><b>{w.name}</b><Badge label={w.status}/><span>{w.plan}</span><span>{new Date(w.createdAt).toLocaleDateString()}</span></div>)}</div>:<EmptyState title="No visible workspaces" description="Authorised platform workspaces will appear here."/>}</main></div>;
-}
-function DocumentPage({title,category}:{title:string;category:string}) {
-  return <PublicFrame><main className="inner-page legal-page"><p className="eyebrow">{category} / Draft</p><h1 className="serif">{title}</h1><div className="draft-banner"><FileText size={17}/> Draft content — review with your church and legal adviser before publication.</div><article><h2 className="serif">A note on this page</h2><p>This page is a starting point and is not legal or professional advice. Final details should reflect your church’s policies, applicable local requirements and the services you have configured.</p><h2 className="serif">How to reach us</h2><p>For questions about Pastora or your church workspace, contact your church administrator or visit the support page.</p><Link className="under-link" href="/support">Go to support <ArrowRight size={15}/></Link></article></main></PublicFrame>;
-}
-function Field({label,children}:{label:string;children:ReactNode}) { return <label className="field"><span>{label}</span>{children}</label>; }
-function Toggle({label,value,onChange}:{label:string;value:boolean;onChange:(value:boolean)=>void}) { return <label className="toggle-row"><span>{label}</span><button type="button" role="switch" aria-checked={value} className={`switch ${value?'on':''}`} onClick={()=>onChange(!value)}><i/></button></label>; }
-function Badge({label}:{label:string}) { return <span className={`badge badge-${label.replace(/[^a-z0-9]/gi,'-').toLowerCase()}`}>{label.replaceAll('_',' ')}</span>; }
-function SkeletonRows() { return <div className="skeleton-group" aria-label="Loading"><i/><i/><i/></div>; }
-function ErrorPanel({text,retry}:{text:string;retry:()=>void}) { return <div className="empty-state error-state"><span className="empty-icon"><CircleHelp/></span><h3>{text}</h3><p>Check the connection and try again.</p><Button variant="outline" onClick={retry}>Try again</Button></div>; }
-function EmptyState({title,description}:{title:string;description:string}) { return <div className="empty-state"><span className="empty-icon"><Sparkles/></span><h3>{title}</h3><p>{description}</p></div>; }
-function NotFound() { return <PublicFrame><main className="inner-page not-found"><p className="eyebrow">404 / Not found</p><h1 className="serif">This page has<br/><em>gone quiet.</em></h1><p>The address may have changed or may not exist.</p><Link className="button primary" href="/">Return home <ArrowRight size={15}/></Link></main></PublicFrame>; }
 
 export default App;
