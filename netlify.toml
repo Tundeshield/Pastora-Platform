@@ -1,0 +1,35 @@
+# Netlify builds the website and the API from this monorepo.
+# Website: artifacts/pastora (static, Vite). API: Netlify Function at /api/*.
+[build]
+  command = "pnpm install --frozen-lockfile && pnpm run typecheck && pnpm --filter @workspace/api-server test && pnpm --filter @workspace/api-server build && pnpm --filter @workspace/pastora build"
+  publish = "artifacts/pastora/dist/public"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.28.0"
+
+[functions]
+  # Pre-bundled by `pnpm --filter @workspace/api-server build` from
+  # artifacts/api-server/netlify/functions/api.mts. firebase-admin is left external
+  # (Firestore reads protobuf files from disk) and traced into the function by Netlify.
+  directory = "artifacts/api-server/netlify-dist"
+
+# Single-page app: every non-file route (including /care/<church> QR links and
+# /app/* pages) serves index.html. /api/* is handled by the function first.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

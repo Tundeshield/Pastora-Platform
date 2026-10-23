@@ -13,12 +13,44 @@ import { getFirebaseServices } from "../lib/firebase-admin";
 
 const router: IRouter = Router();
 
+// Overridable for automated tests; production uses the defaults.
+const submissionsPerMinute = Number(process.env.PUBLIC_SUBMISSIONS_PER_MINUTE) || 8;
 const publicSubmissionLimit = rateLimit({
   windowMs: 60 * 1000,
-  limit: 8,
+  limit: submissionsPerMinute,
   standardHeaders: "draft-7",
   legacyHeaders: false,
   message: { error: "Please wait a little before sending another request." },
+});
+
+const qrVisitLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests." },
+});
+
+/** Returns the QR code only if it belongs to the church and is active. */
+async function activeQrCode(qrCodeId: string | null | undefined, churchId?: string) {
+  if (!qrCodeId || !/^[A-Za-z0-9_-]{1,64}$/.test(qrCodeId)) return null;
+  const { db } = getFirebaseServices();
+  const snap = await db.collection("qrCodes").doc(qrCodeId).get();
+  if (!snap.exists || snap.get("active") !== true) return null;
+  if (churchId && snap.get("churchId") !== churchId) return null;
+  return snap;
+}
+
+// Counts a scan. Always answers 204 so link ids cannot be probed, and stores no
+// personal data (no IP, no user agent).
+router.post("/public/qr-codes/:qrCodeId/visit", qrVisitLimit, async (req, res): Promise<void> => {
+  try {
+    const qr = await activeQrCode(String(req.params.qrCodeId));
+    if (qr) await qr.ref.update({ visits: FieldValue.increment(1), lastVisitAt: FieldValue.serverTimestamp() });
+  } catch (error) {
+    req.log.warn({ error }, "QR visit not recorded");
+  }
+  res.sendStatus(204);
 });
 
 router.get("/public/churches/:slug", async (req, res): Promise<void> => {
@@ -81,7 +113,7 @@ router.post(
       return;
     }
     if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
+      res.status(400).json({ error: "Please check the form: a message is required and fields must not be too long." });
       return;
     }
     const input = parsed.data;
@@ -89,6 +121,11 @@ router.post(
       res.status(400).json({
         error: "Please consent to being contacted before sending a counselling request.",
       });
+      return;
+    }
+    const preferred = input.preferredDate ? new Date(String(input.preferredDate)) : null;
+    if (input.type === "appointment" && preferred && (Number.isNaN(preferred.getTime()) || preferred.getTime() < Date.now())) {
+      res.status(400).json({ error: "Choose a preferred date and time in the future." });
       return;
     }
     if (input.type === "appointment" && !input.preferredDate) {
@@ -145,6 +182,7 @@ router.post(
           status: "requested",
           createdAt: FieldValue.serverTimestamp(),
           source: "public_portal",
+          qrCodeId: input.qrCodeId ?? null,
         });
         eventId = appointmentRef.id;
         reference = appointmentRef.id.slice(0, 8).toUpperCase();
@@ -171,6 +209,8 @@ router.post(
             input.type === "prayer" && input.shareWithPrayerTeam,
           isConfidential: input.type === "counselling",
           campaign: input.campaign ?? null,
+          qrCodeId: input.qrCodeId ?? null,
+          source: "public_portal",
         };
         if (input.type === "counselling") {
           const caseRef = db.collection("counsellingCases").doc(requestRef.id);
@@ -209,6 +249,12 @@ router.post(
             ? "A confidential care request needs review."
             : "A new pastoral care request needs review.";
         targetPath = "/app/requests";
+      }
+      try {
+        const qr = await activeQrCode(input.qrCodeId, churchDoc.id);
+        if (qr) await qr.ref.update({ submissions: FieldValue.increment(1) });
+      } catch (qrError) {
+        req.log.warn({ qrError }, "QR submission count not updated");
       }
       try {
         await notifyChurchRoles(

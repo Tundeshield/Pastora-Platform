@@ -60,10 +60,22 @@ export const SessionSubscriptionStatus = {
   cancelled: 'cancelled',
 } as const;
 
+export type SessionTheme = typeof SessionTheme[keyof typeof SessionTheme];
+
+
+export const SessionTheme = {
+  'warm-cream': 'warm-cream',
+  'modern-cool': 'modern-cool',
+} as const;
+
 export interface Session {
   user: UserSummary;
   church: Church | null;
   subscriptionStatus: SessionSubscriptionStatus;
+  theme: SessionTheme;
+  emailVerified: boolean;
+  /** True when an invitation is waiting for this email but the email is not yet verified. */
+  invitationPending: boolean;
 }
 
 export type WorkspaceInputTheme = typeof WorkspaceInputTheme[keyof typeof WorkspaceInputTheme];
@@ -255,6 +267,11 @@ export interface PublicRequestInput {
      * @nullable
      */
   campaign?: string | null;
+  /**
+     * @maxLength 64
+     * @nullable
+     */
+  qrCodeId?: string | null;
 }
 
 export interface PublicRequestReceipt {
@@ -664,6 +681,10 @@ export interface ExpenseRequest {
   receiptPath: string | null;
   /** @nullable */
   paymentReference: string | null;
+  /** @nullable */
+  approvedBy?: string | null;
+  /** @nullable */
+  clarification?: string | null;
   createdAt: string;
 }
 
@@ -815,6 +836,79 @@ export interface PlatformWorkspace {
   status: string;
   plan: string;
   createdAt: string;
+}
+
+/**
+ * Roles an owner can grant. The owner role is never granted through the API.
+ */
+export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
+
+
+export const MemberRole = {
+  pastor: 'pastor',
+  counsellor: 'counsellor',
+  staff: 'staff',
+  department_leader: 'department_leader',
+  finance: 'finance',
+} as const;
+
+export type TeamMemberRole = typeof TeamMemberRole[keyof typeof TeamMemberRole];
+
+
+export const TeamMemberRole = {
+  owner: 'owner',
+  pastor: 'pastor',
+  counsellor: 'counsellor',
+  staff: 'staff',
+  department_leader: 'department_leader',
+  finance: 'finance',
+} as const;
+
+export interface TeamMember {
+  id: string;
+  uid: string;
+  name: string;
+  email: string;
+  role: TeamMemberRole;
+  /** @nullable */
+  department: string | null;
+  active: boolean;
+  isCurrentUser: boolean;
+}
+
+export interface TeamInvitation {
+  id: string;
+  email: string;
+  role: MemberRole;
+  /** @nullable */
+  department: string | null;
+  createdAt: string;
+}
+
+export interface TeamOverview {
+  members: TeamMember[];
+  invitations: TeamInvitation[];
+}
+
+export interface InvitationInput {
+  /** @maxLength 254 */
+  email: string;
+  role: MemberRole;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  department?: string | null;
+}
+
+export interface MemberUpdate {
+  role?: MemberRole;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  department?: string | null;
+  active?: boolean;
 }
 
 /**

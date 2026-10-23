@@ -57,3 +57,32 @@ test("confirmed appointment collision check treats touching times as non-overlap
   assert.equal(appointmentTimesOverlap(10 * hour, 60, 11 * hour, 45), false);
   assert.equal(appointmentTimesOverlap(Number.NaN, 60, 11 * hour, 45), false);
 });
+
+test("expense status machine blocks reversals and premature payment", async () => {
+  const { expenseTransitionAllowed } = await import("./policies");
+  assert.equal(expenseTransitionAllowed("submitted", "approved"), true);
+  assert.equal(expenseTransitionAllowed("clarification", "approved"), true);
+  assert.equal(expenseTransitionAllowed("approved", "paid"), true);
+  assert.equal(expenseTransitionAllowed("approved", "rejected"), false);
+  assert.equal(expenseTransitionAllowed("approved", "approved"), false);
+  assert.equal(expenseTransitionAllowed("submitted", "paid"), false);
+  assert.equal(expenseTransitionAllowed("paid", "approved"), false);
+  assert.equal(expenseTransitionAllowed("rejected", "approved"), false);
+  assert.equal(expenseTransitionAllowed(undefined, "approved"), false);
+});
+
+test("only the owner manages other non-owner members", async () => {
+  const { canManageMember } = await import("./policies");
+  const base = { actorRole: "owner" as const, actorUid: "o", targetUid: "s", targetRole: "staff" };
+  assert.equal(canManageMember(base), true);
+  assert.equal(canManageMember({ ...base, actorRole: "pastor" }), false);
+  assert.equal(canManageMember({ ...base, targetUid: "o" }), false);
+  assert.equal(canManageMember({ ...base, targetRole: "owner" }), false);
+});
+
+test("slugs are URL-safe and never empty", async () => {
+  const { slugify, normalizeEmail } = await import("./policies");
+  assert.equal(slugify("Église Saint-Pierre & Paul!"), "eglise-saint-pierre-paul");
+  assert.equal(slugify("***"), "church");
+  assert.equal(normalizeEmail("  Pastor@Example.COM "), "pastor@example.com");
+});

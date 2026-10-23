@@ -31,7 +31,10 @@ export function authenticatedUser(req: Request): DecodedIdToken | null {
 }
 
 export async function tenantFor(req: Request): Promise<TenantContext | null> {
-  const user = authenticatedUser(req);
+  return tenantForUser(authenticatedUser(req));
+}
+
+export async function tenantForUser(user: DecodedIdToken | null): Promise<TenantContext | null> {
   if (!user) return null;
 
   const { db } = getFirebaseServices();
@@ -51,11 +54,44 @@ export async function tenantFor(req: Request): Promise<TenantContext | null> {
   const role = membership.role;
   if (
     typeof churchId !== "string" ||
-    !["owner", "pastor", "counsellor", "staff", "department_leader", "finance"].includes(role)
+    !CHURCH_ROLES.includes(role)
   ) {
     throw new Error("The church membership is invalid.");
   }
   return { churchId, role: role as ChurchRole, membership };
+}
+
+/** Memberships use a deterministic id so the same person can never be added to a church twice. */
+export function membershipDocId(churchId: string, uid: string): string {
+  return `${churchId}_${uid}`;
+}
+
+export const CHURCH_ROLES: readonly ChurchRole[] = [
+  "owner",
+  "pastor",
+  "counsellor",
+  "staff",
+  "department_leader",
+  "finance",
+];
+
+/** Append-only audit trail for sensitive actions. Never stores request content. */
+export async function audit(
+  churchId: string,
+  actorUid: string,
+  action: string,
+  recordId: string,
+  details: Record<string, unknown> = {},
+): Promise<void> {
+  const { db } = getFirebaseServices();
+  await db.collection("auditLogs").add({
+    churchId,
+    actorUid,
+    action,
+    recordId,
+    ...details,
+    createdAt: FieldValue.serverTimestamp(),
+  });
 }
 
 export function hasRole(context: TenantContext, roles: ChurchRole[]): boolean {

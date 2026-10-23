@@ -1,9 +1,4 @@
-import {
-  Component,
-  type ComponentType,
-  type ErrorInfo,
-  type ReactNode,
-} from 'react';
+import { Component, type ComponentType, type ErrorInfo, type ReactNode } from "react";
 
 export interface ErrorFallbackProps {
   error: Error;
@@ -25,7 +20,7 @@ function toError(value: unknown): Error {
   if (value instanceof Error) {
     return value;
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return new Error(value);
   }
   try {
@@ -39,12 +34,9 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
       <div className="max-w-lg w-full text-center">
-        <h1 className="text-xl font-semibold text-gray-900">
-          Something went wrong
-        </h1>
+        <h1 className="text-xl font-semibold text-gray-900">Something went wrong</h1>
         <p className="mt-2 text-sm text-gray-600">
-          This part of the app hit an error. The rest of the app is still
-          running.
+          This part of the app hit an error. The rest of the app is still running.
         </p>
         {/* Dev only: messages can carry API responses and other internals. */}
         {import.meta.env.DEV ? (
@@ -64,10 +56,7 @@ function DefaultFallback({ error, resetError }: ErrorFallbackProps) {
   );
 }
 
-export class ErrorBoundary extends Component<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
-> {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
 
   static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
@@ -75,18 +64,11 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo): void {
-    console.error(
-      'ErrorBoundary caught an error:',
-      toError(error),
-      info.componentStack,
-    );
+    console.error("ErrorBoundary caught an error:", toError(error), info.componentStack);
   }
 
   componentDidUpdate(prevProps: ErrorBoundaryProps): void {
-    if (
-      this.state.error !== null &&
-      prevProps.resetKey !== this.props.resetKey
-    ) {
+    if (this.state.error !== null && prevProps.resetKey !== this.props.resetKey) {
       this.resetError();
     }
   }

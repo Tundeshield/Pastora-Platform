@@ -8,6 +8,7 @@ import tasksQrRouter from "./tasks-qr";
 import reportsRouter from "./reports";
 import financeRouter from "./finance";
 import settingsPlatformRouter from "./settings-platform";
+import teamRouter from "./team";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(tasksQrRouter);
 router.use(reportsRouter);
 router.use(financeRouter);
 router.use(settingsPlatformRouter);
+router.use(teamRouter);
 
 export default router;

@@ -166,6 +166,12 @@ router.patch("/tasks/:taskId", firebaseAuth, async (req, res): Promise<void> => 
       res.status(403).json({ error: "Your role cannot update this task." });
       return;
     }
+    const isManagerOrCreator = hasRole(context, [...managers]) || record.data.createdBy === user.uid;
+    const changesBeyondStatus = Object.keys(parsed.data).some((key) => key !== "status");
+    if (!isManagerOrCreator && changesBeyondStatus) {
+      res.status(403).json({ error: "You can update the status of tasks assigned to you." });
+      return;
+    }
     if (!(await validAssignee(context.churchId, parsed.data.assignedTo))) {
       res.status(400).json({ error: "Choose an authorised church member." });
       return;
