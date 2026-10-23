@@ -13,13 +13,24 @@ const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
+  await bundle(path.resolve(artifactDir, "src/index.ts"), distDir);
 
+  // Netlify Function: a single pre-bundled file (workspace TypeScript packages are
+  // compiled in; firebase-admin stays external and is traced by Netlify).
+  const netlifyDir = path.resolve(artifactDir, "netlify-dist");
+  await rm(netlifyDir, { recursive: true, force: true });
+  // One sub-directory per function: Netlify uses api/api.mjs as the entry point and
+  // ships the pino helper files next to it.
+  await bundle({ api: path.resolve(artifactDir, "netlify/functions/api.mts") }, path.join(netlifyDir, "api"));
+}
+
+async function bundle(entry, outdir) {
   await esbuild({
-    entryPoints: [path.resolve(artifactDir, "src/index.ts")],
+    entryPoints: typeof entry === "string" ? [entry] : entry,
     platform: "node",
     bundle: true,
     format: "esm",
-    outdir: distDir,
+    outdir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.

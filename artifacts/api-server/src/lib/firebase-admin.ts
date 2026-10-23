@@ -89,6 +89,9 @@ export function getFirebaseServices(): FirebaseServices {
     app = initializeApp();
   }
 
-  cachedServices = { app, auth: getAuth(app), db: getFirestore(app) };
+  const db = getFirestore(app);
+  // REST transport starts faster than gRPC in short-lived serverless functions.
+  if (!process.env.FIRESTORE_EMULATOR_HOST) db.settings({ preferRest: true });
+  cachedServices = { app, auth: getAuth(app), db };
   return cachedServices;
 }

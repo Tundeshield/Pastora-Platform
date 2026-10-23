@@ -8,11 +8,12 @@
     "node": "22"
   },
   "scripts": {
-    "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
+    "dev": "export NODE_ENV=development PORT=${PORT:-8080} && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test": "tsx --test src/lib/policies.test.ts src/test/api.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:emulator": "tsx --test src/test/emulator/rules.test.ts src/test/emulator/api.emulator.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
@@ -21,15 +22,19 @@
     "express-rate-limit": "^8.7.1",
     "firebase-admin": "^14.5.0",
     "firebase-functions": "^7.4.0",
+    "light-my-request": "^6.8.0",
     "pino": "^9.14.0",
     "pino-http": "^10.5.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "@netlify/functions": "^5.3.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
     "esbuild": "0.28.2",
     "esbuild-plugin-pino": "^2.3.3",
+    "firebase": "^11.10.0",
     "pino-pretty": "^13.2.0",
     "thread-stream": "3.1.0",
     "tsx": "catalog:"
