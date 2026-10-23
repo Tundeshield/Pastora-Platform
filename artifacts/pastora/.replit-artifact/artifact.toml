@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Pastora"
+description = "A pastoral care and church operations workspace that helps pastors manage requests, follow-ups, appointments, tasks and essential administration, with a public care portal for members and visitors."
+version = "1.0.0"
+id = "artifacts/pastora"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19299
+
+[services.development]
+run = "pnpm --filter @workspace/pastora run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/pastora", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/pastora/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19299"
+BASE_PATH = "/"

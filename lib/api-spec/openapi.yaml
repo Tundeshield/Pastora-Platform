@@ -3,20 +3,30 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Pastora church workspaces, public pastoral care and administration API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: setup
+  - name: workspace
+  - name: public-care
+  - name: requests
+  - name: appointments
+  - name: tasks
+  - name: qr-codes
+  - name: reports
+  - name: expenses
+  - name: settings
+  - name: notifications
+  - name: platform
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +34,1355 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /setup/status:
+    get:
+      operationId: getSetupStatus
+      tags: [setup]
+      summary: Check whether the Firebase services are configured
+      responses:
+        "200":
+          description: Setup status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SetupStatus"
+  /session:
+    get:
+      operationId: getSession
+      tags: [workspace]
+      summary: Get the signed-in user's active church membership
+      responses:
+        "200":
+          description: Session and membership
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /onboarding:
+    post:
+      operationId: createWorkspace
+      tags: [workspace]
+      summary: Create the signed-in pastor's church workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceInput"
+      responses:
+        "201":
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [workspace]
+      summary: Get actionable counts and upcoming work for the active church
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /public/churches/{slug}:
+    get:
+      operationId: getPublicChurch
+      tags: [public-care]
+      summary: Get public pastoral-care page information
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: Public church profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicChurch"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public/churches/{slug}/requests:
+    post:
+      operationId: submitPublicRequest
+      tags: [public-care]
+      summary: Submit a public prayer, counselling, appointment or general enquiry
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicRequestInput"
+      responses:
+        "201":
+          description: Request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicRequestReceipt"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Too many submissions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /requests:
+    get:
+      operationId: listRequests
+      tags: [requests]
+      summary: List pastoral requests visible to the signed-in user's role
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [prayer, counselling, appointment, general]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, acknowledged, scheduled, resolved, closed]
+      responses:
+        "200":
+          description: Pastoral requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PastoralRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createRequest
+      tags: [requests]
+      summary: Create an internal pastoral request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalRequestInput"
+      responses:
+        "201":
+          description: Request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PastoralRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /requests/{requestId}:
+    patch:
+      operationId: updateRequest
+      tags: [requests]
+      summary: Update request status, assignment or follow-up
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestUpdate"
+      responses:
+        "200":
+          description: Updated request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PastoralRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /requests/{requestId}/notes:
+    post:
+      operationId: addRequestNote
+      tags: [requests]
+      summary: Add a restricted internal note to a pastoral request
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestNoteInput"
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RequestNote"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List appointments for the active church
+      responses:
+        "200":
+          description: Appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Appointment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createAppointment
+      tags: [appointments]
+      summary: Create an appointment or appointment request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentInput"
+      responses:
+        "201":
+          description: Appointment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "409":
+          description: Time conflicts with a confirmed appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /appointments/{appointmentId}:
+    patch:
+      operationId: updateAppointment
+      tags: [appointments]
+      summary: Confirm, decline or reschedule an appointment
+      parameters:
+        - $ref: "#/components/parameters/AppointmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppointmentUpdate"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Time conflicts with a confirmed appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List tasks for the active church
+      responses:
+        "200":
+          description: Tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+  /tasks/{taskId}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update task status or details
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+  /qr-codes:
+    get:
+      operationId: listQrCodes
+      tags: [qr-codes]
+      summary: List QR links for the active church
+      responses:
+        "200":
+          description: QR links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/QrCode"
+    post:
+      operationId: createQrCode
+      tags: [qr-codes]
+      summary: Create a QR link for a public Pastora page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QrCodeInput"
+      responses:
+        "201":
+          description: QR link created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCode"
+  /qr-codes/{qrCodeId}:
+    patch:
+      operationId: updateQrCode
+      tags: [qr-codes]
+      summary: Update a QR link's name, destination or active state
+      parameters:
+        - $ref: "#/components/parameters/QrCodeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QrCodeUpdate"
+      responses:
+        "200":
+          description: Updated QR link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCode"
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List department reports
+      responses:
+        "200":
+          description: Department reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DepartmentReport"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Submit a department report
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Report submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentReport"
+  /reports/{reportId}:
+    patch:
+      operationId: reviewReport
+      tags: [reports]
+      summary: Review or comment on a department report
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportReview"
+      responses:
+        "200":
+          description: Updated report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DepartmentReport"
+  /expenses:
+    get:
+      operationId: listExpenses
+      tags: [expenses]
+      summary: List expense requests
+      responses:
+        "200":
+          description: Expense requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExpenseRequest"
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Submit an expense request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Expense request submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseRequest"
+  /expenses/{expenseId}:
+    patch:
+      operationId: updateExpense
+      tags: [expenses]
+      summary: Approve, reject or record payment for an expense
+      parameters:
+        - $ref: "#/components/parameters/ExpenseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseUpdate"
+      responses:
+        "200":
+          description: Updated expense request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get church workspace settings
+      responses:
+        "200":
+          description: Church settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchSettings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update church workspace settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchSettings"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List in-app notifications for the signed-in user
+      responses:
+        "200":
+          description: Notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+  /notifications/{notificationId}/read:
+    post:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark a notification as read
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Notification marked read
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [workspace]
+      summary: List configurable plans and commercial terms
+      responses:
+        "200":
+          description: Available plan configuration
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+  /platform/workspaces:
+    get:
+      operationId: listPlatformWorkspaces
+      tags: [platform]
+      summary: List tenant workspaces for an authorized platform owner
+      responses:
+        "200":
+          description: Workspace overview
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlatformWorkspace"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 components:
+  parameters:
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 2
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+    AppointmentId:
+      name: appointmentId
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
+    QrCodeId:
+      name: qrCodeId
+      in: path
+      required: true
+      schema:
+        type: string
+    ReportId:
+      name: reportId
+      in: path
+      required: true
+      schema:
+        type: string
+    ExpenseId:
+      name: expenseId
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    Unauthorized:
+      description: Sign-in required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Forbidden:
+      description: The user's role does not permit this action
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Record not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    ServiceUnavailable:
+      description: Firebase configuration is required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
   schemas:
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
     HealthStatus:
       type: object
       properties:
         status:
           type: string
+      required: [status]
+    SetupStatus:
+      type: object
+      properties:
+        firebaseConfigured:
+          type: boolean
+        publicPortalEnabled:
+          type: boolean
+        billingProviderConfigured:
+          type: boolean
+      required: [firebaseConfigured, publicPortalEnabled, billingProviderConfigured]
+    UserSummary:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [owner, pastor, counsellor, staff, department_leader, finance]
+      required: [uid, name, email, role]
+    Church:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        country:
+          type: string
+        timeZone:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+      required: [id, name, slug, country, timeZone, logoUrl]
+    Session:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserSummary"
+        church:
+          anyOf:
+            - $ref: "#/components/schemas/Church"
+            - type: "null"
+        subscriptionStatus:
+          type: string
+          enum: [setup_required, active, trialing, grace_period, read_only, cancelled]
+      required: [user, church, subscriptionStatus]
+    WorkspaceInput:
+      type: object
+      properties:
+        pastorName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        churchName:
+          type: string
+          minLength: 2
+          maxLength: 160
+        phone:
+          type: ["string", "null"]
+        country:
+          type: string
+          minLength: 2
+          maxLength: 80
+        timeZone:
+          type: string
+        theme:
+          type: string
+          enum: [warm-cream, modern-cool, system]
+      required: [pastorName, churchName, country, timeZone, theme]
+    DashboardSummary:
+      type: object
+      properties:
+        newPrayerRequests:
+          type: integer
+        counsellingAwaitingReview:
+          type: integer
+        upcomingAppointments:
+          type: integer
+        followUpsDue:
+          type: integer
+        overdueTasks:
+          type: integer
+        reportsAwaitingReview:
+          type: integer
+        expensesAwaitingApproval:
+          type: integer
+        nextAppointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        urgentFollowUps:
+          type: array
+          items:
+            $ref: "#/components/schemas/PastoralRequest"
       required:
+        - newPrayerRequests
+        - counsellingAwaitingReview
+        - upcomingAppointments
+        - followUpsDue
+        - overdueTasks
+        - reportsAwaitingReview
+        - expensesAwaitingApproval
+        - nextAppointments
+        - urgentFollowUps
+    PublicChurch:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        logoUrl:
+          type: ["string", "null"]
+        welcomeMessage:
+          type: string
+        categories:
+          type: array
+          items:
+            type: string
+        appointmentEnabled:
+          type: boolean
+        emergencyNotice:
+          type: string
+      required: [name, slug, logoUrl, welcomeMessage, categories, appointmentEnabled, emergencyNotice]
+    PublicRequestInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [prayer, counselling, appointment, general]
+        name:
+          type: ["string", "null"]
+          maxLength: 120
+        anonymous:
+          type: boolean
+        contact:
+          type: ["string", "null"]
+          maxLength: 200
+        category:
+          type: ["string", "null"]
+          maxLength: 100
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        preferredFormat:
+          type: ["string", "null"]
+          enum: [in-person, phone, video, null]
+        preferredAvailability:
+          type: ["string", "null"]
+          maxLength: 500
+        permissionToContact:
+          type: boolean
+        shareWithPrayerTeam:
+          type: boolean
+        preferredDate:
+          type: ["string", "null"]
+          format: date-time
+        campaign:
+          type: ["string", "null"]
+          maxLength: 120
+      required: [type, anonymous, message, permissionToContact, shareWithPrayerTeam]
+    PublicRequestReceipt:
+      type: object
+      properties:
+        reference:
+          type: string
+        received:
+          type: boolean
+      required: [reference, received]
+    PastoralRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [prayer, counselling, appointment, general]
+        name:
+          type: ["string", "null"]
+        contact:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        message:
+          type: string
+        status:
+          type: string
+          enum: [new, acknowledged, scheduled, resolved, closed]
+        assignedTo:
+          type: ["string", "null"]
+        nextAction:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        anonymous:
+          type: boolean
+        permissionToContact:
+          type: boolean
+        shareWithPrayerTeam:
+          type: boolean
+      required:
+        - id
+        - type
+        - name
+        - contact
+        - category
+        - message
         - status
-
+        - assignedTo
+        - nextAction
+        - dueAt
+        - createdAt
+        - anonymous
+        - permissionToContact
+        - shareWithPrayerTeam
+    InternalRequestInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [prayer, counselling, appointment, general]
+        name:
+          type: ["string", "null"]
+        contact:
+          type: ["string", "null"]
+        category:
+          type: ["string", "null"]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+      required: [type, message]
+    RequestUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [new, acknowledged, scheduled, resolved, closed]
+        assignedTo:
+          type: ["string", "null"]
+        nextAction:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+    RequestNoteInput:
+      type: object
+      properties:
+        note:
+          type: string
+          minLength: 1
+          maxLength: 5000
+      required: [note]
+    RequestNote:
+      type: object
+      properties:
+        id:
+          type: string
+        requestId:
+          type: string
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, requestId, note, createdAt]
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+        requesterName:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+        format:
+          type: string
+          enum: [in-person, phone, video]
+        status:
+          type: string
+          enum: [requested, confirmed, declined, completed, cancelled]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, requesterName, startAt, durationMinutes, format, status, createdAt]
+    AppointmentInput:
+      type: object
+      properties:
+        requesterName:
+          type: string
+          minLength: 1
+          maxLength: 120
+        contact:
+          type: ["string", "null"]
+          maxLength: 200
+        startAt:
+          type: string
+          format: date-time
+        durationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 240
+        format:
+          type: string
+          enum: [in-person, phone, video]
+        status:
+          type: string
+          enum: [requested, confirmed]
+      required: [requesterName, startAt, durationMinutes, format, status]
+    AppointmentUpdate:
+      type: object
+      properties:
+        startAt:
+          type: ["string", "null"]
+          format: date-time
+        durationMinutes:
+          type: ["integer", "null"]
+          minimum: 15
+          maximum: 240
+        status:
+          type: string
+          enum: [requested, confirmed, declined, completed, cancelled]
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [low, normal, high]
+        status:
+          type: string
+          enum: [todo, in_progress, blocked, completed]
+        assignedTo:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, title, description, priority, status, assignedTo, dueAt, createdAt]
+    TaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: ["string", "null"]
+          maxLength: 2000
+        priority:
+          type: string
+          enum: [low, normal, high]
+        assignedTo:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [title, priority]
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: ["string", "null"]
+          maxLength: 2000
+        priority:
+          type: string
+          enum: [low, normal, high]
+        status:
+          type: string
+          enum: [todo, in_progress, blocked, completed]
+        assignedTo:
+          type: ["string", "null"]
+        dueAt:
+          type: ["string", "null"]
+          format: date-time
+    QrCode:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        destination:
+          type: string
+          enum: [care, prayer, counselling, appointments, general]
+        campaign:
+          type: ["string", "null"]
+        active:
+          type: boolean
+        visits:
+          type: integer
+        submissions:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, destination, campaign, active, visits, submissions, createdAt]
+    QrCodeInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        destination:
+          type: string
+          enum: [care, prayer, counselling, appointments, general]
+        campaign:
+          type: ["string", "null"]
+          maxLength: 120
+      required: [name, destination]
+    QrCodeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        destination:
+          type: string
+          enum: [care, prayer, counselling, appointments, general]
+        campaign:
+          type: ["string", "null"]
+          maxLength: 120
+        active:
+          type: boolean
+    DepartmentReport:
+      type: object
+      properties:
+        id:
+          type: string
+        department:
+          type: string
+        period:
+          type: string
+        activities:
+          type: string
+        challenges:
+          type: ["string", "null"]
+        supportNeeded:
+          type: ["string", "null"]
+        nextPlans:
+          type: string
+        status:
+          type: string
+          enum: [submitted, reviewed, needs_follow_up]
+        reviewComment:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, department, period, activities, challenges, supportNeeded, nextPlans, status, reviewComment, createdAt]
+    ReportInput:
+      type: object
+      properties:
+        department:
+          type: string
+          minLength: 1
+          maxLength: 120
+        period:
+          type: string
+          minLength: 1
+          maxLength: 80
+        activities:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        challenges:
+          type: ["string", "null"]
+          maxLength: 3000
+        supportNeeded:
+          type: ["string", "null"]
+          maxLength: 3000
+        nextPlans:
+          type: string
+          minLength: 1
+          maxLength: 3000
+      required: [department, period, activities, nextPlans]
+    ReportReview:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [reviewed, needs_follow_up]
+        reviewComment:
+          type: ["string", "null"]
+          maxLength: 3000
+      required: [status]
+    ExpenseRequest:
+      type: object
+      properties:
+        id:
+          type: string
+        description:
+          type: string
+        purpose:
+          type: string
+        amount:
+          type: number
+          minimum: 0
+        currency:
+          type: string
+          enum: [NGN]
+        department:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [submitted, approved, rejected, clarification, paid]
+        requesterId:
+          type: string
+        receiptPath:
+          type: ["string", "null"]
+        paymentReference:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, description, purpose, amount, currency, department, status, requesterId, receiptPath, paymentReference, createdAt]
+    ExpenseInput:
+      type: object
+      properties:
+        description:
+          type: string
+          minLength: 1
+          maxLength: 200
+        purpose:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        amount:
+          type: number
+          exclusiveMinimum: 0
+        department:
+          type: ["string", "null"]
+          maxLength: 120
+        receiptPath:
+          type: ["string", "null"]
+      required: [description, purpose, amount]
+    ExpenseUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [approved, rejected, clarification, paid]
+        paymentReference:
+          type: ["string", "null"]
+          maxLength: 200
+        clarification:
+          type: ["string", "null"]
+          maxLength: 2000
+    ChurchSettings:
+      type: object
+      properties:
+        church:
+          $ref: "#/components/schemas/Church"
+        theme:
+          type: string
+          enum: [warm-cream, modern-cool, system]
+        welcomeMessage:
+          type: string
+        emergencyNotice:
+          type: string
+        appointmentDurationMinutes:
+          type: integer
+        appointmentEnabled:
+          type: boolean
+        publicPortalEnabled:
+          type: boolean
+        categories:
+          type: array
+          items:
+            type: string
+        retentionDays:
+          type: integer
+          minimum: 0
+      required: [church, theme, welcomeMessage, emergencyNotice, appointmentDurationMinutes, appointmentEnabled, publicPortalEnabled, categories, retentionDays]
+    SettingsUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 160
+        phone:
+          type: ["string", "null"]
+        country:
+          type: string
+        timeZone:
+          type: string
+        theme:
+          type: string
+          enum: [warm-cream, modern-cool, system]
+        welcomeMessage:
+          type: string
+          maxLength: 1000
+        emergencyNotice:
+          type: string
+          maxLength: 1000
+        appointmentDurationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 240
+        appointmentEnabled:
+          type: boolean
+        publicPortalEnabled:
+          type: boolean
+        categories:
+          type: array
+          items:
+            type: string
+        retentionDays:
+          type: integer
+          minimum: 0
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [pastoral_request, appointment, follow_up, task, report, expense]
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+        targetPath:
+          type: string
+      required: [id, type, title, createdAt, read, targetPath]
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        monthlyPrice:
+          type: ["number", "null"]
+        annualPrice:
+          type: ["number", "null"]
+        billingCurrency:
+          type: ["string", "null"]
+        configured:
+          type: boolean
+        features:
+          type: array
+          items:
+            type: string
+        limits:
+          type: object
+          additionalProperties:
+            type: integer
+      required: [id, name, description, monthlyPrice, annualPrice, billingCurrency, configured, features, limits]
+    PlatformWorkspace:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        plan:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, status, plan, createdAt]

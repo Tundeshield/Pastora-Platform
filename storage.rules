@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Receipts and church logos remain unavailable until an authenticated upload
+    // flow and tenant-aware Storage rules are deployed and tested.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,12 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pastora accesses tenant records through the authenticated API server.
+    // Admin SDK operations still enforce church membership and roles in server code.
+    // Direct browser access stays closed unless an explicit, reviewed rule is added.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
