@@ -19,6 +19,7 @@ import {
   tenantForUser,
 } from "../lib/pastora-data";
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
+import { appearanceFrom } from "../lib/policies";
 import {
   acceptPendingInvitation,
   createWorkspaceForUser,
@@ -120,7 +121,7 @@ async function buildSession(user: DecodedIdToken) {
     church: churchData && context ? churchSummary(context.churchId, churchData) : null,
     subscriptionStatus:
       typeof churchData?.subscriptionStatus === "string" ? churchData.subscriptionStatus : "setup_required",
-    theme: settings?.get("theme") === "modern-cool" ? "modern-cool" : "warm-cream",
+    ...appearanceFrom(settings?.data()),
     emailVerified: user.email_verified === true,
     invitationPending: !context && user.email_verified !== true ? await hasPendingInvitation(user.email) : false,
   });

@@ -4,8 +4,11 @@ import {
   getGetSettingsQueryKey,
   useGetSettings,
   useUpdateSettings,
+  type FontFamily,
+  type FontSize,
+  type Palette,
 } from "@workspace/api-client-react";
-import { Moon, Sun } from "lucide-react";
+import { Landmark, Leaf, Moon, Sun, Trees, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -19,7 +22,58 @@ import {
   Toggle,
 } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
-import { applyTheme, storedTheme } from "@/theme";
+import { applyAppearance, storedAppearance, type Appearance } from "@/theme";
+
+const PALETTE_OPTIONS: {
+  value: Palette;
+  label: string;
+  description: string;
+  className: string;
+  icon: LucideIcon;
+}[] = [
+  {
+    value: "warm-cream",
+    label: "Warm Cream",
+    description: "Soft parchment, leaf green, muted terracotta",
+    className: "cream-option",
+    icon: Sun,
+  },
+  {
+    value: "modern-cool",
+    label: "Modern Cool",
+    description: "Quiet slate, mineral blue, cool sage",
+    className: "cool-option",
+    icon: Moon,
+  },
+  { value: "sage", label: "Sage", description: "Soft sage green, warm ivory, deep forest text", className: "sage-option", icon: Leaf },
+  {
+    value: "heritage-blue",
+    label: "Heritage Blue",
+    description: "Muted navy, pale blue-grey, antique gold",
+    className: "heritage-option",
+    icon: Landmark,
+  },
+  {
+    value: "forest-dark",
+    label: "Forest Dark",
+    description: "Deep forest, elevated dark surfaces, warm gold",
+    className: "forest-option",
+    icon: Trees,
+  },
+];
+
+const FONT_OPTIONS: { value: FontFamily; label: string; stack: string }[] = [
+  { value: "inter", label: "Inter", stack: "'Inter', sans-serif" },
+  { value: "manrope", label: "Manrope", stack: "'Manrope', sans-serif" },
+  { value: "roboto", label: "Roboto", stack: "'Roboto', sans-serif" },
+  { value: "lora", label: "Lora", stack: "'Lora', Georgia, serif" },
+];
+
+const SIZE_OPTIONS: { value: FontSize; label: string; preview: string }[] = [
+  { value: "small", label: "Small", preview: "13px" },
+  { value: "normal", label: "Normal", preview: "16px" },
+  { value: "large", label: "Large", preview: "19px" },
+];
 
 export function SettingsPage() {
   const q = useGetSettings({ query: { queryKey: getGetSettingsQueryKey(), retry: 1 } });
@@ -27,10 +81,33 @@ export function SettingsPage() {
   const qc = useQueryClient();
   const [local, setLocal] = useState<any>(null);
   useEffect(() => {
-    if (q.data && !local)
-      setLocal({ ...q.data, theme: q.data.theme === "modern-cool" ? "modern-cool" : "warm-cream" });
+    if (q.data && !local) setLocal({ ...q.data });
   }, [q.data, local]);
-  const [themeChoice, setThemeChoice] = useState<string>(storedTheme());
+  const [appearance, setAppearance] = useState<Appearance>(storedAppearance());
+  useEffect(() => {
+    if (q.data) {
+      setAppearance({ theme: q.data.theme as Palette, fontFamily: q.data.fontFamily, fontSize: q.data.fontSize });
+    }
+  }, [q.data]);
+  // Each choice applies immediately and saves only that one field, so changing the
+  // font never overwrites the palette (or vice versa). A failed save is rolled back.
+  const choose = (change: Partial<Appearance>) => {
+    const previous = appearance;
+    const next = applyAppearance({ ...appearance, ...change });
+    setAppearance(next);
+    update.mutate(
+      { data: change },
+      {
+        onSuccess: (data) => {
+          qc.setQueryData(getGetSettingsQueryKey(), data);
+          void qc.invalidateQueries({ queryKey: getGetSessionQueryKey() });
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2500);
+        },
+        onError: () => setAppearance(applyAppearance(previous)),
+      },
+    );
+  };
   const [saved, setSaved] = useState(false);
   const save = (payload: Record<string, unknown>) =>
     update.mutate(
@@ -194,31 +271,57 @@ export function SettingsPage() {
             <h2 className="serif">Choose your palette</h2>
             <p>Applies to everyone in this workspace and follows you to any device.</p>
           </div>
-          <div className="theme-options">
-            <button
-              className={`theme-option cream-option ${themeChoice === "warm-cream" ? "selected" : ""}`}
-              onClick={() => {
-                setThemeChoice("warm-cream");
-                applyTheme("warm-cream");
-                save({ theme: "warm-cream" });
-              }}
-            >
-              <Sun />
-              <b>Warm Cream</b>
-              <small>Soft parchment, leaf green, muted terracotta</small>
-            </button>
-            <button
-              className={`theme-option cool-option ${themeChoice === "modern-cool" ? "selected" : ""}`}
-              onClick={() => {
-                setThemeChoice("modern-cool");
-                applyTheme("modern-cool");
-                save({ theme: "modern-cool" });
-              }}
-            >
-              <Moon />
-              <b>Modern Cool</b>
-              <small>Quiet slate, mineral blue, cool sage</small>
-            </button>
+          <div className="workspace-feel">
+            <div className="theme-options">
+              {PALETTE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={appearance.theme === option.value}
+                  className={`theme-option ${option.className} ${appearance.theme === option.value ? "selected" : ""}`}
+                  onClick={() => choose({ theme: option.value })}
+                >
+                  <option.icon />
+                  <b>{option.label}</b>
+                  <small>{option.description}</small>
+                </button>
+              ))}
+            </div>
+            <div className="typography-settings">
+              <h3>Typography</h3>
+              <p>The font and text size used across the workspace for everyone in your church.</p>
+              <div className="option-group" role="radiogroup" aria-label="Font">
+                {FONT_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={appearance.fontFamily === option.value}
+                    className={`choice-chip ${appearance.fontFamily === option.value ? "selected" : ""}`}
+                    style={{ fontFamily: option.stack }}
+                    onClick={() => choose({ fontFamily: option.value })}
+                  >
+                    {option.label}
+                    {option.value === "inter" && <small>Default</small>}
+                  </button>
+                ))}
+              </div>
+              <div className="option-group" role="radiogroup" aria-label="Text size">
+                {SIZE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={appearance.fontSize === option.value}
+                    className={`choice-chip size-chip ${appearance.fontSize === option.value ? "selected" : ""}`}
+                    onClick={() => choose({ fontSize: option.value })}
+                  >
+                    <span style={{ fontSize: option.preview }}>Aa</span>
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
         <section className="settings-section">

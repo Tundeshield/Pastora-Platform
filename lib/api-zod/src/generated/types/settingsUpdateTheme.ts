@@ -12,5 +12,8 @@ export type SettingsUpdateTheme = typeof SettingsUpdateTheme[keyof typeof Settin
 export const SettingsUpdateTheme = {
   'warm-cream': 'warm-cream',
   'modern-cool': 'modern-cool',
+  sage: 'sage',
+  'heritage-blue': 'heritage-blue',
+  'forest-dark': 'forest-dark',
   system: 'system',
 } as const;

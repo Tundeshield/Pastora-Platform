@@ -6,10 +6,16 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SessionTheme = typeof SessionTheme[keyof typeof SessionTheme];
+/**
+ * Workspace colour palette. Warm Cream is the default.
+ */
+export type Palette = typeof Palette[keyof typeof Palette];
 
 
-export const SessionTheme = {
+export const Palette = {
   'warm-cream': 'warm-cream',
   'modern-cool': 'modern-cool',
+  sage: 'sage',
+  'heritage-blue': 'heritage-blue',
+  'forest-dark': 'forest-dark',
 } as const;

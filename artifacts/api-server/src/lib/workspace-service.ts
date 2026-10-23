@@ -1,7 +1,7 @@
 import { FieldValue, type DocumentData } from "firebase-admin/firestore";
 import { getFirebaseServices } from "./firebase-admin";
 import { membershipDocId, type ChurchRole } from "./pastora-data";
-import { normalizeEmail, slugify } from "./policies";
+import { appearanceFrom, normalizeEmail, slugify } from "./policies";
 
 export type WorkspaceInput = {
   pastorName: string;
@@ -9,7 +9,7 @@ export type WorkspaceInput = {
   phone?: string | null;
   country: string;
   timeZone: string;
-  theme: "warm-cream" | "modern-cool" | "system";
+  theme: string;
 };
 
 export type CreatedWorkspace = {
@@ -112,7 +112,8 @@ async function createWorkspaceOnce(
 
     const churchRef = db.collection("churches").doc();
     const now = FieldValue.serverTimestamp();
-    const theme = input.theme === "modern-cool" ? "modern-cool" : "warm-cream";
+    // New workspaces: chosen palette (Warm Cream by default), Inter, normal text.
+    const { theme } = appearanceFrom({ theme: input.theme });
     const church = {
       name: input.churchName.trim(),
       slug,
@@ -141,6 +142,8 @@ async function createWorkspaceOnce(
     tx.set(db.collection("churchSettings").doc(churchRef.id), {
       churchId: churchRef.id,
       theme,
+      fontFamily: "inter",
+      fontSize: "normal",
       welcomeMessage: "You are welcome to reach out. Our pastoral care team is here to listen.",
       emergencyNotice:
         "Pastora is not an emergency response service or a replacement for professional healthcare.",

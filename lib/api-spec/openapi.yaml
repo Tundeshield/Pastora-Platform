@@ -844,14 +844,17 @@ components:
           type: string
           enum: [setup_required, active, trialing, grace_period, read_only, cancelled]
         theme:
-          type: string
-          enum: [warm-cream, modern-cool]
+          $ref: "#/components/schemas/Palette"
+        fontFamily:
+          $ref: "#/components/schemas/FontFamily"
+        fontSize:
+          $ref: "#/components/schemas/FontSize"
         emailVerified:
           type: boolean
         invitationPending:
           type: boolean
           description: True when an invitation is waiting for this email but the email is not yet verified.
-      required: [user, church, subscriptionStatus, theme, emailVerified, invitationPending]
+      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending]
     WorkspaceInput:
       type: object
       properties:
@@ -873,7 +876,7 @@ components:
           type: string
         theme:
           type: string
-          enum: [warm-cream, modern-cool, system]
+          enum: [warm-cream, modern-cool, sage, heritage-blue, forest-dark, system]
       required: [pastorName, churchName, country, timeZone, theme]
     DashboardSummary:
       type: object
@@ -1389,7 +1392,7 @@ components:
           $ref: "#/components/schemas/Church"
         theme:
           type: string
-          enum: [warm-cream, modern-cool, system]
+          enum: [warm-cream, modern-cool, sage, heritage-blue, forest-dark, system]
         welcomeMessage:
           type: string
         emergencyNotice:
@@ -1407,7 +1410,11 @@ components:
         retentionDays:
           type: integer
           minimum: 0
-      required: [church, theme, welcomeMessage, emergencyNotice, appointmentDurationMinutes, appointmentEnabled, publicPortalEnabled, categories, retentionDays]
+        fontFamily:
+          $ref: "#/components/schemas/FontFamily"
+        fontSize:
+          $ref: "#/components/schemas/FontSize"
+      required: [church, theme, fontFamily, fontSize, welcomeMessage, emergencyNotice, appointmentDurationMinutes, appointmentEnabled, publicPortalEnabled, categories, retentionDays]
     SettingsUpdate:
       type: object
       properties:
@@ -1423,7 +1430,7 @@ components:
           type: string
         theme:
           type: string
-          enum: [warm-cream, modern-cool, system]
+          enum: [warm-cream, modern-cool, sage, heritage-blue, forest-dark, system]
         welcomeMessage:
           type: string
           maxLength: 1000
@@ -1442,6 +1449,10 @@ components:
           type: array
           items:
             type: string
+        fontFamily:
+          $ref: "#/components/schemas/FontFamily"
+        fontSize:
+          $ref: "#/components/schemas/FontSize"
         retentionDays:
           type: integer
           minimum: 0
@@ -1579,3 +1590,15 @@ components:
           maxLength: 120
         active:
           type: boolean
+    Palette:
+      type: string
+      enum: [warm-cream, modern-cool, sage, heritage-blue, forest-dark]
+      description: Workspace colour palette. Warm Cream is the default.
+    FontFamily:
+      type: string
+      enum: [inter, manrope, roboto, lora]
+      description: Workspace interface font. Inter is the default.
+    FontSize:
+      type: string
+      enum: [small, normal, large]
+      description: Workspace text size. Normal is the default.

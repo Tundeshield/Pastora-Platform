@@ -26,7 +26,7 @@ import { Link, useLocation } from "wouter";
 
 import { RequireWorkspace, useAuth, useSession } from "@/auth";
 import { Brand } from "@/components/ui-kit";
-import { applyTheme } from "@/theme";
+import { applyAppearance } from "@/theme";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; roles: UserSummaryRole[] };
 
@@ -126,10 +126,11 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
   const mark = useMarkNotificationRead();
   const qc = useQueryClient();
 
-  // The workspace theme follows the church setting, wherever you sign in.
+  // Palette and typography follow the church setting, wherever you sign in.
+  const { theme, fontFamily, fontSize } = session.data ?? {};
   useEffect(() => {
-    if (session.data?.theme) applyTheme(session.data.theme);
-  }, [session.data?.theme]);
+    if (theme && fontFamily && fontSize) applyAppearance({ theme, fontFamily, fontSize });
+  }, [theme, fontFamily, fontSize]);
 
   const doMark = (id: string) =>
     mark.mutate(

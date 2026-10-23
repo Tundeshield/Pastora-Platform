@@ -104,3 +104,27 @@ export function slugify(name: string): string {
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
+
+export const PALETTES = ["warm-cream", "modern-cool", "sage", "heritage-blue", "forest-dark"] as const;
+export const FONT_FAMILIES = ["inter", "manrope", "roboto", "lora"] as const;
+export const FONT_SIZES = ["small", "normal", "large"] as const;
+export type Appearance = {
+  theme: (typeof PALETTES)[number];
+  fontFamily: (typeof FONT_FAMILIES)[number];
+  fontSize: (typeof FONT_SIZES)[number];
+};
+
+/**
+ * Reads the workspace appearance from stored settings. Workspaces created before
+ * typography existed simply get the defaults, and their chosen palette is kept.
+ * Unknown values (including the legacy "system") fall back to the defaults.
+ */
+export function appearanceFrom(settings: Record<string, unknown> | undefined | null): Appearance {
+  const pick = <T extends readonly string[]>(value: unknown, allowed: T, fallback: T[number]): T[number] =>
+    typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T[number]) : fallback;
+  return {
+    theme: pick(settings?.theme, PALETTES, "warm-cream"),
+    fontFamily: pick(settings?.fontFamily, FONT_FAMILIES, "inter"),
+    fontSize: pick(settings?.fontSize, FONT_SIZES, "normal"),
+  };
+}

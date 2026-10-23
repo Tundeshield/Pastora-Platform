@@ -45,7 +45,9 @@ export const GetSessionResponse = zod.object({
   "logoUrl": zod.string().nullable()
 }),zod.null()]),
   "subscriptionStatus": zod.enum(['setup_required', 'active', 'trialing', 'grace_period', 'read_only', 'cancelled']),
-  "theme": zod.enum(['warm-cream', 'modern-cool']),
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark']).describe('Workspace colour palette. Warm Cream is the default.'),
+  "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).describe('Workspace interface font. Inter is the default.'),
+  "fontSize": zod.enum(['small', 'normal', 'large']).describe('Workspace text size. Normal is the default.'),
   "emailVerified": zod.boolean(),
   "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.')
 })
@@ -70,7 +72,7 @@ export const CreateWorkspaceBody = zod.object({
   "phone": zod.string().nullish(),
   "country": zod.string().min(createWorkspaceBodyCountryMin).max(createWorkspaceBodyCountryMax),
   "timeZone": zod.string(),
-  "theme": zod.enum(['warm-cream', 'modern-cool', 'system'])
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark', 'system'])
 })
 
 export const CreateWorkspaceResponse = zod.object({
@@ -89,7 +91,9 @@ export const CreateWorkspaceResponse = zod.object({
   "logoUrl": zod.string().nullable()
 }),zod.null()]),
   "subscriptionStatus": zod.enum(['setup_required', 'active', 'trialing', 'grace_period', 'read_only', 'cancelled']),
-  "theme": zod.enum(['warm-cream', 'modern-cool']),
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark']).describe('Workspace colour palette. Warm Cream is the default.'),
+  "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).describe('Workspace interface font. Inter is the default.'),
+  "fontSize": zod.enum(['small', 'normal', 'large']).describe('Workspace text size. Normal is the default.'),
   "emailVerified": zod.boolean(),
   "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.')
 })
@@ -761,14 +765,16 @@ export const GetSettingsResponse = zod.object({
   "timeZone": zod.string(),
   "logoUrl": zod.string().nullable()
 }),
-  "theme": zod.enum(['warm-cream', 'modern-cool', 'system']),
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark', 'system']),
   "welcomeMessage": zod.string(),
   "emergencyNotice": zod.string(),
   "appointmentDurationMinutes": zod.number().int(),
   "appointmentEnabled": zod.boolean(),
   "publicPortalEnabled": zod.boolean(),
   "categories": zod.array(zod.string()),
-  "retentionDays": zod.number().int().min(getSettingsResponseRetentionDaysMin)
+  "retentionDays": zod.number().int().min(getSettingsResponseRetentionDaysMin),
+  "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).describe('Workspace interface font. Inter is the default.'),
+  "fontSize": zod.enum(['small', 'normal', 'large']).describe('Workspace text size. Normal is the default.')
 })
 
 
@@ -794,13 +800,15 @@ export const UpdateSettingsBody = zod.object({
   "phone": zod.string().nullish(),
   "country": zod.string().optional(),
   "timeZone": zod.string().optional(),
-  "theme": zod.enum(['warm-cream', 'modern-cool', 'system']).optional(),
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark', 'system']).optional(),
   "welcomeMessage": zod.string().max(updateSettingsBodyWelcomeMessageMax).optional(),
   "emergencyNotice": zod.string().max(updateSettingsBodyEmergencyNoticeMax).optional(),
   "appointmentDurationMinutes": zod.number().int().min(updateSettingsBodyAppointmentDurationMinutesMin).max(updateSettingsBodyAppointmentDurationMinutesMax).optional(),
   "appointmentEnabled": zod.boolean().optional(),
   "publicPortalEnabled": zod.boolean().optional(),
   "categories": zod.array(zod.string()).optional(),
+  "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).optional().describe('Workspace interface font. Inter is the default.'),
+  "fontSize": zod.enum(['small', 'normal', 'large']).optional().describe('Workspace text size. Normal is the default.'),
   "retentionDays": zod.number().int().min(updateSettingsBodyRetentionDaysMin).optional()
 })
 
@@ -817,14 +825,16 @@ export const UpdateSettingsResponse = zod.object({
   "timeZone": zod.string(),
   "logoUrl": zod.string().nullable()
 }),
-  "theme": zod.enum(['warm-cream', 'modern-cool', 'system']),
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark', 'system']),
   "welcomeMessage": zod.string(),
   "emergencyNotice": zod.string(),
   "appointmentDurationMinutes": zod.number().int(),
   "appointmentEnabled": zod.boolean(),
   "publicPortalEnabled": zod.boolean(),
   "categories": zod.array(zod.string()),
-  "retentionDays": zod.number().int().min(updateSettingsResponseRetentionDaysMin)
+  "retentionDays": zod.number().int().min(updateSettingsResponseRetentionDaysMin),
+  "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).describe('Workspace interface font. Inter is the default.'),
+  "fontSize": zod.enum(['small', 'normal', 'large']).describe('Workspace text size. Normal is the default.')
 })
 
 

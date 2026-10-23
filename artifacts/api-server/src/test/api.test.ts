@@ -587,6 +587,45 @@ describe("settings and session", () => {
     assert.equal((await call("GET", "/session", staff.token)).body.theme, "warm-cream");
   });
 
+  test("new workspaces default to Inter and normal text; appearance fields update independently", async () => {
+    const owner = await ownerWithChurch();
+    const staff = await member(owner.token, "staff");
+    const initial = await call("GET", "/session", staff.token);
+    assert.equal(initial.body.theme, "modern-cool"); // chosen during onboarding
+    assert.equal(initial.body.fontFamily, "inter");
+    assert.equal(initial.body.fontSize, "normal");
+
+    assert.equal((await call("PATCH", "/settings", owner.token, { theme: "forest-dark" })).status, 200);
+    assert.equal((await call("PATCH", "/settings", owner.token, { fontFamily: "lora" })).status, 200);
+    const sized = await call("PATCH", "/settings", owner.token, { fontSize: "large" });
+    assert.equal(sized.status, 200);
+    assert.deepEqual([sized.body.theme, sized.body.fontFamily, sized.body.fontSize], ["forest-dark", "lora", "large"]);
+
+    // Every member of the workspace gets the same appearance on any device.
+    const forStaff = await call("GET", "/session", staff.token);
+    assert.deepEqual([forStaff.body.theme, forStaff.body.fontFamily, forStaff.body.fontSize], ["forest-dark", "lora", "large"]);
+
+    assert.equal((await call("PATCH", "/settings", owner.token, { fontFamily: "comic-sans" })).status, 400);
+    assert.equal((await call("PATCH", "/settings", staff.token, { fontSize: "small" })).status, 403);
+    for (const theme of ["warm-cream", "modern-cool", "sage", "heritage-blue", "forest-dark"]) {
+      assert.equal((await call("PATCH", "/settings", owner.token, { theme })).body.theme, theme);
+    }
+  });
+
+  test("existing workspaces keep their palette and get typography defaults", async () => {
+    const owner = await ownerWithChurch();
+    // Simulate a workspace created before typography settings existed.
+    const settingsPath = `churchSettings/${owner.church.id}`;
+    const legacy = { ...db.store.get(settingsPath)! };
+    delete legacy.fontFamily;
+    delete legacy.fontSize;
+    db.store.set(settingsPath, legacy);
+    const session = await call("GET", "/session", owner.token);
+    assert.deepEqual([session.body.theme, session.body.fontFamily, session.body.fontSize], ["modern-cool", "inter", "normal"]);
+    const settings = await call("GET", "/settings", owner.token);
+    assert.equal(settings.body.fontFamily, "inter");
+  });
+
   test("platform workspace list requires the platform-owner claim", async () => {
     const owner = await ownerWithChurch();
     assert.equal((await call("GET", "/platform/workspaces", owner.token)).status, 403);

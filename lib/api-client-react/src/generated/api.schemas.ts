@@ -60,19 +60,52 @@ export const SessionSubscriptionStatus = {
   cancelled: 'cancelled',
 } as const;
 
-export type SessionTheme = typeof SessionTheme[keyof typeof SessionTheme];
+/**
+ * Workspace colour palette. Warm Cream is the default.
+ */
+export type Palette = typeof Palette[keyof typeof Palette];
 
 
-export const SessionTheme = {
+export const Palette = {
   'warm-cream': 'warm-cream',
   'modern-cool': 'modern-cool',
+  sage: 'sage',
+  'heritage-blue': 'heritage-blue',
+  'forest-dark': 'forest-dark',
+} as const;
+
+/**
+ * Workspace interface font. Inter is the default.
+ */
+export type FontFamily = typeof FontFamily[keyof typeof FontFamily];
+
+
+export const FontFamily = {
+  inter: 'inter',
+  manrope: 'manrope',
+  roboto: 'roboto',
+  lora: 'lora',
+} as const;
+
+/**
+ * Workspace text size. Normal is the default.
+ */
+export type FontSize = typeof FontSize[keyof typeof FontSize];
+
+
+export const FontSize = {
+  small: 'small',
+  normal: 'normal',
+  large: 'large',
 } as const;
 
 export interface Session {
   user: UserSummary;
   church: Church | null;
   subscriptionStatus: SessionSubscriptionStatus;
-  theme: SessionTheme;
+  theme: Palette;
+  fontFamily: FontFamily;
+  fontSize: FontSize;
   emailVerified: boolean;
   /** True when an invitation is waiting for this email but the email is not yet verified. */
   invitationPending: boolean;
@@ -84,6 +117,9 @@ export type WorkspaceInputTheme = typeof WorkspaceInputTheme[keyof typeof Worksp
 export const WorkspaceInputTheme = {
   'warm-cream': 'warm-cream',
   'modern-cool': 'modern-cool',
+  sage: 'sage',
+  'heritage-blue': 'heritage-blue',
+  'forest-dark': 'forest-dark',
   system: 'system',
 } as const;
 
@@ -740,6 +776,9 @@ export type ChurchSettingsTheme = typeof ChurchSettingsTheme[keyof typeof Church
 export const ChurchSettingsTheme = {
   'warm-cream': 'warm-cream',
   'modern-cool': 'modern-cool',
+  sage: 'sage',
+  'heritage-blue': 'heritage-blue',
+  'forest-dark': 'forest-dark',
   system: 'system',
 } as const;
 
@@ -754,6 +793,8 @@ export interface ChurchSettings {
   categories: string[];
   /** @minimum 0 */
   retentionDays: number;
+  fontFamily: FontFamily;
+  fontSize: FontSize;
 }
 
 export type SettingsUpdateTheme = typeof SettingsUpdateTheme[keyof typeof SettingsUpdateTheme];
@@ -762,6 +803,9 @@ export type SettingsUpdateTheme = typeof SettingsUpdateTheme[keyof typeof Settin
 export const SettingsUpdateTheme = {
   'warm-cream': 'warm-cream',
   'modern-cool': 'modern-cool',
+  sage: 'sage',
+  'heritage-blue': 'heritage-blue',
+  'forest-dark': 'forest-dark',
   system: 'system',
 } as const;
 
@@ -788,6 +832,8 @@ export interface SettingsUpdate {
   appointmentEnabled?: boolean;
   publicPortalEnabled?: boolean;
   categories?: string[];
+  fontFamily?: FontFamily;
+  fontSize?: FontSize;
   /** @minimum 0 */
   retentionDays?: number;
 }

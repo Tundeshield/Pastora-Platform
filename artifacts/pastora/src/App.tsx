@@ -17,14 +17,14 @@ import { RequestsPage } from "@/pages/requests";
 import { SettingsPage } from "@/pages/settings";
 import { TasksPage } from "@/pages/tasks";
 import { TeamPage } from "@/pages/team";
-import { applyTheme, storedTheme } from "@/theme";
+import { applyAppearance, storedAppearance } from "@/theme";
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
 });
 
-// Apply the remembered theme before first paint of the app.
-applyTheme(storedTheme());
+// Apply the last-seen workspace appearance before first paint of the app.
+applyAppearance(storedAppearance());
 
 function App() {
   return (

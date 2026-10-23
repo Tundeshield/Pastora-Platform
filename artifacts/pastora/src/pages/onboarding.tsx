@@ -7,7 +7,7 @@ import { useLocation } from "wouter";
 import { destinationFor, FullPageMessage, useAuth, useSession } from "@/auth";
 import { Button, Field, PublicFrame, StatusLine } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
-import { applyTheme } from "@/theme";
+import { applyAppearance, applyTheme } from "@/theme";
 
 function browserTimeZone(): string {
   try {
@@ -54,7 +54,7 @@ export function OnboardingPage() {
       {
         onSuccess: (created) => {
           qc.setQueryData(getGetSessionQueryKey(), created);
-          applyTheme(created.theme);
+          applyAppearance({ theme: created.theme, fontFamily: created.fontFamily, fontSize: created.fontSize });
           setLocation("/app");
         },
       },

@@ -6,15 +6,19 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Church } from './church';
+import type { FontFamily } from './fontFamily';
+import type { FontSize } from './fontSize';
+import type { Palette } from './palette';
 import type { SessionSubscriptionStatus } from './sessionSubscriptionStatus';
-import type { SessionTheme } from './sessionTheme';
 import type { UserSummary } from './userSummary';
 
 export interface Session {
   user: UserSummary;
   church: Church | null;
   subscriptionStatus: SessionSubscriptionStatus;
-  theme: SessionTheme;
+  theme: Palette;
+  fontFamily: FontFamily;
+  fontSize: FontSize;
   emailVerified: boolean;
   /** True when an invitation is waiting for this email but the email is not yet verified. */
   invitationPending: boolean;

@@ -7,6 +7,8 @@
  */
 import type { Church } from './church';
 import type { ChurchSettingsTheme } from './churchSettingsTheme';
+import type { FontFamily } from './fontFamily';
+import type { FontSize } from './fontSize';
 
 export interface ChurchSettings {
   church: Church;
@@ -19,4 +21,6 @@ export interface ChurchSettings {
   categories: string[];
   /** @minimum 0 */
   retentionDays: number;
+  fontFamily: FontFamily;
+  fontSize: FontSize;
 }

@@ -18,6 +18,7 @@ import {
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
+import { appearanceFrom } from "../lib/policies";
 
 const router: IRouter = Router();
 
@@ -53,7 +54,7 @@ router.get("/settings", firebaseAuth, async (req, res): Promise<void> => {
           timeZone: church.timeZone,
           logoUrl: church.logoUrl ?? null,
         },
-        theme: settings.theme ?? "warm-cream",
+        ...appearanceFrom(settings),
         welcomeMessage: settings.welcomeMessage ?? "",
         emergencyNotice: settings.emergencyNotice ?? "",
         appointmentDurationMinutes: settings.appointmentDurationMinutes ?? 45,
@@ -95,6 +96,8 @@ router.patch("/settings", firebaseAuth, async (req, res): Promise<void> => {
     const settingsPatch: Record<string, unknown> = { updatedAt: now };
     for (const field of [
       "theme",
+      "fontFamily",
+      "fontSize",
       "welcomeMessage",
       "emergencyNotice",
       "appointmentDurationMinutes",
@@ -131,7 +134,7 @@ router.patch("/settings", firebaseAuth, async (req, res): Promise<void> => {
           timeZone: church.timeZone,
           logoUrl: church.logoUrl ?? null,
         },
-        theme: settings.theme ?? "warm-cream",
+        ...appearanceFrom(settings),
         welcomeMessage: settings.welcomeMessage ?? "",
         emergencyNotice: settings.emergencyNotice ?? "",
         appointmentDurationMinutes: settings.appointmentDurationMinutes ?? 45,

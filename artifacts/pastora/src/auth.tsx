@@ -22,14 +22,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(firebaseAuth?.currentUser ?? null);
   const [status, setStatus] = useState<AuthState["status"]>(firebaseAuth ? "loading" : "signed-out");
-  const lastUid = useRef<string | null>(null);
+  // undefined = Firebase hasn't reported yet; null = signed out.
+  const lastUid = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (!firebaseAuth) return;
     const unsubscribe = onAuthStateChanged(firebaseAuth, (next) => {
-      // Never let one account see another account's cached data.
-      if ((next?.uid ?? null) !== lastUid.current) queryClient.clear();
-      lastUid.current = next?.uid ?? null;
+      // Never let one account see another account's cached data. resetQueries (not
+      // clear) drops cached data but keeps mounted queries alive and refetches them;
+      // clear() orphaned in-flight requests and left pages loading forever. The first
+      // report after page load is not an account switch, so nothing is reset then.
+      const uid = next?.uid ?? null;
+      if (lastUid.current !== undefined && uid !== lastUid.current) void queryClient.resetQueries();
+      lastUid.current = uid;
       setUser(next);
       setStatus(next ? "signed-in" : "signed-out");
     });
@@ -38,7 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutUser = useCallback(async () => {
     if (firebaseAuth) await signOut(firebaseAuth);
-    queryClient.clear();
+    queryClient.removeQueries({ queryKey: getGetSessionQueryKey() });
+    void queryClient.resetQueries();
   }, [queryClient]);
 
   const refreshUser = useCallback(async () => {

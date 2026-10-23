@@ -5,6 +5,8 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
+import type { FontFamily } from './fontFamily';
+import type { FontSize } from './fontSize';
 import type { SettingsUpdateTheme } from './settingsUpdateTheme';
 
 export interface SettingsUpdate {
@@ -30,6 +32,8 @@ export interface SettingsUpdate {
   appointmentEnabled?: boolean;
   publicPortalEnabled?: boolean;
   categories?: string[];
+  fontFamily?: FontFamily;
+  fontSize?: FontSize;
   /** @minimum 0 */
   retentionDays?: number;
 }
