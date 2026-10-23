@@ -1,61 +1,63 @@
 # Pastora Firebase setup
 
-The Firebase connector is not available as an automatic Replit integration in this project. Pastora is prepared to use Firebase, but real sign-in, submissions, and church records stay unavailable until the owner's Firebase project is configured.
+Production project: **`pastora-platform`** (web app ID `1:257883255267:web:bc944a6b891d5cb5d5b0d6`).
 
-## 1. Create the Firebase project
+## 1. Firebase console (one-time)
 
-1. Create a Firebase project in the Firebase console.
-2. Enable **Authentication → Email/Password**.
-3. Create the default Cloud Firestore database.
-4. Create a Firebase Storage bucket only when receipt/logo uploads are ready to be enabled.
-5. Add the web application and note its web configuration values.
-6. Create a service account with least-privilege access for the server API. Keep its JSON private.
+1. **Authentication → Sign-in method** → enable **Email/Password**.
+2. **Authentication → Settings → Authorized domains** → add every domain the site is
+   served from (e.g. `your-site.netlify.app` and your custom domain). Sign-in fails on
+   domains that are not listed.
+3. **Authentication → Templates** (optional) → customise the verification and
+   password-reset emails and sender name.
+4. **Firestore Database** → create the default database (production mode) if it does
+   not exist yet. Choose a region close to your users; it cannot be changed later.
+5. Storage is not used yet; leave it disabled or keep the deny-all rules.
 
-## 2. Configure environment values
+## 2. Server credentials (service account)
 
-For the web artifact, configure these Vite variables in the deployment environment:
+The API needs a service account to verify sign-ins and read/write Firestore.
 
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_APP_ID`
+1. Firebase console → ⚙ Project settings → **Service accounts** → **Generate new
+   private key**. A JSON file downloads. Treat it like a password.
+2. In Netlify → Site configuration → Environment variables, add (scope **Functions**):
+   - `FIREBASE_PROJECT_ID` = `project_id` from the JSON
+   - `FIREBASE_CLIENT_EMAIL` = `client_email` from the JSON
+   - `FIREBASE_PRIVATE_KEY` = `private_key` from the JSON, marked **secret**. Paste the
+     value exactly; `\n` sequences are converted automatically.
+3. Delete the downloaded JSON once the values are stored, or keep it in a password
+   manager. Never commit it, paste it into chat or put it in a `VITE_*` variable.
 
-These are Firebase web-app identifiers, not service-account credentials. Do not put service-account JSON in any `VITE_` variable.
+Locally you can instead export the whole file:
+`export FIREBASE_SERVICE_ACCOUNT_JSON="$(cat key.json)"`.
 
-For the API server, store the service-account JSON in the workspace Secrets manager as:
+## 3. Web configuration (public)
 
-- `FIREBASE_SERVICE_ACCOUNT_JSON`
+Set the `VITE_FIREBASE_*` variables from Project settings → General → Your apps (scope
+**Builds**). They are public identifiers that ship to every browser; access is
+protected by the API, not by keeping these values secret. See `.env.example`.
 
-The server accepts the service-account JSON only on the server. Never paste it into chat, source files, client-side configuration, or GitHub.
-
-## 3. Deploy Firestore rules and indexes
-
-Install the Firebase CLI in your own deployment environment, select the correct Firebase project, then deploy:
+## 4. Rules and indexes
 
 ```sh
-firebase use <your-project-id>
-firebase deploy --only firestore:rules,firestore:indexes,storage
+npm install -g firebase-tools
+firebase login
+firebase deploy --only firestore:rules,firestore:indexes --project pastora-platform
 ```
 
-Firestore rules deny direct client reads and writes by default. Pastora's API uses the Firebase Admin SDK, which bypasses Firestore rules; every API route must therefore continue deriving church membership from the verified Firebase ID token and checking the user's role and record tenant before access.
+Indexes take a few minutes to build. The rules deny all direct browser access by
+design (see docs/SECURITY.md).
 
-The Storage rules also deny all access. Receipt and logo uploads must remain disabled until an authenticated upload flow and tenant-aware read/write rules are implemented and emulator-tested.
+## 5. A development project for testing
 
-## 4. Local Replit setup
+Create a second project (e.g. `pastora-dev`) with the same settings and use its
+credentials for local work and manual testing, so test accounts and sample requests
+never touch production. Automated tests use the emulators (`pnpm test:emulator`) and
+need no project at all.
 
-Set the Firebase web configuration variables and the `FIREBASE_SERVICE_ACCOUNT_JSON` server secret in Replit. Restart the `API Server` and `Pastora` workflows afterward. The app's setup status should then report Firebase as configured.
+## 6. Launch boundaries
 
-Before accepting real pastoral requests, verify:
-
-- Email verification and password reset are enabled in Firebase Authentication.
-- The server service account belongs to the same project as the web app.
-- Firestore indexes finish building.
-- `FIREBASE_SERVICE_ACCOUNT_JSON` is only available to the server.
-- Sign-up, onboarding, cross-church access denial, private counselling notes, and public submissions are exercised against the Firebase Emulator Suite.
-
-## 5. Subscription and launch boundaries
-
-No payment provider is connected. Prices are intentionally unset, subscriptions remain `setup_required`, and the app does not activate paid access from a browser redirect. Configure a supported billing provider and verified server-side webhooks before offering paid plans.
-
-The privacy policy, terms, retention settings, and public emergency notice are draft product content, not legal advice or proof of regulatory compliance. Review them for each launch jurisdiction. Verify Pastora name, trademark and domain availability before commercial launch.
+- No payment provider is connected. Prices are unset and subscriptions remain
+  `setup_required`; nothing activates paid access.
+- Privacy policy, terms and the emergency notice are drafts, not legal advice.
+- Verify the Pastora name, trademark and domain before commercial launch.

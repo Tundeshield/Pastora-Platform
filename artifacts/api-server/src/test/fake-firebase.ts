@@ -81,6 +81,9 @@ export class FakeDocRef {
   async update(data: Data) {
     this.db.write(this, data, true, true);
   }
+  async delete() {
+    this.db.store.delete(this.path);
+  }
 }
 
 export class FakeQuery {
@@ -125,7 +128,13 @@ export class FakeCollection extends FakeQuery {
   }
 }
 
-type PendingWrite = { ref: FakeDocRef; data: Data; merge: boolean; requireExists: boolean };
+type PendingWrite = {
+  ref: FakeDocRef;
+  data: Data;
+  merge: boolean;
+  requireExists: boolean;
+  requireMissing?: boolean;
+};
 
 export class FakeFirestore {
   store = new Map<string, Data>();
@@ -174,9 +183,26 @@ export class FakeFirestore {
           writes.push({ ref, data, merge: true, requireExists: true });
           return tx;
         },
+        create: (ref: FakeDocRef, data: Data) => {
+          writes.push({ ref, data, merge: false, requireExists: false, requireMissing: true });
+          return tx;
+        },
+        delete: (ref: FakeDocRef) => {
+          writes.push({ ref, data: { __delete: true }, merge: false, requireExists: false });
+          return tx;
+        },
       };
       const result = await fn(tx);
-      for (const w of writes) this.write(w.ref, w.data, w.merge, w.requireExists);
+      // Preconditions are checked for the whole commit before anything is written.
+      for (const w of writes) {
+        if (w.requireMissing && this.store.has(w.ref.path)) {
+          throw Object.assign(new Error(`ALREADY_EXISTS: ${w.ref.path}`), { code: 6 });
+        }
+      }
+      for (const w of writes) {
+        if (w.data.__delete) this.store.delete(w.ref.path);
+        else this.write(w.ref, w.data, w.merge, w.requireExists);
+      }
       return result;
     };
     const next = this.txQueue.then(run, run);

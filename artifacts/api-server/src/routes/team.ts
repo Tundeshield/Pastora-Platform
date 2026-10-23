@@ -21,6 +21,7 @@ import {
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { canManageMember, normalizeEmail } from "../lib/policies";
+import { isAlreadyExists, MEMBERSHIP_LOCKS } from "../lib/workspace-service";
 
 const router: IRouter = Router();
 
@@ -236,7 +237,27 @@ router.patch("/team/members/:membershipId", firebaseAuth, async (req, res): Prom
     if (parsed.data.role !== undefined) update.role = parsed.data.role;
     if (parsed.data.department !== undefined) update.department = parsed.data.department?.trim() || null;
     if (parsed.data.active !== undefined) update.active = parsed.data.active;
-    await ref.update(update);
+    const targetUid = String(snap.get("uid"));
+    const lockRef = db.collection(MEMBERSHIP_LOCKS).doc(targetUid);
+    try {
+      await db.runTransaction(async (tx) => {
+        const lock = await tx.get(lockRef);
+        tx.update(ref, update);
+        if (parsed.data.active === false && lock.get("churchId") === context.churchId) {
+          tx.delete(lockRef); // frees the person to join or create another workspace
+        } else if (parsed.data.active === true && snap.get("active") !== true) {
+          tx.create(lockRef, { churchId: context.churchId, role: update.role ?? snap.get("role") });
+        } else if (parsed.data.role !== undefined && lock.exists) {
+          tx.update(lockRef, { role: parsed.data.role });
+        }
+      });
+    } catch (error) {
+      if (isAlreadyExists(error)) {
+        res.status(409).json({ error: "This person now belongs to another church workspace." });
+        return;
+      }
+      throw error;
+    }
     await audit(context.churchId, user.uid, "member_updated", ref.id, {
       fromRole: snap.get("role"),
       toRole: parsed.data.role ?? snap.get("role"),

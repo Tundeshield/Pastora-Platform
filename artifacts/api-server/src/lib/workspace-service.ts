@@ -36,6 +36,44 @@ export async function createWorkspaceForUser(
   user: { uid: string; email?: string },
   input: WorkspaceInput,
 ): Promise<CreatedWorkspace> {
+  try {
+    return await createWorkspaceOnce(user, input);
+  } catch (error) {
+    // Another request for the same user won the race to create the membership lock.
+    // Return the workspace it created instead of failing or duplicating.
+    if (isAlreadyExists(error)) {
+      const { db } = getFirebaseServices();
+      const lock = await db.collection(MEMBERSHIP_LOCKS).doc(user.uid).get();
+      const churchId = lock.get("churchId");
+      if (typeof churchId === "string") {
+        const church = await db.collection("churches").doc(churchId).get();
+        if (church.exists && church.get("ownerUid") === user.uid) {
+          return { churchId, church: church.data() ?? {}, created: false };
+        }
+      }
+      throw new WorkspaceConflictError("This account already belongs to a church workspace.");
+    }
+    throw error;
+  }
+}
+
+/**
+ * One document per person (`membershipLocks/{uid}`) records the single church they
+ * belong to. It is written with create(), which Firestore rejects at commit time if
+ * the document already exists — so concurrent onboarding or invitation requests can
+ * never give one person two workspaces, even under real contention.
+ */
+export const MEMBERSHIP_LOCKS = "membershipLocks";
+
+export function isAlreadyExists(error: unknown): boolean {
+  const code = (error as { code?: unknown })?.code;
+  return code === 6 || code === "already-exists" || code === "ALREADY_EXISTS";
+}
+
+async function createWorkspaceOnce(
+  user: { uid: string; email?: string },
+  input: WorkspaceInput,
+): Promise<CreatedWorkspace> {
   const { db } = getFirebaseServices();
   const baseSlug = slugify(input.churchName);
 
@@ -54,6 +92,13 @@ export async function createWorkspaceForUser(
       }
     }
     if (!activeMemberships.empty) {
+      const membership = activeMemberships.docs[0];
+      if (membership.get("role") === "owner") {
+        const owned = await tx.get(db.collection("churches").doc(String(membership.get("churchId"))));
+        if (owned.exists && owned.get("ownerUid") === user.uid) {
+          return { churchId: owned.id, church: owned.data() ?? {}, created: false };
+        }
+      }
       throw new WorkspaceConflictError("This account already belongs to a church workspace.");
     }
 
@@ -82,7 +127,8 @@ export async function createWorkspaceForUser(
       updatedAt: now,
     };
 
-    tx.set(db.collection("churchSlugs").doc(slug), { churchId: churchRef.id, createdAt: now });
+    tx.create(db.collection(MEMBERSHIP_LOCKS).doc(user.uid), { churchId: churchRef.id, role: "owner", createdAt: now });
+    tx.create(db.collection("churchSlugs").doc(slug), { churchId: churchRef.id, createdAt: now });
     tx.set(churchRef, church);
     tx.set(db.collection("churchMemberships").doc(membershipDocId(churchRef.id, user.uid)), {
       churchId: churchRef.id,
@@ -160,8 +206,21 @@ export async function acceptPendingInvitation(user: {
     (a, b) => (a.get("createdAt")?.toMillis?.() ?? 0) - (b.get("createdAt")?.toMillis?.() ?? 0),
   )[0];
 
+  try {
+    return await acceptInvitationOnce(user, oldest.ref);
+  } catch (error) {
+    if (isAlreadyExists(error)) return false; // already joined a church concurrently
+    throw error;
+  }
+}
+
+async function acceptInvitationOnce(
+  user: { uid: string; email?: string; name?: string },
+  inviteRef: FirebaseFirestore.DocumentReference,
+): Promise<boolean> {
+  const { db } = getFirebaseServices();
   return db.runTransaction(async (tx) => {
-    const invite = await tx.get(oldest.ref);
+    const invite = await tx.get(inviteRef);
     const existing = await tx.get(
       db.collection("churchMemberships").where("uid", "==", user.uid).where("active", "==", true).limit(1),
     );
@@ -170,6 +229,7 @@ export async function acceptPendingInvitation(user: {
     const role = invite.get("role") as ChurchRole;
     if (role === "owner") return false;
     const now = FieldValue.serverTimestamp();
+    tx.create(db.collection(MEMBERSHIP_LOCKS).doc(user.uid), { churchId, role, createdAt: now });
     tx.set(db.collection("churchMemberships").doc(membershipDocId(churchId, user.uid)), {
       churchId,
       uid: user.uid,

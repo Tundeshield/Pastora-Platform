@@ -155,6 +155,23 @@ describe("authentication and onboarding", () => {
     assert.equal(db.all("churchMemberships").length, 1);
   });
 
+  test("a request that loses the onboarding race returns the winner's workspace", async () => {
+    const pastor = user();
+    const first = await call("POST", "/onboarding", pastor.token, workspace());
+    // Simulate a racing request that saw no workspace yet: hide the profile pointer and
+    // the membership so only the atomic membership lock can stop a duplicate.
+    const membershipPath = `churchMemberships/${first.body.church.id}_${pastor.uid}`;
+    const membership = db.store.get(membershipPath)!;
+    db.store.set(`users/${pastor.uid}`, { uid: pastor.uid });
+    db.store.delete(membershipPath);
+    const second = await call("POST", "/onboarding", pastor.token, workspace());
+    assert.equal(second.status, 200);
+    assert.equal(db.all("churches").length, 1);
+    assert.equal(db.all("churchSlugs").length, 1);
+    db.store.set(membershipPath, membership);
+    assert.equal((await call("GET", "/session", pastor.token)).body.church.id, first.body.church.id);
+  });
+
   test("churches with the same name get unique public addresses", async () => {
     const one = await ownerWithChurch("Grace Chapel");
     const two = await ownerWithChurch("Grace Chapel");
@@ -221,9 +238,13 @@ describe("team management and roles", () => {
     assert.equal((await call("GET", "/session", staff.token)).body.user.role, "counsellor");
     assert.ok(db.all("auditLogs").some((log) => log.action === "member_updated" && log.toRole === "counsellor"));
 
-    // Deactivating a member removes their workspace access.
+    // Deactivating a member removes their workspace access and frees their account.
     await call("PATCH", `/team/members/${staffMembership.id}`, owner.token, { active: false });
     assert.equal((await call("GET", "/requests", staff.token)).status, 409);
+    assert.equal(db.store.has(`membershipLocks/${staff.uid}`), false);
+    const restored = await call("PATCH", `/team/members/${staffMembership.id}`, owner.token, { active: true });
+    assert.equal(restored.status, 200);
+    assert.equal((await call("GET", "/requests", staff.token)).status, 200);
   });
 
   test("an owner cannot manage another church's members", async () => {

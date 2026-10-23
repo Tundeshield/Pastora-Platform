@@ -54,3 +54,9 @@ Thumbs.db
 .cache/
 .local/
 netlify-dist
+
+# Local environment files
+.env
+.env.local
+*.env.local
+**/service-account*.json

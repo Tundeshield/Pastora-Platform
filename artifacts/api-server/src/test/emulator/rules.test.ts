@@ -27,6 +27,7 @@ const COLLECTIONS = [
   "churchSettings",
   "churchInvitations",
   "churchSlugs",
+  "membershipLocks",
   "users",
   "pastoralRequests",
   "counsellingCases",
