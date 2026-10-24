@@ -70,7 +70,7 @@ router.get("/plans", (_req, res) => {
       configured: false,
       features: [
         "Everything in Starter",
-        "Additional authorised staff accounts",
+        "Accounts for assistant pastors, staff and finance",
         "Department reports",
         "Expense approvals",
         "Enhanced operational views",

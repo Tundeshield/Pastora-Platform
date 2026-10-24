@@ -420,3 +420,9 @@ body { font-size: calc(16px * var(--text-scale)); }
   .admin-row { grid-template-columns:1fr; gap:8px; }
   .admin-actions { justify-content:flex-start; }
 }
+
+/* Pricing: room above the plan button, and buttons aligned across cards */
+.plan-card { display:flex; flex-direction:column; }
+.plan-card ul { margin:0 0 28px; min-height:0; }
+.plan-card>.button { margin-top:auto; align-self:flex-start; }
+.plan-price strong { font-family:var(--app-font-serif); font-weight:400; font-size:calc(24px * var(--text-scale)); }
