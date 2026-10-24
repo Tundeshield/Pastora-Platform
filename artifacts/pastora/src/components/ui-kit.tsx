@@ -32,9 +32,15 @@ export function Button({
   );
 }
 
-export function Brand({ compact = false }: { compact?: boolean }) {
+/** The logo. Public pages link to the website; the workspace passes href="/app". */
+export function Brand({ compact = false, href = "/" }: { compact?: boolean; href?: string }) {
   return (
-    <Link href="/" className="brand" data-testid="link-home" aria-label="Pastora home">
+    <Link
+      href={href}
+      className="brand"
+      data-testid="link-home"
+      aria-label={href === "/" ? "Pastora home" : "Workspace home"}
+    >
       <PastoraMark size={compact ? 26 : 30} />
       <span>
         pastora<small>{compact ? "" : " care & calling"}</small>
