@@ -23,15 +23,18 @@ function greeting(): string {
   return hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.";
 }
 
+/** Pastoral counts, reviews and approvals are for pastors; staff see the office view. */
+const PASTOR_ONLY = new Set(["Prayer requests", "Counselling review", "Reports to review", "Expenses awaiting"]);
+
 export function DashboardPage() {
   const session = useSession();
   const role = session.data?.user.role;
   const [, setLocation] = useLocation();
-  const hasOverview = role === "owner" || role === "pastor" || role === "counsellor" || role === "staff";
-  // Finance and department leaders have no overview; send them to their main page.
+  const hasOverview = role === "pastor" || role === "staff";
+  // Finance and the workspace admin have no overview; send them to their main page.
   useEffect(() => {
     if (role === "finance") setLocation("/app/expenses", { replace: true });
-    if (role === "department_leader") setLocation("/app/reports", { replace: true });
+    if (role === "admin") setLocation("/app/team", { replace: true });
   }, [role, setLocation]);
   const dashboard = useGetDashboard({
     query: { queryKey: getGetDashboardQueryKey(), retry: 1, enabled: hasOverview },
@@ -95,7 +98,7 @@ export function DashboardPage() {
       ) : summary ? (
         <>
           <div className="metrics-grid">
-            {metrics.map(([label, value, href, Icon, hint]) => (
+            {metrics.filter(([label]) => role === "pastor" || !PASTOR_ONLY.has(label)).map(([label, value, href, Icon, hint]) => (
               <Link href={href} className="metric-card" key={label}>
                 <div className="metric-top">
                   <span>{label}</span>

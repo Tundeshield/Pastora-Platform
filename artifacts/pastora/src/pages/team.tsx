@@ -16,25 +16,33 @@ import { roleLabel } from "@/components/workspace-layout";
 import { apiErrorMessage } from "@/firebase-auth";
 
 const ROLES: { value: MemberRole; label: string; help: string }[] = [
-  { value: "pastor", label: "Pastor", help: "Full pastoral care, reviews reports and approves expenses." },
   {
-    value: "counsellor",
-    label: "Counsellor",
-    help: "Sees confidential counselling requests and appointments.",
+    value: "pastor",
+    label: "Pastor",
+    help: "Prayer and counselling requests, private notes, the calendar, report reviews and expense approvals.",
   },
-  { value: "staff", label: "Staff", help: "Appointments, tasks, QR links and general enquiries only." },
   {
-    value: "department_leader",
-    label: "Department leader",
-    help: "Submits department reports and expenses.",
+    value: "staff",
+    label: "Staff",
+    help: "The church office: general enquiries, the calendar, tasks, QR links, department reports and expense requests. Never sees prayer or counselling.",
   },
-  { value: "finance", label: "Finance", help: "Records payments for approved expenses." },
+  { value: "finance", label: "Finance", help: "Records payments for expenses a pastor has approved." },
+  {
+    value: "admin",
+    label: "Workspace admin",
+    help: "Sets Pastora up: invites people, settings, QR links. Never sees pastoral care, the calendar, reports or expenses.",
+  },
 ];
 
 export function TeamPage() {
   const session = useSession();
-  const isOwner = session.data?.user.role === "owner";
+  const myRole = session.data?.user.role;
+  const isPastor = myRole === "pastor";
+  const canManage = isPastor || myRole === "admin";
   const team = useGetTeam({ query: { queryKey: getGetTeamQueryKey(), retry: 1 } });
+  // Once a church has a pastor, only pastors can add pastors or change a pastor's access.
+  const hasPastor = (team.data?.members ?? []).some((m) => m.active && m.role === "pastor");
+  const grantable = ROLES.filter((r) => isPastor || r.value !== "pastor" || !hasPastor);
   const invite = useCreateInvitation();
   const revoke = useRevokeInvitation();
   const updateMember = useUpdateMember();
@@ -70,14 +78,20 @@ export function TeamPage() {
         title="Team"
         subtitle="Who can see what in your church workspace."
         action={
-          isOwner ? (
+          canManage ? (
             <Button onClick={() => setOpen(!open)}>
               <Plus size={16} /> Invite someone
             </Button>
           ) : undefined
         }
       />
-      {!isOwner && <p className="role-help">Only the church owner can invite people or change roles.</p>}
+      {myRole === "admin" && (
+        <p className="role-help">
+          {hasPastor
+            ? "As workspace admin you manage staff, finance and admins. Only a pastor can add a pastor or change a pastor's access, and every change is shared with your pastors."
+            : "Invite your pastor first. Once a pastor joins, only pastors can add more pastors."}
+        </p>
+      )}
       {open && (
         <form className="inline-form grid-form" onSubmit={submit}>
           <Field label="Email address">
@@ -93,7 +107,7 @@ export function TeamPage() {
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value as MemberRole })}
             >
-              {ROLES.map((r) => (
+              {grantable.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
                 </option>
@@ -131,7 +145,10 @@ export function TeamPage() {
               <span>Access</span>
             </div>
             {team.data?.members.map((m) => {
-              const editable = isOwner && !m.isCurrentUser && m.role !== "owner";
+              const editable = canManage && !m.isCurrentUser && (m.role !== "pastor" || isPastor);
+              const options = grantable.some((r) => r.value === m.role)
+                ? grantable
+                : [...grantable, ...ROLES.filter((r) => r.value === m.role)];
               return (
                 <div className="team-row" key={m.id}>
                   <div>
@@ -152,7 +169,7 @@ export function TeamPage() {
                         )
                       }
                     >
-                      {ROLES.map((r) => (
+                      {options.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}
                         </option>
@@ -192,7 +209,7 @@ export function TeamPage() {
                   </div>
                   <span>{roleLabel(inv.role)}</span>
                   <span>{inv.department || "—"}</span>
-                  {isOwner ? (
+                  {canManage && (inv.role !== "pastor" || isPastor || !hasPastor) ? (
                     <Button
                       variant="quiet"
                       onClick={() => revoke.mutate({ invitationId: inv.id }, { onSuccess: refresh })}
@@ -208,7 +225,7 @@ export function TeamPage() {
           ) : (
             <EmptyState
               title="No pending invitations"
-              description="Invite a pastor, counsellor, staff member, department leader or finance officer."
+              description="Invite a pastor, church office staff, a finance officer or another workspace admin."
             />
           )}
         </>

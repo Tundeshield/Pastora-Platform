@@ -31,7 +31,7 @@ export function TasksPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const session = useSession();
-  const canAssign = session.data?.user.role === "owner" || session.data?.user.role === "pastor";
+  const canAssign = session.data?.user.role === "pastor";
   const team = useGetTeam({ query: { queryKey: getGetTeamQueryKey(), enabled: canAssign, retry: 1 } });
   const members = (team.data?.members ?? []).filter((m) => m.active);
   const nameFor = (uid: string) =>

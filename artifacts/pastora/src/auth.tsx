@@ -91,7 +91,7 @@ export function destinationFor(session: Session | undefined, user: User | null):
 }
 
 export function safeNext(next: string | null): string | null {
-  return next && next.startsWith("/app") && !next.startsWith("//") ? next : null;
+  return next && (next.startsWith("/app") || next === "/admin") && !next.startsWith("//") ? next : null;
 }
 
 export function FullPageMessage({ title, children }: { title: string; children?: ReactNode }) {
@@ -130,6 +130,16 @@ export function RequireWorkspace({ children }: { children: ReactNode }) {
   }
   if (status === "signed-out" || unauthorised || (session.data && !session.data.church)) {
     return <FullPageMessage title="Redirecting…" />;
+  }
+  if (session.data?.churchSuspended) {
+    return (
+      <FullPageMessage title="This workspace has been paused.">
+        <p>Your church's Pastora workspace is paused for now. Please contact Pastora support.</p>
+        <button className="button outline" onClick={() => void signOutUser()}>
+          Sign out
+        </button>
+      </FullPageMessage>
+    );
   }
   if (session.isError) {
     return (

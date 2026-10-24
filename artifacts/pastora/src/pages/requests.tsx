@@ -22,6 +22,7 @@ import {
   SkeletonRows,
   formatDateTime,
 } from "@/components/ui-kit";
+import { useSession } from "@/auth";
 import { apiErrorMessage } from "@/firebase-auth";
 
 export function RequestsPage() {
@@ -30,8 +31,12 @@ export function RequestsPage() {
   const update = useUpdateRequest();
   const addNote = useAddRequestNote();
   const qc = useQueryClient();
+  const session = useSession();
+  // Pastors see every request; staff handle general enquiries only.
+  const isPastor = session.data?.user.role === "pastor";
+  const blankForm = { type: isPastor ? "prayer" : "general", name: "", contact: "", category: "", message: "" };
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ type: "prayer", name: "", contact: "", category: "", message: "" });
+  const [form, setForm] = useState(blankForm);
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: getListRequestsQueryKey() });
     void qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
@@ -44,7 +49,7 @@ export function RequestsPage() {
         onSuccess: () => {
           invalidate();
           setShowForm(false);
-          setForm({ type: "prayer", name: "", contact: "", category: "", message: "" });
+          setForm(blankForm);
         },
       },
     );
@@ -52,25 +57,31 @@ export function RequestsPage() {
   return (
     <>
       <PageHeading
-        eyebrow="Private care"
-        title="Care inbox"
-        subtitle="A restricted space for pastoral requests and the next faithful step."
+        eyebrow={isPastor ? "Private care" : "Church office"}
+        title={isPastor ? "Care inbox" : "Enquiries"}
+        subtitle={
+          isPastor
+            ? "A restricted space for pastoral requests and the next faithful step."
+            : "General enquiries from your church's care page."
+        }
         action={
           <Button onClick={() => setShowForm(!showForm)}>
-            <Plus size={16} /> New request
+            <Plus size={16} /> {isPastor ? "New request" : "New enquiry"}
           </Button>
         }
       />
       {showForm && (
         <form className="inline-form" onSubmit={submit}>
-          <Field label="Request type">
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              <option value="prayer">Prayer</option>
-              <option value="counselling">Counselling</option>
-              <option value="appointment">Appointment</option>
-              <option value="general">General</option>
-            </select>
-          </Field>
+          {isPastor && (
+            <Field label="Request type">
+              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                <option value="prayer">Prayer</option>
+                <option value="counselling">Counselling</option>
+                <option value="appointment">Appointment</option>
+                <option value="general">General</option>
+              </select>
+            </Field>
+          )}
           <Field label="Name (optional)">
             <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </Field>
@@ -99,7 +110,11 @@ export function RequestsPage() {
       )}
       <div className="care-private-banner">
         <LockKeyhole size={17} />
-        <span>Restricted pastoral care. Do not share sensitive details outside this inbox.</span>
+        <span>
+          {isPastor
+            ? "Restricted pastoral care. Only pastors can see prayer and counselling requests."
+            : "Prayer and counselling requests go to your pastors only, so they don't appear here."}
+        </span>
       </div>
       <MutationError errors={[create.error, update.error, addNote.error]} />
       {q.isLoading ? (
@@ -118,8 +133,10 @@ export function RequestsPage() {
               onUpdate={(status) =>
                 update.mutate({ requestId: r.id, data: { status } }, { onSuccess: invalidate })
               }
-              onNote={(note) =>
-                addNote.mutate({ requestId: r.id, data: { note } }, { onSuccess: invalidate })
+              onNote={
+                isPastor
+                  ? (note) => addNote.mutate({ requestId: r.id, data: { note } }, { onSuccess: invalidate })
+                  : undefined
               }
             />
           ))}
@@ -127,7 +144,11 @@ export function RequestsPage() {
       ) : (
         <EmptyState
           title="A clear inbox"
-          description="Pastoral requests will be shown here when they are received."
+          description={
+            isPastor
+              ? "Pastoral requests will be shown here when they are received."
+              : "General enquiries will be shown here when they are received."
+          }
         />
       )}
     </>
@@ -141,7 +162,8 @@ export function RequestCard({
 }: {
   request: PastoralRequest;
   onUpdate: (s: "acknowledged" | "scheduled" | "resolved" | "closed") => void;
-  onNote: (n: string) => void;
+  /** Private notes are for pastors; omitted for staff. */
+  onNote?: (n: string) => void;
 }) {
   const [note, setNote] = useState("");
   return (
@@ -172,6 +194,7 @@ export function RequestCard({
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
         </select>
+        {onNote && (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -191,6 +214,7 @@ export function RequestCard({
             <ArrowRight size={15} />
           </button>
         </form>
+        )}
       </div>
     </article>
   );

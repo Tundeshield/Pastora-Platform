@@ -29,6 +29,7 @@ export function OnboardingPage() {
     country: "",
     timeZone: browserTimeZone(),
     theme: "warm-cream" as "warm-cream" | "modern-cool",
+    creatorRole: "pastor" as "pastor" | "admin",
   });
 
   // Only verified, signed-in people without a workspace belong here.
@@ -87,6 +88,36 @@ export function OnboardingPage() {
               onChange={(e) => setForm({ ...form, pastorName: e.target.value })}
             />
           </Field>
+          <fieldset className="choice-group">
+            <legend>Your role</legend>
+            <label className={`choice ${form.creatorRole === "pastor" ? "selected" : ""}`}>
+              <input
+                type="radio"
+                name="creatorRole"
+                checked={form.creatorRole === "pastor"}
+                onChange={() => setForm({ ...form, creatorRole: "pastor" })}
+              />
+              <span>
+                <b>I'm the pastor</b>
+                <small>You'll see prayer and counselling requests, your calendar and approvals.</small>
+              </span>
+            </label>
+            <label className={`choice ${form.creatorRole === "admin" ? "selected" : ""}`}>
+              <input
+                type="radio"
+                name="creatorRole"
+                checked={form.creatorRole === "admin"}
+                onChange={() => setForm({ ...form, creatorRole: "admin" })}
+              />
+              <span>
+                <b>I'm setting this up for my pastor</b>
+                <small>
+                  You'll manage the team and settings, then invite your pastor. You won't see anyone's
+                  prayer or counselling requests.
+                </small>
+              </span>
+            </label>
+          </fieldset>
           <Field label="Church name">
             <input
               required

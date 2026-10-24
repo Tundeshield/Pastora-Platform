@@ -33,7 +33,7 @@ export function ExpensesPage() {
   const session = useSession();
   const me = session.data?.user;
   const canReview = (x: ExpenseRequest) =>
-    (me?.role === "owner" || me?.role === "pastor") &&
+    me?.role === "pastor" &&
     x.requesterId !== me.uid &&
     (x.status === "submitted" || x.status === "clarification");
   const canRecordPayment = (x: ExpenseRequest) =>

@@ -195,7 +195,7 @@ export function FeaturesPage() {
     ["QR links", "Create destination links for care, prayer, counselling and appointments.", "04"],
     [
       "Reports & expenses",
-      "Give department leaders a place to report progress and submit expenses for review.",
+      "Give each department a place to report progress and submit expenses for review.",
       "05",
     ],
     [

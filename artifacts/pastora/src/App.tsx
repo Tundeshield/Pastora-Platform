@@ -3,6 +3,7 @@ import { Route, Switch, Router as WouterRouter } from "wouter";
 
 import { AuthProvider } from "@/auth";
 import { WorkspaceLayout } from "@/components/workspace-layout";
+import { AdminPage } from "@/pages/admin";
 import { AppointmentsPage } from "@/pages/appointments";
 import { AuthPage } from "@/pages/auth";
 import { CarePortalPage } from "@/pages/care-portal";
@@ -10,7 +11,6 @@ import { DashboardPage } from "@/pages/dashboard";
 import { ExpensesPage } from "@/pages/expenses";
 import { DocumentPage, FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
 import { OnboardingPage } from "@/pages/onboarding";
-import { PlatformPage } from "@/pages/platform";
 import { QrPage } from "@/pages/qr-codes";
 import { ReportsPage } from "@/pages/reports";
 import { RequestsPage } from "@/pages/requests";
@@ -112,9 +112,8 @@ function Router() {
       <Route path="/support">
         <DocumentPage title="A human answer, when you need one" category="Support" />
       </Route>
-      <Route path="/platform/workspaces">
-        <PlatformPage />
-      </Route>
+      <Route path="/admin" component={AdminPage} />
+      <Route path="/platform/workspaces" component={AdminPage} />
       <Route>
         <NotFound />
       </Route>

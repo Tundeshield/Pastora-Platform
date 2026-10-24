@@ -3,7 +3,7 @@ import {
   getListNotificationsQueryKey,
   useListNotifications,
   useMarkNotificationRead,
-  type UserSummaryRole,
+  type MemberRole,
 } from "@workspace/api-client-react";
 import {
   Bell,
@@ -17,6 +17,7 @@ import {
   QrCode,
   Receipt,
   Settings2,
+  ShieldCheck,
   Users,
   X,
   type LucideIcon,
@@ -28,11 +29,13 @@ import { RequireWorkspace, useAuth, useSession } from "@/auth";
 import { Brand } from "@/components/ui-kit";
 import { applyAppearance } from "@/theme";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; roles: UserSummaryRole[] };
+type NavItem = { href: string; label: string; icon: LucideIcon; roles: MemberRole[] };
 
-const ALL: UserSummaryRole[] = ["owner", "pastor", "counsellor", "staff", "department_leader", "finance"];
-
-/** Navigation mirrors the API's role checks so people only see pages they can use. */
+/**
+ * Navigation mirrors the API's role checks so people only see pages they can use.
+ * Pastors: everything. Staff: the church office. Finance: expenses. Admin: set-up only
+ * (team, settings, QR links) and never pastoral care, the calendar, reports or expenses.
+ */
 export const navSections: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
@@ -41,49 +44,47 @@ export const navSections: { label: string; items: NavItem[] }[] = [
         href: "/app",
         label: "Overview",
         icon: LayoutDashboard,
-        roles: ["owner", "pastor", "counsellor", "staff"],
+        roles: ["pastor", "staff"],
       },
-      { href: "/app/requests", label: "Care inbox", icon: HeartHandshake, roles: ALL },
+      { href: "/app/requests", label: "Care inbox", icon: HeartHandshake, roles: ["pastor", "staff"] },
       {
         href: "/app/appointments",
         label: "Appointments",
         icon: CalendarDays,
-        roles: ["owner", "pastor", "counsellor", "staff"],
+        roles: ["pastor", "staff"],
       },
-      { href: "/app/tasks", label: "Tasks", icon: ClipboardList, roles: ALL },
+      { href: "/app/tasks", label: "Tasks", icon: ClipboardList, roles: ["pastor", "staff", "finance", "admin"] },
     ],
   },
   {
     label: "Church operations",
     items: [
-      { href: "/app/qr-codes", label: "QR links", icon: QrCode, roles: ["owner", "pastor", "staff"] },
+      { href: "/app/qr-codes", label: "QR links", icon: QrCode, roles: ["pastor", "staff", "admin"] },
       {
         href: "/app/reports",
         label: "Department reports",
         icon: FileText,
-        roles: ["owner", "pastor", "department_leader", "staff"],
+        roles: ["pastor", "staff"],
       },
       {
         href: "/app/expenses",
         label: "Expenses",
         icon: Receipt,
-        roles: ["owner", "pastor", "staff", "department_leader", "finance"],
+        roles: ["pastor", "staff", "finance"],
       },
-      { href: "/app/team", label: "Team", icon: Users, roles: ["owner", "pastor"] },
+      { href: "/app/team", label: "Team", icon: Users, roles: ["pastor", "admin"] },
     ],
   },
 ];
 
-const ROLE_LABELS: Record<UserSummaryRole, string> = {
-  owner: "Owner",
+const ROLE_LABELS: Record<MemberRole, string> = {
   pastor: "Pastor",
-  counsellor: "Counsellor",
   staff: "Staff",
-  department_leader: "Department leader",
   finance: "Finance",
+  admin: "Workspace admin",
 };
 
-export function roleLabel(role: UserSummaryRole | undefined): string {
+export function roleLabel(role: MemberRole | undefined): string {
   return role ? ROLE_LABELS[role] : "Member";
 }
 
@@ -189,7 +190,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="sidebar-bottom">
-          {(role === "owner" || role === "pastor") && (
+          {(role === "pastor" || role === "admin") && (
             <Link
               href="/app/settings"
               onClick={() => setMobile(false)}
@@ -197,6 +198,12 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
             >
               <Settings2 size={17} />
               <span>Settings</span>
+            </Link>
+          )}
+          {session.data?.platformAdmin && (
+            <Link href="/admin" className="sidebar-link" onClick={() => setMobile(false)}>
+              <ShieldCheck size={17} />
+              <span>Pastora Admin</span>
             </Link>
           )}
           <div className="profile-row">
