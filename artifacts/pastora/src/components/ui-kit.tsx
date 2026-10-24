@@ -32,8 +32,14 @@ export function Button({
   );
 }
 
-/** The logo. Public pages link to the website; the workspace passes href="/app". */
-export function Brand({ compact = false, href = "/" }: { compact?: boolean; href?: string }) {
+/**
+ * The logo, wherever it appears (website, care pages, Pastora Admin, workspace):
+ * signed-in people go back to their workspace (/app sends each role to its main
+ * page), and everyone else to the Pastora homepage.
+ */
+export function Brand({ compact = false, href }: { compact?: boolean; href?: string }) {
+  const { status } = useAuth();
+  href ??= status === "signed-in" ? "/app" : "/";
   return (
     <Link
       href={href}

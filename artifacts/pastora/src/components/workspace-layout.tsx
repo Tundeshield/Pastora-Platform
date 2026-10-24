@@ -150,8 +150,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
     <div className="workspace-shell">
       <aside className={`sidebar ${mobile ? "show" : ""}`}>
         <div className="sidebar-brand">
-          {/* Inside the app the logo is "home base": the Overview, or each role's main page. */}
-          <Brand compact href="/app" />
+          <Brand compact />
           <button
             className="icon-button mobile-close"
             onClick={() => setMobile(false)}
