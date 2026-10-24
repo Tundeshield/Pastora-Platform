@@ -84,7 +84,7 @@ describe("with real Firebase emulators", () => {
     const { db } = getFirebaseServices();
     const memberships = await db.collection("churchMemberships").where("uid", "==", pastor.uid).get();
     assert.equal(memberships.size, 1);
-    assert.equal(memberships.docs[0].get("role"), "owner");
+    assert.equal(memberships.docs[0].get("role"), "pastor");
   });
 
   test("tenant isolation, invitations and the expense workflow", async () => {
@@ -100,9 +100,9 @@ describe("with real Firebase emulators", () => {
 
     const leader = await account();
     const finance = await account();
-    await call("POST", "/team/invitations", ownerA.token, { email: leader.email, role: "department_leader" });
+    await call("POST", "/team/invitations", ownerA.token, { email: leader.email, role: "staff" });
     await call("POST", "/team/invitations", ownerA.token, { email: finance.email, role: "finance" });
-    assert.equal((await call("GET", "/session", leader.token)).body.user.role, "department_leader");
+    assert.equal((await call("GET", "/session", leader.token)).body.user.role, "staff");
     assert.equal((await call("GET", "/session", finance.token)).body.user.role, "finance");
 
     const expense = await call("POST", "/expenses", leader.token, { description: "Chairs", purpose: "Hall", amount: 9000 });
@@ -118,6 +118,35 @@ describe("with real Firebase emulators", () => {
         (await call("PATCH", `/expenses/${expense.body.id}`, finance.token, { status: "paid", paymentReference: "TRX" })).status,
         200,
       );
+    }
+  });
+
+  test("admin console: suspending a church and disabling an account take effect immediately", async () => {
+    const ops = await account();
+    const pastor = await account();
+    process.env.PLATFORM_ADMIN_EMAILS = ops.email;
+    try {
+      const created = await call("POST", "/onboarding", pastor.token, workspace("Console Chapel"));
+      const churchId = created.body.church.id;
+
+      assert.equal((await call("GET", "/platform/workspaces", pastor.token)).status, 403);
+      const users = await call("GET", "/platform/users", ops.token);
+      assert.equal(users.status, 200);
+      assert.ok(users.body.some((u: { uid: string; role: string }) => u.uid === pastor.uid && u.role === "pastor"));
+
+      await call("PATCH", `/platform/workspaces/${churchId}`, ops.token, { status: "suspended" });
+      assert.equal((await call("GET", "/requests", pastor.token)).status, 403);
+      assert.equal((await call("GET", "/session", pastor.token)).body.churchSuspended, true);
+      await call("PATCH", `/platform/workspaces/${churchId}`, ops.token, { status: "active" });
+      assert.equal((await call("GET", "/requests", pastor.token)).status, 200);
+
+      const disabled = await call("PATCH", `/platform/users/${pastor.uid}`, ops.token, { disabled: true });
+      assert.equal(disabled.status, 200);
+      // The token is still unexpired, but checkRevoked rejects disabled accounts.
+      assert.equal((await call("GET", "/session", pastor.token)).status, 401);
+      await call("PATCH", `/platform/users/${pastor.uid}`, ops.token, { disabled: false });
+    } finally {
+      delete process.env.PLATFORM_ADMIN_EMAILS;
     }
   });
 });

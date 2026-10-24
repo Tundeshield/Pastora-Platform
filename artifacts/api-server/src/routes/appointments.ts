@@ -23,7 +23,8 @@ import { getFirebaseServices } from "../lib/firebase-admin";
 import { appointmentTimesOverlap } from "../lib/policies";
 
 const router: IRouter = Router();
-const managerRoles = ["owner", "pastor", "staff"] as const;
+/** Pastors and the church office keep the pastor's calendar. */
+const managerRoles = ["pastor", "staff"] as const;
 
 function timeOf(value: unknown): number {
   if (value && typeof value === "object" && "toDate" in value) {
@@ -63,7 +64,7 @@ router.get("/appointments", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening appointments." });
       return;
     }
-    if (!hasRole(context, [...managerRoles, "counsellor"])) {
+    if (!hasRole(context, [...managerRoles])) {
       res.status(403).json({ error: "Your role cannot view appointments." });
       return;
     }
@@ -91,7 +92,7 @@ router.post("/appointments", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating appointments." });
       return;
     }
-    if (!hasRole(context, [...managerRoles, "counsellor"])) {
+    if (!hasRole(context, [...managerRoles])) {
       res.status(403).json({ error: "Your role cannot create appointments." });
       return;
     }
@@ -158,7 +159,7 @@ router.patch(
         res.status(409).json({ error: "Complete church onboarding before updating appointments." });
         return;
       }
-      if (!hasRole(context, [...managerRoles, "counsellor"])) {
+      if (!hasRole(context, [...managerRoles])) {
         res.status(403).json({ error: "Your role cannot update appointments." });
         return;
       }

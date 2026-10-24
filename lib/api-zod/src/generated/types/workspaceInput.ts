@@ -5,6 +5,7 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
+import type { WorkspaceInputCreatorRole } from './workspaceInputCreatorRole';
 import type { WorkspaceInputTheme } from './workspaceInputTheme';
 
 export interface WorkspaceInput {
@@ -27,4 +28,6 @@ export interface WorkspaceInput {
   country: string;
   timeZone: string;
   theme: WorkspaceInputTheme;
+  /** Whether the person creating the workspace is the pastor or sets it up on the pastor's behalf. */
+  creatorRole?: WorkspaceInputCreatorRole;
 }

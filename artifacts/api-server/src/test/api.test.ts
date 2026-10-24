@@ -65,11 +65,21 @@ const workspace = (churchName = "Grace Chapel") => ({
   theme: "modern-cool",
 });
 
+/** A pastor who creates a church (the default way a workspace starts). */
 async function ownerWithChurch(churchName = "Grace Chapel") {
   const owner = user();
   const created = await call("POST", "/onboarding", owner.token, workspace(churchName));
   assert.equal(created.status, 201, JSON.stringify(created.body));
   return { ...owner, church: created.body.church as Json };
+}
+
+/** Someone who sets a church up on their pastor's behalf. */
+async function adminWithChurch(churchName = "Grace Chapel") {
+  const admin = user();
+  const created = await call("POST", "/onboarding", admin.token, { ...workspace(churchName), creatorRole: "admin" });
+  assert.equal(created.status, 201, JSON.stringify(created.body));
+  assert.equal(created.body.user.role, "admin");
+  return { ...admin, church: created.body.church as Json };
 }
 
 /** Invite + verified sign-in, returning a member with the given role. */
@@ -113,7 +123,7 @@ describe("authentication and onboarding", () => {
     assert.equal(db.all("churches").length, 0);
   });
 
-  test("a verified pastor creates a workspace and becomes its owner", async () => {
+  test("a verified pastor creates a workspace and becomes its pastor", async () => {
     const pastor = user({ email: "Pastor@Example.test" });
     const created = await call("POST", "/onboarding", pastor.token, {
       ...workspace(),
@@ -121,13 +131,13 @@ describe("authentication and onboarding", () => {
       churchId: "someone-elses-church",
     });
     assert.equal(created.status, 201);
-    assert.equal(created.body.user.role, "owner");
+    assert.equal(created.body.user.role, "pastor");
     assert.equal(created.body.church.slug, "grace-chapel");
     assert.equal(created.body.theme, "modern-cool");
 
     const memberships = db.all("churchMemberships");
     assert.equal(memberships.length, 1);
-    assert.equal(memberships[0].role, "owner");
+    assert.equal(memberships[0].role, "pastor");
     assert.equal(memberships[0].churchId, created.body.church.id);
     assert.equal(db.all("churchSettings").length, 1);
     assert.equal(db.all("subscriptions")[0].status, "setup_required");
@@ -199,7 +209,7 @@ describe("team management and roles", () => {
     const owner = await ownerWithChurch();
     const invitee = user({ verified: false });
     assert.equal(
-      (await call("POST", "/team/invitations", owner.token, { email: invitee.email, role: "counsellor" })).status,
+      (await call("POST", "/team/invitations", owner.token, { email: invitee.email, role: "staff" })).status,
       201,
     );
     const pending = await call("GET", "/session", invitee.token);
@@ -210,41 +220,114 @@ describe("team management and roles", () => {
     auth.users.get(invitee.uid)!.emailVerified = true;
     const accepted = await call("GET", "/session", invitee.token);
     assert.equal(accepted.body.church.id, owner.church.id);
-    assert.equal(accepted.body.user.role, "counsellor");
+    assert.equal(accepted.body.user.role, "staff");
   });
 
-  test("only the owner can invite or change roles, and nobody can change their own role", async () => {
-    const owner = await ownerWithChurch();
-    const pastor = await member(owner.token, "pastor");
-    const staff = await member(owner.token, "staff");
+  test("pastors and admins manage the team; nobody changes their own access", async () => {
+    const pastor = await ownerWithChurch();
+    const admin = await member(pastor.token, "admin");
+    const staff = await member(pastor.token, "staff");
 
+    // Staff cannot see or change the team.
+    assert.equal((await call("GET", "/team", staff.token)).status, 403);
     assert.equal(
-      (await call("POST", "/team/invitations", pastor.token, { email: "x@example.test", role: "finance" })).status,
+      (await call("POST", "/team/invitations", staff.token, { email: "x@example.test", role: "finance" })).status,
       403,
     );
-    const team = await call("GET", "/team", owner.token);
+    // The admin can invite people and change non-pastor roles.
+    assert.equal(
+      (await call("POST", "/team/invitations", admin.token, { email: "f@example.test", role: "finance" })).status,
+      201,
+    );
+    const team = await call("GET", "/team", admin.token);
     assert.equal(team.status, 200);
-    const ownerMembership = team.body.members.find((m: Json) => m.role === "owner");
-    const staffMembership = team.body.members.find((m: Json) => m.uid === staff.uid);
+    const membershipOf = (uid: string) => team.body.members.find((m: Json) => m.uid === uid).id;
 
-    assert.equal((await call("PATCH", `/team/members/${staffMembership.id}`, staff.token, { role: "pastor" })).status, 403);
-    assert.equal((await call("PATCH", `/team/members/${ownerMembership.id}`, owner.token, { role: "staff" })).status, 403);
-    assert.equal((await call("PATCH", `/team/members/${staffMembership.id}`, pastor.token, { role: "finance" })).status, 403);
-    // The owner role can never be granted through the API.
-    assert.equal((await call("PATCH", `/team/members/${staffMembership.id}`, owner.token, { role: "owner" })).status, 400);
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, staff.token, { role: "pastor" })).status, 403);
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(admin.uid)}`, admin.token, { role: "staff" })).status, 403);
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(pastor.uid)}`, pastor.token, { active: false })).status, 403);
+    // Legacy roles can no longer be granted.
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, pastor.token, { role: "owner" })).status, 400);
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, pastor.token, { role: "counsellor" })).status, 400);
 
-    const promoted = await call("PATCH", `/team/members/${staffMembership.id}`, owner.token, { role: "counsellor" });
-    assert.equal(promoted.status, 200);
-    assert.equal((await call("GET", "/session", staff.token)).body.user.role, "counsellor");
-    assert.ok(db.all("auditLogs").some((log) => log.action === "member_updated" && log.toRole === "counsellor"));
+    const changed = await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, admin.token, { role: "finance" });
+    assert.equal(changed.status, 200);
+    assert.equal((await call("GET", "/session", staff.token)).body.user.role, "finance");
+    assert.ok(db.all("auditLogs").some((log) => log.action === "member_updated" && log.toRole === "finance"));
+    assert.ok(
+      db.all("notifications").some((n) => n.uid === pastor.uid && n.type === "team" && /now Finance/.test(String(n.title))),
+      "pastors hear about every role change",
+    );
 
     // Deactivating a member removes their workspace access and frees their account.
-    await call("PATCH", `/team/members/${staffMembership.id}`, owner.token, { active: false });
-    assert.equal((await call("GET", "/requests", staff.token)).status, 409);
+    await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, admin.token, { active: false });
+    assert.equal((await call("GET", "/expenses", staff.token)).status, 409);
     assert.equal(db.store.has(`membershipLocks/${staff.uid}`), false);
-    const restored = await call("PATCH", `/team/members/${staffMembership.id}`, owner.token, { active: true });
+    const restored = await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, admin.token, { active: true });
     assert.equal(restored.status, 200);
-    assert.equal((await call("GET", "/requests", staff.token)).status, 200);
+    assert.equal((await call("GET", "/expenses", staff.token)).status, 200);
+  });
+
+  test("an admin cannot touch a pastor or make anyone a pastor once the church has one", async () => {
+    const pastor = await ownerWithChurch();
+    const admin = await member(pastor.token, "admin");
+    const staff = await member(pastor.token, "staff");
+    const team = (await call("GET", "/team", admin.token)).body;
+    const membershipOf = (uid: string) => team.members.find((m: Json) => m.uid === uid).id;
+
+    assert.equal(
+      (await call("POST", "/team/invitations", admin.token, { email: "alt@example.test", role: "pastor" })).status,
+      403,
+    );
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, admin.token, { role: "pastor" })).status, 403);
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(pastor.uid)}`, admin.token, { active: false })).status, 403);
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(pastor.uid)}`, admin.token, { role: "staff" })).status, 403);
+
+    // A pastor can add another pastor.
+    assert.equal((await call("PATCH", `/team/members/${membershipOf(staff.uid)}`, pastor.token, { role: "pastor" })).status, 200);
+    assert.equal((await call("GET", "/session", staff.token)).body.user.role, "pastor");
+  });
+
+  test("someone setting up for their pastor never sees pastoral care, and can invite the first pastor", async () => {
+    const admin = await adminWithChurch();
+    await publicRequest(admin.church.slug, { type: "prayer", message: "Private prayer" });
+    await publicRequest(admin.church.slug, { type: "counselling", message: "Confidential" });
+    await publicRequest(admin.church.slug, {
+      type: "appointment",
+      message: "Chat",
+      preferredDate: new Date(Date.now() + 86_400_000).toISOString(),
+    });
+
+    for (const path of ["/requests", "/appointments", "/reports", "/expenses", "/dashboard"]) {
+      assert.equal((await call("GET", path, admin.token)).status, 403, `${path} must be closed to admins`);
+    }
+    assert.equal((await call("GET", "/notifications", admin.token)).body.length, 0, "no care notifications");
+    assert.equal((await call("GET", "/team", admin.token)).status, 200);
+    assert.equal((await call("GET", "/settings", admin.token)).status, 200);
+    assert.equal((await call("POST", "/qr-codes", admin.token, { name: "Lobby", destination: "prayer" })).status, 201);
+
+    // With no pastor yet, the admin invites one; after that, only pastors add pastors.
+    const pastor = await member(admin.token, "pastor");
+    assert.equal(
+      (await call("POST", "/team/invitations", admin.token, { email: "second@example.test", role: "pastor" })).status,
+      403,
+    );
+    const inbox = await call("GET", "/requests", pastor.token);
+    assert.equal(inbox.body.length, 2);
+  });
+
+  test("members stored with earlier roles keep working under the simplified roles", async () => {
+    const pastor = await ownerWithChurch();
+    const staff = await member(pastor.token, "staff");
+    const path = `churchMemberships/${pastor.church.id}_${staff.uid}`;
+    db.store.set(path, { ...db.store.get(path)!, role: "department_leader" });
+    assert.equal((await call("GET", "/session", staff.token)).body.user.role, "staff");
+    db.store.set(path, { ...db.store.get(path)!, role: "counsellor" });
+    assert.equal((await call("GET", "/session", staff.token)).body.user.role, "pastor");
+    const ownerPath = `churchMemberships/${pastor.church.id}_${pastor.uid}`;
+    db.store.set(ownerPath, { ...db.store.get(ownerPath)!, role: "owner" });
+    assert.equal((await call("GET", "/session", pastor.token)).body.user.role, "pastor");
+    assert.equal((await call("GET", "/requests", pastor.token)).status, 200);
   });
 
   test("an owner cannot manage another church's members", async () => {
@@ -301,7 +384,7 @@ describe("tenant isolation", () => {
   test("church B cannot touch church A's expenses", async () => {
     const a = await ownerWithChurch("Church A");
     const b = await ownerWithChurch("Church B");
-    const leader = await member(a.token, "department_leader", "Youth");
+    const leader = await member(a.token, "staff", "Youth");
     const expense = await call("POST", "/expenses", leader.token, { description: "Chairs", purpose: "Hall", amount: 5000 });
     assert.equal((await call("PATCH", `/expenses/${expense.body.id}`, b.token, { status: "approved" })).status, 404);
   });
@@ -352,27 +435,36 @@ describe("pastoral care", () => {
     assert.equal(response.status, 400);
   });
 
-  test("staff and finance cannot see prayer or counselling requests; counsellors can", async () => {
+  test("only pastors see prayer and counselling; staff handle general enquiries", async () => {
     const owner = await ownerWithChurch();
     await publicRequest(owner.church.slug, { type: "prayer", message: "Prayer" });
     await publicRequest(owner.church.slug, { type: "counselling", message: "Confidential" });
     await publicRequest(owner.church.slug, { type: "general", message: "Office hours?" });
     const staff = await member(owner.token, "staff");
     const finance = await member(owner.token, "finance");
-    const counsellor = await member(owner.token, "counsellor");
+    const pastor = await member(owner.token, "pastor");
 
     const staffView = await call("GET", "/requests", staff.token);
     assert.deepEqual(staffView.body.map((r: Json) => r.type), ["general"]);
     assert.ok(!JSON.stringify(staffView.body).includes("Confidential"));
-    const financeView = await call("GET", "/requests", finance.token);
-    assert.deepEqual(financeView.body.map((r: Json) => r.type), ["general"]);
+    assert.equal((await call("GET", "/requests", finance.token)).status, 403);
 
-    const counsellorView = await call("GET", "/requests", counsellor.token);
-    assert.ok(counsellorView.body.some((r: Json) => r.message === "Confidential"));
+    const pastorView = await call("GET", "/requests", pastor.token);
+    assert.ok(pastorView.body.some((r: Json) => r.message === "Confidential"));
 
     const counsellingId = db.all("counsellingCases")[0].id;
-    assert.equal((await call("PATCH", `/requests/${counsellingId}`, staff.token, { status: "closed" })).status, 403);
+    assert.equal((await call("PATCH", `/requests/${counsellingId}`, staff.token, { status: "closed" })).status, 404);
     assert.equal((await call("POST", `/requests/${counsellingId}/notes`, staff.token, { note: "peek" })).status, 403);
+    const general = staffView.body[0];
+    assert.equal((await call("PATCH", `/requests/${general.id}`, staff.token, { status: "acknowledged" })).status, 200);
+
+    // Staff dashboards count general enquiries only.
+    const dash = await call("GET", "/dashboard", staff.token);
+    assert.equal(dash.body.newPrayerRequests, 0);
+    assert.equal(dash.body.counsellingAwaitingReview, 0);
+    // Prayer notifications reach pastors only.
+    const staffNotices = await call("GET", "/notifications", staff.token);
+    assert.ok(staffNotices.body.every((n: Json) => !/pastoral care request|confidential/i.test(n.title)));
   });
 
   test("private notes are restricted and audited", async () => {
@@ -445,7 +537,7 @@ describe("expenses", () => {
   test("full approval and payment workflow with separation of duties", async () => {
     const owner = await ownerWithChurch();
     const pastor = await member(owner.token, "pastor");
-    const leader = await member(owner.token, "department_leader", "Youth");
+    const leader = await member(owner.token, "staff", "Youth");
     const finance = await member(owner.token, "finance");
 
     const created = await call("POST", "/expenses", leader.token, {
@@ -508,12 +600,12 @@ describe("expenses", () => {
     assert.equal(clarified.body.clarification, "Attach the receipt");
   });
 
-  test("counsellors cannot see or submit expenses", async () => {
+  test("the workspace admin cannot see or submit expenses", async () => {
     const owner = await ownerWithChurch();
-    const counsellor = await member(owner.token, "counsellor");
-    assert.equal((await call("GET", "/expenses", counsellor.token)).status, 403);
+    const admin = await member(owner.token, "admin");
+    assert.equal((await call("GET", "/expenses", admin.token)).status, 403);
     assert.equal(
-      (await call("POST", "/expenses", counsellor.token, { description: "x", purpose: "y", amount: 1 })).status,
+      (await call("POST", "/expenses", admin.token, { description: "x", purpose: "y", amount: 1 })).status,
       403,
     );
   });
@@ -538,7 +630,7 @@ describe("tasks, reports and QR links", () => {
 
   test("department reports are submitted and reviewed by a pastor", async () => {
     const owner = await ownerWithChurch();
-    const leader = await member(owner.token, "department_leader", "Choir");
+    const leader = await member(owner.token, "staff", "Choir");
     const report = await call("POST", "/reports", leader.token, {
       department: "Choir",
       period: "June",
@@ -626,8 +718,111 @@ describe("settings and session", () => {
     assert.equal(settings.body.fontFamily, "inter");
   });
 
-  test("platform workspace list requires the platform-owner claim", async () => {
-    const owner = await ownerWithChurch();
-    assert.equal((await call("GET", "/platform/workspaces", owner.token)).status, 403);
+});
+
+describe("Pastora admin console", () => {
+  function platformAdmin() {
+    const person = user({ email: "admin@pastora.test" });
+    auth.users.get(person.uid)!.platformAdmin = true;
+    return person;
+  }
+
+  test("is closed to church members, including pastors and admins", async () => {
+    const pastor = await ownerWithChurch();
+    const admin = await member(pastor.token, "admin");
+    for (const token of [pastor.token, admin.token]) {
+      assert.equal((await call("GET", "/platform/workspaces", token)).status, 403);
+      assert.equal((await call("GET", "/platform/users", token)).status, 403);
+      assert.equal((await call("PATCH", `/platform/workspaces/${pastor.church.id}`, token, { status: "suspended" })).status, 403);
+    }
+    assert.equal((await call("GET", "/session", pastor.token)).body.platformAdmin, false);
+  });
+
+  test("an allow-listed verified email is a platform admin; an unverified one is not", async () => {
+    process.env.PLATFORM_ADMIN_EMAILS = "ops@pastora.test";
+    try {
+      const unverified = user({ email: "ops@pastora.test", verified: false });
+      assert.equal((await call("GET", "/platform/workspaces", unverified.token)).status, 403);
+      auth.users.get(unverified.uid)!.emailVerified = true;
+      assert.equal((await call("GET", "/platform/workspaces", unverified.token)).status, 200);
+      assert.equal((await call("GET", "/session", unverified.token)).body.platformAdmin, true);
+    } finally {
+      delete process.env.PLATFORM_ADMIN_EMAILS;
+    }
+  });
+
+  test("lists churches and accounts without any pastoral content", async () => {
+    const pastor = await ownerWithChurch();
+    await member(pastor.token, "staff");
+    await publicRequest(pastor.church.slug, { type: "prayer", message: "Very private prayer" });
+    const ops = platformAdmin();
+
+    const workspaces = await call("GET", "/platform/workspaces", ops.token);
+    assert.equal(workspaces.status, 200);
+    assert.equal(workspaces.body[0].memberCount, 2);
+    assert.equal(workspaces.body[0].status, "active");
+    const detail = await call("GET", `/platform/workspaces/${pastor.church.id}`, ops.token);
+    assert.equal(detail.body.members.length, 2);
+    const users = await call("GET", "/platform/users", ops.token);
+    assert.ok(users.body.some((u: Json) => u.uid === pastor.uid && u.churchName === "Grace Chapel" && u.role === "pastor"));
+    for (const body of [workspaces.body, detail.body, users.body]) {
+      assert.ok(!JSON.stringify(body).includes("Very private prayer"));
+    }
+  });
+
+  test("suspending a church closes its workspace and care page until reactivated", async () => {
+    const pastor = await ownerWithChurch();
+    const ops = platformAdmin();
+    const paused = await call("PATCH", `/platform/workspaces/${pastor.church.id}`, ops.token, {
+      status: "suspended",
+      reason: "Unpaid",
+    });
+    assert.equal(paused.status, 200);
+    assert.equal(paused.body.status, "suspended");
+
+    const session = await call("GET", "/session", pastor.token);
+    assert.equal(session.status, 200);
+    assert.equal(session.body.churchSuspended, true);
+    assert.equal((await call("GET", "/requests", pastor.token)).status, 403);
+    assert.equal((await call("GET", `/public/churches/${pastor.church.slug}`)).status, 404);
+    assert.equal((await publicRequest(pastor.church.slug, { type: "prayer", message: "x" })).status, 404);
+
+    await call("PATCH", `/platform/workspaces/${pastor.church.id}`, ops.token, { status: "active" });
+    assert.equal((await call("GET", "/requests", pastor.token)).status, 200);
+    assert.equal((await call("GET", `/public/churches/${pastor.church.slug}`)).status, 200);
+    const log = await call("GET", "/platform/audit", ops.token);
+    assert.deepEqual(
+      log.body.map((entry: Json) => entry.action).sort(),
+      ["workspace_reactivated", "workspace_suspended"],
+    );
+  });
+
+  test("disabling an account ends its access at once; admins can't disable themselves", async () => {
+    const pastor = await ownerWithChurch();
+    const ops = platformAdmin();
+    assert.equal((await call("PATCH", `/platform/users/${ops.uid}`, ops.token, { disabled: true })).status, 400);
+    const disabled = await call("PATCH", `/platform/users/${pastor.uid}`, ops.token, { disabled: true });
+    assert.equal(disabled.status, 200);
+    assert.equal(disabled.body.disabled, true);
+    assert.ok(auth.revoked.has(pastor.uid));
+    assert.equal((await call("GET", "/session", pastor.token)).status, 401);
+    await call("PATCH", `/platform/users/${pastor.uid}`, ops.token, { disabled: false });
+    assert.equal((await call("GET", "/session", pastor.token)).status, 200);
+  });
+
+  test("can fix a church's roles when nobody inside can, and tells its pastors", async () => {
+    const admin = await adminWithChurch();
+    const staff = await member(admin.token, "staff");
+    const ops = platformAdmin();
+    const fixed = await call("PATCH", `/platform/workspaces/${admin.church.id}/members/${staff.uid}`, ops.token, {
+      role: "pastor",
+    });
+    assert.equal(fixed.status, 200);
+    assert.equal((await call("GET", "/session", staff.token)).body.user.role, "pastor");
+    assert.ok(db.all("notifications").some((n) => n.uid === admin.uid && /Pastora support/.test(String(n.title))));
+    assert.equal(
+      (await call("PATCH", `/platform/workspaces/${admin.church.id}/members/nobody`, ops.token, { role: "pastor" })).status,
+      404,
+    );
   });
 });

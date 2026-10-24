@@ -15,15 +15,44 @@ import {
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  hasRole,
   iso,
+  normalizeRole,
+  notifyChurchRoles,
   tenantFor,
+  type ChurchRole,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
-import { canManageMember, normalizeEmail } from "../lib/policies";
+import { canInviteRole, canManageMember, canManageTeam, normalizeEmail } from "../lib/policies";
 import { isAlreadyExists, MEMBERSHIP_LOCKS } from "../lib/workspace-service";
 
 const router: IRouter = Router();
+
+const ROLE_NAMES: Record<ChurchRole, string> = {
+  pastor: "Pastor",
+  staff: "Staff",
+  finance: "Finance",
+  admin: "Admin",
+};
+
+/** True once the church has an active pastor; from then on only pastors add pastors. */
+export async function churchHasPastor(churchId: string): Promise<boolean> {
+  const { db } = getFirebaseServices();
+  const members = await db
+    .collection("churchMemberships")
+    .where("churchId", "==", churchId)
+    .where("active", "==", true)
+    .get();
+  return members.docs.some((doc) => normalizeRole(doc.get("role")) === "pastor");
+}
+
+/** Every pastor hears about team changes, so access is never changed quietly. */
+async function tellPastors(churchId: string, eventId: string, title: string): Promise<void> {
+  try {
+    await notifyChurchRoles(churchId, eventId, "team", title, "/app/team", ["pastor"]);
+  } catch {
+    // The change itself has been saved; a missed notification must not undo it.
+  }
+}
 
 async function profilesFor(uids: string[]) {
   const { db } = getFirebaseServices();
@@ -43,7 +72,7 @@ function memberResponse(
     uid: data.uid,
     name: profile?.name ?? profile?.email?.split?.("@")[0] ?? "Member",
     email: profile?.email ?? "",
-    role: data.role,
+    role: normalizeRole(data.role) ?? "staff",
     department: data.department ?? null,
     active: data.active === true,
     isCurrentUser: data.uid === currentUid,
@@ -58,8 +87,8 @@ router.get("/team", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before managing your team." });
       return;
     }
-    if (!hasRole(context, ["owner", "pastor"])) {
-      res.status(403).json({ error: "Only the church owner or a pastor can view the team." });
+    if (!canManageTeam(context.role)) {
+      res.status(403).json({ error: "Only pastors and the workspace admin can view the team." });
       return;
     }
     const { db } = getFirebaseServices();
@@ -80,7 +109,7 @@ router.get("/team", firebaseAuth, async (req, res): Promise<void> => {
         invitations: invitations.docs.map((doc) => ({
           id: doc.id,
           email: doc.get("email"),
-          role: doc.get("role"),
+          role: normalizeRole(doc.get("role")) ?? "staff",
           department: doc.get("department") ?? null,
           createdAt: iso(doc.get("createdAt")),
         })),
@@ -105,8 +134,12 @@ router.post("/team/invitations", firebaseAuth, async (req, res): Promise<void> =
       res.status(409).json({ error: "Complete church onboarding before inviting people." });
       return;
     }
-    if (!hasRole(context, ["owner"])) {
-      res.status(403).json({ error: "Only the church owner can invite people and assign roles." });
+    if (!canManageTeam(context.role)) {
+      res.status(403).json({ error: "Only pastors and the workspace admin can invite people." });
+      return;
+    }
+    if (!canInviteRole(context.role, parsed.data.role, await churchHasPastor(context.churchId))) {
+      res.status(403).json({ error: "Only a pastor can add another pastor." });
       return;
     }
     const email = normalizeEmail(parsed.data.email);
@@ -150,6 +183,7 @@ router.post("/team/invitations", firebaseAuth, async (req, res): Promise<void> =
       createdAt: FieldValue.serverTimestamp(),
     });
     await audit(context.churchId, user.uid, "invitation_created", ref.id, { role: parsed.data.role });
+    await tellPastors(context.churchId, `invite_${ref.id}`, `${email} was invited as ${ROLE_NAMES[parsed.data.role]}.`);
     const saved = await ref.get();
     res.status(201).json(
       CreateInvitationResponse.parse({
@@ -179,8 +213,8 @@ router.delete("/team/invitations/:invitationId", firebaseAuth, async (req, res):
       res.status(409).json({ error: "Complete church onboarding first." });
       return;
     }
-    if (!hasRole(context, ["owner"])) {
-      res.status(403).json({ error: "Only the church owner can revoke invitations." });
+    if (!canManageTeam(context.role)) {
+      res.status(403).json({ error: "Only pastors and the workspace admin can revoke invitations." });
       return;
     }
     const { db } = getFirebaseServices();
@@ -188,6 +222,11 @@ router.delete("/team/invitations/:invitationId", firebaseAuth, async (req, res):
     const snap = await ref.get();
     if (!snap.exists || snap.get("churchId") !== context.churchId || snap.get("status") !== "pending") {
       res.status(404).json({ error: "Invitation not found." });
+      return;
+    }
+    const inviteRole = normalizeRole(snap.get("role")) ?? "staff";
+    if (!canInviteRole(context.role, inviteRole, await churchHasPastor(context.churchId))) {
+      res.status(403).json({ error: "Only a pastor can withdraw a pastor's invitation." });
       return;
     }
     await ref.update({ status: "revoked", revokedBy: user.uid, revokedAt: FieldValue.serverTimestamp() });
@@ -220,21 +259,30 @@ router.patch("/team/members/:membershipId", firebaseAuth, async (req, res): Prom
       res.status(404).json({ error: "Member not found." });
       return;
     }
+    const currentRole = normalizeRole(snap.get("role"));
     if (
       !canManageMember({
         actorRole: context.role,
         actorUid: user.uid,
         targetUid: snap.get("uid"),
-        targetRole: snap.get("role"),
+        targetRole: currentRole,
+        newRole: parsed.data.role,
+        churchHasPastor: await churchHasPastor(context.churchId),
       })
     ) {
       res.status(403).json({
-        error: "Only the church owner can change roles, and never their own or another owner's.",
+        error:
+          snap.get("uid") === user.uid
+            ? "You can't change your own access. Ask another pastor or admin."
+            : "Only a pastor can change a pastor's access or make someone a pastor.",
       });
       return;
     }
     const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp(), updatedBy: user.uid };
-    if (parsed.data.role !== undefined) update.role = parsed.data.role;
+    // Rewrite legacy roles (owner, counsellor…) in their simplified form on any change.
+    if (parsed.data.role !== undefined || currentRole !== snap.get("role")) {
+      update.role = parsed.data.role ?? currentRole;
+    }
     if (parsed.data.department !== undefined) update.department = parsed.data.department?.trim() || null;
     if (parsed.data.active !== undefined) update.active = parsed.data.active;
     const targetUid = String(snap.get("uid"));
@@ -247,8 +295,8 @@ router.patch("/team/members/:membershipId", firebaseAuth, async (req, res): Prom
           tx.delete(lockRef); // frees the person to join or create another workspace
         } else if (parsed.data.active === true && snap.get("active") !== true) {
           tx.create(lockRef, { churchId: context.churchId, role: update.role ?? snap.get("role") });
-        } else if (parsed.data.role !== undefined && lock.exists) {
-          tx.update(lockRef, { role: parsed.data.role });
+        } else if (update.role !== undefined && lock.exists) {
+          tx.update(lockRef, { role: update.role });
         }
       });
     } catch (error) {
@@ -260,11 +308,21 @@ router.patch("/team/members/:membershipId", firebaseAuth, async (req, res): Prom
     }
     await audit(context.churchId, user.uid, "member_updated", ref.id, {
       fromRole: snap.get("role"),
-      toRole: parsed.data.role ?? snap.get("role"),
+      toRole: update.role ?? snap.get("role"),
       active: parsed.data.active ?? snap.get("active"),
     });
     const saved = await ref.get();
     const profiles = await profilesFor([String(saved.get("uid"))]);
+    const who = profiles.get(String(saved.get("uid")))?.email ?? "A team member";
+    const change =
+      parsed.data.active === false
+        ? `${who} no longer has access.`
+        : parsed.data.active === true && snap.get("active") !== true
+          ? `${who}'s access was restored.`
+          : parsed.data.role !== undefined && parsed.data.role !== currentRole
+            ? `${who} is now ${ROLE_NAMES[parsed.data.role]}.`
+            : null;
+    if (change) await tellPastors(context.churchId, `member_${ref.id}_${Date.now()}`, change);
     res.json(
       UpdateMemberResponse.parse(
         memberResponse(saved.id, saved.data() ?? {}, profiles.get(String(saved.get("uid"))), user.uid),

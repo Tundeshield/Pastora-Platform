@@ -19,23 +19,24 @@ export interface SetupStatus {
   billingProviderConfigured: boolean;
 }
 
-export type UserSummaryRole = typeof UserSummaryRole[keyof typeof UserSummaryRole];
+/**
+ * Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.
+ */
+export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
 
 
-export const UserSummaryRole = {
-  owner: 'owner',
+export const MemberRole = {
   pastor: 'pastor',
-  counsellor: 'counsellor',
   staff: 'staff',
-  department_leader: 'department_leader',
   finance: 'finance',
+  admin: 'admin',
 } as const;
 
 export interface UserSummary {
   uid: string;
   name: string;
   email: string;
-  role: UserSummaryRole;
+  role: MemberRole;
 }
 
 export interface Church {
@@ -109,6 +110,10 @@ export interface Session {
   emailVerified: boolean;
   /** True when an invitation is waiting for this email but the email is not yet verified. */
   invitationPending: boolean;
+  /** True when Pastora has paused this church's workspace. */
+  churchSuspended: boolean;
+  /** True for Pastora's own administrators (server-side allow list). */
+  platformAdmin: boolean;
 }
 
 export type WorkspaceInputTheme = typeof WorkspaceInputTheme[keyof typeof WorkspaceInputTheme];
@@ -121,6 +126,17 @@ export const WorkspaceInputTheme = {
   'heritage-blue': 'heritage-blue',
   'forest-dark': 'forest-dark',
   system: 'system',
+} as const;
+
+/**
+ * Whether the person creating the workspace is the pastor or sets it up on the pastor's behalf.
+ */
+export type WorkspaceInputCreatorRole = typeof WorkspaceInputCreatorRole[keyof typeof WorkspaceInputCreatorRole];
+
+
+export const WorkspaceInputCreatorRole = {
+  pastor: 'pastor',
+  admin: 'admin',
 } as const;
 
 export interface WorkspaceInput {
@@ -143,6 +159,8 @@ export interface WorkspaceInput {
   country: string;
   timeZone: string;
   theme: WorkspaceInputTheme;
+  /** Whether the person creating the workspace is the pastor or sets it up on the pastor's behalf. */
+  creatorRole?: WorkspaceInputCreatorRole;
 }
 
 export type AppointmentFormat = typeof AppointmentFormat[keyof typeof AppointmentFormat];
@@ -848,6 +866,7 @@ export const NotificationType = {
   task: 'task',
   report: 'report',
   expense: 'expense',
+  team: 'team',
 } as const;
 
 export interface Notification {
@@ -876,46 +895,100 @@ export interface Plan {
   limits: PlanLimits;
 }
 
+export type PlatformWorkspaceStatus = typeof PlatformWorkspaceStatus[keyof typeof PlatformWorkspaceStatus];
+
+
+export const PlatformWorkspaceStatus = {
+  active: 'active',
+  suspended: 'suspended',
+} as const;
+
 export interface PlatformWorkspace {
   id: string;
   name: string;
-  status: string;
-  plan: string;
+  slug: string;
+  country: string;
+  status: PlatformWorkspaceStatus;
+  memberCount: number;
+  /** @nullable */
+  createdByEmail: string | null;
   createdAt: string;
 }
 
-/**
- * Roles an owner can grant. The owner role is never granted through the API.
- */
-export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
+export interface PlatformMember {
+  uid: string;
+  name: string;
+  email: string;
+  role: MemberRole;
+  active: boolean;
+  disabled: boolean;
+}
+
+export interface PlatformWorkspaceDetail {
+  workspace: PlatformWorkspace;
+  members: PlatformMember[];
+}
+
+export type PlatformWorkspaceUpdateStatus = typeof PlatformWorkspaceUpdateStatus[keyof typeof PlatformWorkspaceUpdateStatus];
 
 
-export const MemberRole = {
-  pastor: 'pastor',
-  counsellor: 'counsellor',
-  staff: 'staff',
-  department_leader: 'department_leader',
-  finance: 'finance',
+export const PlatformWorkspaceUpdateStatus = {
+  active: 'active',
+  suspended: 'suspended',
 } as const;
 
-export type TeamMemberRole = typeof TeamMemberRole[keyof typeof TeamMemberRole];
+export interface PlatformWorkspaceUpdate {
+  status: PlatformWorkspaceUpdateStatus;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  reason?: string | null;
+}
 
+export interface PlatformMemberUpdate {
+  role: MemberRole;
+}
 
-export const TeamMemberRole = {
-  owner: 'owner',
-  pastor: 'pastor',
-  counsellor: 'counsellor',
-  staff: 'staff',
-  department_leader: 'department_leader',
-  finance: 'finance',
-} as const;
+export interface PlatformUser {
+  uid: string;
+  email: string;
+  /** @nullable */
+  name: string | null;
+  emailVerified: boolean;
+  disabled: boolean;
+  /** @nullable */
+  createdAt: string | null;
+  /** @nullable */
+  lastSignInAt: string | null;
+  /** @nullable */
+  churchId: string | null;
+  /** @nullable */
+  churchName: string | null;
+  role: MemberRole | null;
+  platformAdmin: boolean;
+}
+
+export interface PlatformUserUpdate {
+  disabled: boolean;
+}
+
+export interface PlatformAuditEntry {
+  id: string;
+  action: string;
+  actorEmail: string;
+  target: string;
+  /** @nullable */
+  details: string | null;
+  createdAt: string;
+}
 
 export interface TeamMember {
   id: string;
   uid: string;
   name: string;
   email: string;
-  role: TeamMemberRole;
+  role: MemberRole;
   /** @nullable */
   department: string | null;
   active: boolean;

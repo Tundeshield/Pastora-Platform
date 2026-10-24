@@ -26,7 +26,9 @@ export async function firebaseAuth(
       res.status(401).json({ error: "Sign in to continue." });
       return;
     }
-    req.pastoraUser = await auth.verifyIdToken(token);
+    // checkRevoked also rejects disabled accounts, so "Disable account" in the admin
+    // console takes effect on the next request rather than when the token expires.
+    req.pastoraUser = await auth.verifyIdToken(token, true);
     next();
   } catch (error) {
     if (error instanceof FirebaseSetupRequiredError) {

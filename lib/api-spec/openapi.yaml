@@ -589,7 +589,7 @@ paths:
     get:
       operationId: listPlatformWorkspaces
       tags: [platform]
-      summary: List tenant workspaces for an authorized platform owner
+      summary: List every church workspace (Pastora administrators only; no pastoral content)
       responses:
         "200":
           description: Workspace overview
@@ -599,6 +599,130 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PlatformWorkspace"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /platform/workspaces/{churchId}:
+    get:
+      operationId: getPlatformWorkspace
+      tags: [platform]
+      summary: One workspace with its members (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/ChurchId"
+      responses:
+        "200":
+          description: Workspace detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformWorkspaceDetail"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updatePlatformWorkspace
+      tags: [platform]
+      summary: Suspend or reactivate a workspace (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/ChurchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformWorkspaceUpdate"
+      responses:
+        "200":
+          description: Updated workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformWorkspace"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /platform/workspaces/{churchId}/members/{uid}:
+    patch:
+      operationId: updatePlatformMember
+      tags: [platform]
+      summary: Change a member's role to rescue a workspace (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/ChurchId"
+        - $ref: "#/components/parameters/Uid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformMemberUpdate"
+      responses:
+        "200":
+          description: Updated workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformWorkspaceDetail"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /platform/users:
+    get:
+      operationId: listPlatformUsers
+      tags: [platform]
+      summary: List every Pastora account (Pastora administrators only)
+      responses:
+        "200":
+          description: Accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlatformUser"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /platform/users/{uid}:
+    patch:
+      operationId: updatePlatformUser
+      tags: [platform]
+      summary: Disable or re-enable an account (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/Uid"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformUserUpdate"
+      responses:
+        "200":
+          description: Updated account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /platform/audit:
+    get:
+      operationId: listPlatformAudit
+      tags: [platform]
+      summary: Recent actions taken from the admin console (Pastora administrators only)
+      responses:
+        "200":
+          description: Audit entries, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlatformAuditEntry"
         "403":
           $ref: "#/components/responses/Forbidden"
   /public/qr-codes/{qrCodeId}/visit:
@@ -615,7 +739,7 @@ paths:
     get:
       operationId: getTeam
       tags: [team]
-      summary: List church members and pending invitations (owner and pastor only)
+      summary: List church members and pending invitations (pastors and admins)
       responses:
         "200":
           description: Team overview
@@ -629,7 +753,7 @@ paths:
     post:
       operationId: createInvitation
       tags: [team]
-      summary: Invite a person by email to join the church with a role (owner only)
+      summary: Invite a person by email to join the church with a role (pastors and admins; only pastors can add pastors once one exists)
       requestBody:
         required: true
         content:
@@ -657,7 +781,7 @@ paths:
     delete:
       operationId: revokeInvitation
       tags: [team]
-      summary: Revoke a pending invitation (owner only)
+      summary: Revoke a pending invitation (pastors and admins)
       parameters:
         - $ref: "#/components/parameters/InvitationId"
       responses:
@@ -671,7 +795,7 @@ paths:
     patch:
       operationId: updateMember
       tags: [team]
-      summary: Change a member's role, department or access (owner only; never your own)
+      summary: Change a member's role, department or access (pastors and admins; never your own; only pastors can change a pastor)
       parameters:
         - $ref: "#/components/parameters/MembershipId"
       requestBody:
@@ -693,6 +817,20 @@ paths:
           $ref: "#/components/responses/NotFound"
 components:
   parameters:
+    ChurchId:
+      name: churchId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,128}$"
+    Uid:
+      name: uid
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,128}$"
     Slug:
       name: slug
       in: path
@@ -812,8 +950,7 @@ components:
         email:
           type: string
         role:
-          type: string
-          enum: [owner, pastor, counsellor, staff, department_leader, finance]
+          $ref: "#/components/schemas/MemberRole"
       required: [uid, name, email, role]
     Church:
       type: object
@@ -854,7 +991,13 @@ components:
         invitationPending:
           type: boolean
           description: True when an invitation is waiting for this email but the email is not yet verified.
-      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending]
+        churchSuspended:
+          type: boolean
+          description: True when Pastora has paused this church's workspace.
+        platformAdmin:
+          type: boolean
+          description: True for Pastora's own administrators (server-side allow list).
+      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending, churchSuspended, platformAdmin]
     WorkspaceInput:
       type: object
       properties:
@@ -877,6 +1020,10 @@ components:
         theme:
           type: string
           enum: [warm-cream, modern-cool, sage, heritage-blue, forest-dark, system]
+        creatorRole:
+          type: string
+          enum: [pastor, admin]
+          description: Whether the person creating the workspace is the pastor or sets it up on the pastor's behalf.
       required: [pastorName, churchName, country, timeZone, theme]
     DashboardSummary:
       type: object
@@ -1463,7 +1610,7 @@ components:
           type: string
         type:
           type: string
-          enum: [pastoral_request, appointment, follow_up, task, report, expense]
+          enum: [pastoral_request, appointment, follow_up, task, report, expense, team]
         title:
           type: string
         createdAt:
@@ -1507,18 +1654,123 @@ components:
           type: string
         name:
           type: string
+        slug:
+          type: string
+        country:
+          type: string
         status:
           type: string
-        plan:
-          type: string
+          enum: [active, suspended]
+        memberCount:
+          type: integer
+        createdByEmail:
+          type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
-      required: [id, name, status, plan, createdAt]
+      required: [id, name, slug, country, status, memberCount, createdByEmail, createdAt]
+    PlatformMember:
+      type: object
+      properties:
+        uid:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/MemberRole"
+        active:
+          type: boolean
+        disabled:
+          type: boolean
+      required: [uid, name, email, role, active, disabled]
+    PlatformWorkspaceDetail:
+      type: object
+      properties:
+        workspace:
+          $ref: "#/components/schemas/PlatformWorkspace"
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformMember"
+      required: [workspace, members]
+    PlatformWorkspaceUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [active, suspended]
+        reason:
+          type: ["string", "null"]
+          maxLength: 300
+      required: [status]
+    PlatformMemberUpdate:
+      type: object
+      properties:
+        role:
+          $ref: "#/components/schemas/MemberRole"
+      required: [role]
+    PlatformUser:
+      type: object
+      properties:
+        uid:
+          type: string
+        email:
+          type: string
+        name:
+          type: ["string", "null"]
+        emailVerified:
+          type: boolean
+        disabled:
+          type: boolean
+        createdAt:
+          type: ["string", "null"]
+          format: date-time
+        lastSignInAt:
+          type: ["string", "null"]
+          format: date-time
+        churchId:
+          type: ["string", "null"]
+        churchName:
+          type: ["string", "null"]
+        role:
+          anyOf:
+            - $ref: "#/components/schemas/MemberRole"
+            - type: "null"
+        platformAdmin:
+          type: boolean
+      required: [uid, email, name, emailVerified, disabled, createdAt, lastSignInAt, churchId, churchName, role, platformAdmin]
+    PlatformUserUpdate:
+      type: object
+      properties:
+        disabled:
+          type: boolean
+      required: [disabled]
+    PlatformAuditEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        action:
+          type: string
+        actorEmail:
+          type: string
+        target:
+          type: string
+        details:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, action, actorEmail, target, details, createdAt]
     MemberRole:
       type: string
-      enum: [pastor, counsellor, staff, department_leader, finance]
-      description: Roles an owner can grant. The owner role is never granted through the API.
+      enum: [pastor, staff, finance, admin]
+      description: >-
+        Church roles. Pastor sees pastoral care; Staff runs the church office; Finance
+        handles expense payments; Admin manages the team and settings only and never
+        sees pastoral care, appointments, reports or expenses.
     TeamMember:
       type: object
       properties:
@@ -1531,8 +1783,7 @@ components:
         email:
           type: string
         role:
-          type: string
-          enum: [owner, pastor, counsellor, staff, department_leader, finance]
+          $ref: "#/components/schemas/MemberRole"
         department:
           type: ["string", "null"]
         active:

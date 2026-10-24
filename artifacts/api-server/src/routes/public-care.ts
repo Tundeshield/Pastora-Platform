@@ -263,7 +263,9 @@ router.post(
           notificationType,
           notificationTitle,
           targetPath,
-          ["owner", "pastor", "counsellor"],
+          // Staff handle general enquiries and the calendar; prayer and counselling
+          // requests reach pastors only.
+          input.type === "prayer" || input.type === "counselling" ? ["pastor"] : ["pastor", "staff"],
         );
       } catch (notificationError) {
         req.log.warn({ notificationError }, "Pastoral request saved without notifications");

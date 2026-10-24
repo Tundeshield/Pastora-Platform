@@ -4,8 +4,14 @@ export function sameChurch(recordChurchId: unknown, activeChurchId: string): boo
   return typeof recordChurchId === "string" && recordChurchId === activeChurchId;
 }
 
-export function canViewCounselling(role: ChurchRole): boolean {
-  return ["owner", "pastor", "counsellor"].includes(role);
+/** Prayer and counselling requests, private notes: pastors only. */
+export function canViewPastoralCare(role: ChurchRole): boolean {
+  return role === "pastor";
+}
+
+/** Team and workspace settings: pastors and the workspace admin. */
+export function canManageTeam(role: ChurchRole): boolean {
+  return role === "pastor" || role === "admin";
 }
 
 export function canApproveExpense(
@@ -14,7 +20,7 @@ export function canApproveExpense(
   requesterUid: unknown,
 ): boolean {
   return (
-    ["owner", "pastor"].includes(role) &&
+    role === "pastor" &&
     typeof requesterUid === "string" &&
     requesterUid !== actorUid
   );
@@ -72,21 +78,44 @@ export function expenseTransitionAllowed(from: unknown, to: ExpenseStatus): bool
   return typeof from === "string" && (allowed[from] ?? []).includes(to);
 }
 
+/**
+ * Whether someone may invite a person with this role. Admins set churches up, so
+ * they can invite the first pastor; once a church has a pastor, only a pastor can
+ * add another, so an admin can never give themselves (or a second account) access
+ * to pastoral care.
+ */
+export function canInviteRole(actorRole: ChurchRole, role: ChurchRole, churchHasPastor: boolean): boolean {
+  if (!canManageTeam(actorRole)) return false;
+  if (role === "pastor" && actorRole !== "pastor") return !churchHasPastor;
+  return true;
+}
+
 export type MemberChange = {
   actorRole: ChurchRole;
   actorUid: string;
   targetUid: unknown;
-  targetRole: unknown;
+  /** The member's current role. */
+  targetRole: ChurchRole | null;
+  /** The role being given, if the role is changing. */
+  newRole?: ChurchRole;
+  churchHasPastor: boolean;
 };
 
-/** Only the owner manages the team, never their own membership, and never another owner. */
+/**
+ * Pastors and admins manage the team, never their own membership. Only a pastor can
+ * change or remove a pastor, or make someone a pastor once the church has one.
+ * Because nobody can change themselves, a church always keeps the person making the
+ * change, so it can never be left without someone able to manage the team.
+ */
 export function canManageMember(change: MemberChange): boolean {
-  return (
-    change.actorRole === "owner" &&
-    typeof change.targetUid === "string" &&
-    change.targetUid !== change.actorUid &&
-    change.targetRole !== "owner"
-  );
+  if (!canManageTeam(change.actorRole)) return false;
+  if (typeof change.targetUid !== "string" || change.targetUid === change.actorUid) return false;
+  if (!change.targetRole) return false;
+  if (change.targetRole === "pastor" && change.actorRole !== "pastor") return false;
+  if (change.newRole && change.newRole !== change.targetRole) {
+    return canInviteRole(change.actorRole, change.newRole, change.churchHasPastor);
+  }
+  return true;
 }
 
 export function slugify(name: string): string {
@@ -127,4 +156,23 @@ export function appearanceFrom(settings: Record<string, unknown> | undefined | n
     fontFamily: pick(settings?.fontFamily, FONT_FAMILIES, "inter"),
     fontSize: pick(settings?.fontSize, FONT_SIZES, "normal"),
   };
+}
+
+/**
+ * Pastora's own administrators. Granted only on the server: a verified email in the
+ * PLATFORM_ADMIN_EMAILS environment variable, or a `platformAdmin` custom claim set
+ * with the Admin SDK. Nothing a browser sends can grant it.
+ */
+export function isPlatformAdmin(
+  user: { email?: string; email_verified?: boolean; platformAdmin?: unknown } | null | undefined,
+  allowList: string | undefined = process.env.PLATFORM_ADMIN_EMAILS,
+): boolean {
+  if (!user || user.email_verified !== true) return false;
+  if (user.platformAdmin === true) return true;
+  if (!user.email || !allowList) return false;
+  const emails = allowList
+    .split(",")
+    .map((email) => normalizeEmail(email))
+    .filter(Boolean);
+  return emails.includes(normalizeEmail(user.email));
 }

@@ -5,11 +5,16 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
+import type { PlatformWorkspaceStatus } from './platformWorkspaceStatus';
 
 export interface PlatformWorkspace {
   id: string;
   name: string;
-  status: string;
-  plan: string;
+  slug: string;
+  country: string;
+  status: PlatformWorkspaceStatus;
+  memberCount: number;
+  /** @nullable */
+  createdByEmail: string | null;
   createdAt: Date;
 }

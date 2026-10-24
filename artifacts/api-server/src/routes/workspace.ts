@@ -19,7 +19,7 @@ import {
   tenantForUser,
 } from "../lib/pastora-data";
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
-import { appearanceFrom } from "../lib/policies";
+import { appearanceFrom, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
 import {
   acceptPendingInvitation,
   createWorkspaceForUser,
@@ -94,9 +94,9 @@ function churchSummary(id: string, data: Record<string, unknown>) {
 
 async function buildSession(user: DecodedIdToken) {
   const { db } = getFirebaseServices();
-  let context = await tenantForUser(user);
+  let context = await tenantForUser(user, { allowSuspended: true });
   if (!context && (await acceptPendingInvitation(user))) {
-    context = await tenantForUser(user);
+    context = await tenantForUser(user, { allowSuspended: true });
   }
   const profile = await db.collection("users").doc(user.uid).get();
   const displayName =
@@ -116,7 +116,8 @@ async function buildSession(user: DecodedIdToken) {
       uid: user.uid,
       name: displayName,
       email: user.email ?? "",
-      role: context?.role ?? "owner",
+      // No church yet: the creator becomes a pastor unless they choose otherwise.
+      role: context?.role ?? "pastor",
     },
     church: churchData && context ? churchSummary(context.churchId, churchData) : null,
     subscriptionStatus:
@@ -124,6 +125,8 @@ async function buildSession(user: DecodedIdToken) {
     ...appearanceFrom(settings?.data()),
     emailVerified: user.email_verified === true,
     invitationPending: !context && user.email_verified !== true ? await hasPendingInvitation(user.email) : false,
+    churchSuspended: context?.suspended === true,
+    platformAdmin: isPlatformAdmin(user),
   });
 }
 
@@ -178,22 +181,21 @@ router.get("/dashboard", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening the dashboard." });
       return;
     }
-    if (!["owner", "pastor", "counsellor", "staff"].includes(context.role)) {
-      res.status(403).json({ error: "Your role does not have access to the dashboard." });
+    if (!["pastor", "staff"].includes(context.role)) {
+      res.status(403).json({ error: "Your role does not have access to the overview." });
       return;
     }
+    const pastor = canViewPastoralCare(context.role);
 
-    const [requests, appointments, tasks, reports, expenses] = await Promise.all([
+    const [allRequests, appointments, tasks, reports, expenses] = await Promise.all([
       listTenantDocuments("pastoralRequests", context.churchId),
       listTenantDocuments("appointments", context.churchId),
       listTenantDocuments("tasks", context.churchId),
-      ["owner", "pastor"].includes(context.role)
-        ? listTenantDocuments("departmentReports", context.churchId)
-        : Promise.resolve([]),
-      ["owner", "pastor"].includes(context.role)
-        ? listTenantDocuments("financialRequests", context.churchId)
-        : Promise.resolve([]),
+      pastor ? listTenantDocuments("departmentReports", context.churchId) : Promise.resolve([]),
+      pastor ? listTenantDocuments("financialRequests", context.churchId) : Promise.resolve([]),
     ]);
+    // Staff only ever see general enquiries, including in the counts.
+    const requests = pastor ? allRequests : allRequests.filter((item) => item.type === "general");
     const now = Date.now();
     const upcoming = appointments
       .filter(
@@ -243,7 +245,7 @@ router.get("/dashboard", firebaseAuth, async (req, res): Promise<void> => {
         newPrayerRequests: requests.filter(
           (item) => item.type === "prayer" && item.status === "new",
         ).length,
-        counsellingAwaitingReview: ["owner", "pastor", "counsellor"].includes(context.role)
+        counsellingAwaitingReview: pastor
           ? requests.filter(
               (item) => item.type === "counselling" && item.status === "new",
             ).length

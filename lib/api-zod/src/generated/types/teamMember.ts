@@ -5,14 +5,14 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
-import type { TeamMemberRole } from './teamMemberRole';
+import type { MemberRole } from './memberRole';
 
 export interface TeamMember {
   id: string;
   uid: string;
   name: string;
   email: string;
-  role: TeamMemberRole;
+  role: MemberRole;
   /** @nullable */
   department: string | null;
   active: boolean;

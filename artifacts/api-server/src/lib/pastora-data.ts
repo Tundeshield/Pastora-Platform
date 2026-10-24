@@ -12,19 +12,41 @@ import {
 } from "./firebase-admin";
 import { sameChurch } from "./policies";
 
-export type ChurchRole =
-  | "owner"
-  | "pastor"
-  | "counsellor"
-  | "staff"
-  | "department_leader"
-  | "finance";
+/**
+ * Church roles, kept deliberately small:
+ * - pastor:  pastoral care (prayer, counselling, notes), calendar, reviews, approvals, team, settings
+ * - staff:   the church office — general enquiries, calendar, tasks, QR links, reports, expenses
+ * - finance: records payments on approved expenses
+ * - admin:   sets the workspace up — team, settings, QR links — and never sees pastoral
+ *            care, the calendar, reports or expenses
+ */
+export type ChurchRole = "pastor" | "staff" | "finance" | "admin";
+
+export const CHURCH_ROLES: readonly ChurchRole[] = ["pastor", "staff", "finance", "admin"];
+
+/**
+ * Maps roles stored by earlier versions. Owners and counsellors already had full
+ * pastoral access, so they keep it as pastors; department leaders become staff.
+ */
+export function normalizeRole(role: unknown): ChurchRole | null {
+  if (typeof role !== "string") return null;
+  if ((CHURCH_ROLES as readonly string[]).includes(role)) return role as ChurchRole;
+  if (role === "owner" || role === "counsellor") return "pastor";
+  if (role === "department_leader") return "staff";
+  return null;
+}
 
 export type TenantContext = {
   churchId: string;
   role: ChurchRole;
   membership: DocumentData;
 };
+
+export class ChurchSuspendedError extends Error {
+  constructor() {
+    super("This church workspace has been paused by Pastora. Please contact Pastora support.");
+  }
+}
 
 export function authenticatedUser(req: Request): DecodedIdToken | null {
   return req.pastoraUser ?? null;
@@ -34,7 +56,14 @@ export async function tenantFor(req: Request): Promise<TenantContext | null> {
   return tenantForUser(authenticatedUser(req));
 }
 
-export async function tenantForUser(user: DecodedIdToken | null): Promise<TenantContext | null> {
+/**
+ * The caller's church and role. A suspended church throws ChurchSuspendedError so no
+ * route can read or change its records; the session passes allowSuspended to explain it.
+ */
+export async function tenantForUser(
+  user: DecodedIdToken | null,
+  options: { allowSuspended?: boolean } = {},
+): Promise<(TenantContext & { suspended: boolean }) | null> {
   if (!user) return null;
 
   const { db } = getFirebaseServices();
@@ -51,29 +80,20 @@ export async function tenantForUser(user: DecodedIdToken | null): Promise<Tenant
   }
   const membership = memberships.docs[0].data();
   const churchId = membership.churchId;
-  const role = membership.role;
-  if (
-    typeof churchId !== "string" ||
-    !CHURCH_ROLES.includes(role)
-  ) {
+  const role = normalizeRole(membership.role);
+  if (typeof churchId !== "string" || !role) {
     throw new Error("The church membership is invalid.");
   }
-  return { churchId, role: role as ChurchRole, membership };
+  const church = await db.collection("churches").doc(churchId).get();
+  const suspended = church.get("status") === "suspended";
+  if (suspended && !options.allowSuspended) throw new ChurchSuspendedError();
+  return { churchId, role, membership, suspended };
 }
 
 /** Memberships use a deterministic id so the same person can never be added to a church twice. */
 export function membershipDocId(churchId: string, uid: string): string {
   return `${churchId}_${uid}`;
 }
-
-export const CHURCH_ROLES: readonly ChurchRole[] = [
-  "owner",
-  "pastor",
-  "counsellor",
-  "staff",
-  "department_leader",
-  "finance",
-];
 
 /** Append-only audit trail for sensitive actions. Never stores request content. */
 export async function audit(
@@ -158,6 +178,10 @@ export function failFirebaseSetup(res: Response, error: unknown): boolean {
     res.status(503).json({ error: error.message });
     return true;
   }
+  if (error instanceof ChurchSuspendedError) {
+    res.status(403).json({ error: error.message });
+    return true;
+  }
   return false;
 }
 
@@ -165,10 +189,19 @@ export function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+export type NotificationType =
+  | "pastoral_request"
+  | "appointment"
+  | "follow_up"
+  | "task"
+  | "report"
+  | "expense"
+  | "team";
+
 export async function notifyChurchRoles(
   churchId: string,
   eventId: string,
-  type: "pastoral_request" | "appointment" | "follow_up" | "task" | "report" | "expense",
+  type: NotificationType,
   title: string,
   targetPath: string,
   roles: ChurchRole[],
@@ -183,7 +216,8 @@ export async function notifyChurchRoles(
   let writes = 0;
   for (const member of memberships.docs) {
     const data = member.data();
-    if (!roles.includes(data.role as ChurchRole) || typeof data.uid !== "string") continue;
+    const role = normalizeRole(data.role);
+    if (!role || !roles.includes(role) || typeof data.uid !== "string") continue;
     const ref = db
       .collection("notifications")
       .doc(`${eventId}_${data.uid}`);
@@ -209,7 +243,7 @@ export async function notifyChurchUser(
   churchId: string,
   eventId: string,
   uid: string,
-  type: "pastoral_request" | "appointment" | "follow_up" | "task" | "report" | "expense",
+  type: NotificationType,
   title: string,
   targetPath: string,
 ): Promise<void> {

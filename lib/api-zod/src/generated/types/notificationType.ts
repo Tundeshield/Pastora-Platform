@@ -16,4 +16,5 @@ export const NotificationType = {
   task: 'task',
   report: 'report',
   expense: 'expense',
+  team: 'team',
 } as const;

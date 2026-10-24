@@ -7,15 +7,14 @@
  */
 
 /**
- * Roles an owner can grant. The owner role is never granted through the API.
+ * Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.
  */
 export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
 
 
 export const MemberRole = {
   pastor: 'pastor',
-  counsellor: 'counsellor',
   staff: 'staff',
-  department_leader: 'department_leader',
   finance: 'finance',
+  admin: 'admin',
 } as const;

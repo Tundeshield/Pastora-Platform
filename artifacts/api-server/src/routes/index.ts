@@ -9,6 +9,7 @@ import reportsRouter from "./reports";
 import financeRouter from "./finance";
 import settingsPlatformRouter from "./settings-platform";
 import teamRouter from "./team";
+import platformRouter from "./platform";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(reportsRouter);
 router.use(financeRouter);
 router.use(settingsPlatformRouter);
 router.use(teamRouter);
+router.use(platformRouter);
 
 export default router;

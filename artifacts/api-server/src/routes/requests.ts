@@ -14,6 +14,7 @@ import {
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAuth } from "../middlewares/firebase-auth";
 import {
+  type ChurchRole,
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
@@ -24,10 +25,13 @@ import {
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
-import { canViewCounselling } from "../lib/policies";
+import { canViewPastoralCare } from "../lib/policies";
 
 const router: IRouter = Router();
-const pastoralRoles = ["owner", "pastor", "counsellor"] as const;
+/** Pastors see every request; staff handle general enquiries only. */
+function canHandle(role: ChurchRole, type: unknown): boolean {
+  return canViewPastoralCare(role) || (role === "staff" && type === "general");
+}
 
 async function canAssignTo(churchId: string, uid: string): Promise<boolean> {
   const { db } = getFirebaseServices();
@@ -53,24 +57,16 @@ router.get("/requests", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening requests." });
       return;
     }
+    if (!["pastor", "staff"].includes(context.role)) {
+      res.status(403).json({ error: "Your role does not include the care inbox." });
+      return;
+    }
     const documents = await listTenantDocuments("pastoralRequests", context.churchId);
     const visible = documents
       .filter((item) => {
         if (query.data.type && item.type !== query.data.type) return false;
         if (query.data.status && item.status !== query.data.status) return false;
-        if (
-          item.type === "counselling" &&
-          !canViewCounselling(context.role)
-        ) {
-          return false;
-        }
-        if (
-          ["staff", "department_leader", "finance"].includes(context.role) &&
-          item.type !== "general"
-        ) {
-          return false;
-        }
-        return true;
+        return canHandle(context.role, item.type);
       })
       .sort((a, b) => {
         const createdA = a.createdAt?.toDate?.().getTime?.() ?? 0;
@@ -117,8 +113,8 @@ router.post("/requests", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating a request." });
       return;
     }
-    if (!hasRole(context, [...pastoralRoles])) {
-      res.status(403).json({ error: "Your role cannot create pastoral care records." });
+    if (!canHandle(context.role, parsed.data.type)) {
+      res.status(403).json({ error: "Your role cannot create this kind of care record." });
       return;
     }
     const { db } = getFirebaseServices();
@@ -197,8 +193,8 @@ router.patch("/requests/:requestId", firebaseAuth, async (req, res): Promise<voi
       res.status(409).json({ error: "Complete church onboarding before updating requests." });
       return;
     }
-    if (!hasRole(context, [...pastoralRoles])) {
-      res.status(403).json({ error: "Your role cannot manage pastoral care requests." });
+    if (!hasRole(context, ["pastor", "staff"])) {
+      res.status(403).json({ error: "Your role cannot manage care requests." });
       return;
     }
     const record = await tenantDocument(
@@ -210,11 +206,9 @@ router.patch("/requests/:requestId", firebaseAuth, async (req, res): Promise<voi
       res.status(404).json({ error: "Request not found." });
       return;
     }
-    if (
-      record.data.type === "counselling" &&
-      !hasRole(context, ["owner", "pastor", "counsellor"])
-    ) {
-      res.status(403).json({ error: "Your role cannot access counselling records." });
+    if (!canHandle(context.role, record.data.type)) {
+      // Same answer as a missing record, so staff cannot probe for private requests.
+      res.status(404).json({ error: "Request not found." });
       return;
     }
     if (
@@ -269,8 +263,8 @@ router.post(
         res.status(409).json({ error: "Complete church onboarding before adding notes." });
         return;
       }
-      if (!hasRole(context, [...pastoralRoles])) {
-        res.status(403).json({ error: "Your role cannot add pastoral notes." });
+      if (!canViewPastoralCare(context.role)) {
+        res.status(403).json({ error: "Only pastors can add private notes." });
         return;
       }
       const request = await tenantDocument(
@@ -280,13 +274,6 @@ router.post(
       );
       if (!request) {
         res.status(404).json({ error: "Request not found." });
-        return;
-      }
-      if (
-        request.data.type === "counselling" &&
-        !hasRole(context, ["owner", "pastor", "counsellor"])
-      ) {
-        res.status(403).json({ error: "Your role cannot add notes to counselling records." });
         return;
       }
       const { db } = getFirebaseServices();

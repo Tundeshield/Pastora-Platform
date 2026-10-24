@@ -218,7 +218,14 @@ export class FakeFirestore {
   }
 }
 
-export type FakeUser = { uid: string; email: string; emailVerified: boolean; name?: string };
+export type FakeUser = {
+  uid: string;
+  email: string;
+  emailVerified: boolean;
+  name?: string;
+  disabled?: boolean;
+  platformAdmin?: boolean;
+};
 
 export class FakeAuth {
   users = new Map<string, FakeUser>();
@@ -228,16 +235,64 @@ export class FakeAuth {
     return `token:${user.uid}`;
   }
 
-  async verifyIdToken(token: string) {
+  private record(user: FakeUser) {
+    return {
+      uid: user.uid,
+      email: user.email,
+      emailVerified: user.emailVerified,
+      displayName: user.name,
+      disabled: user.disabled === true,
+      customClaims: user.platformAdmin ? { platformAdmin: true } : undefined,
+      metadata: { creationTime: new Date(0).toUTCString(), lastSignInTime: null },
+    };
+  }
+
+  async verifyIdToken(token: string, checkRevoked = false) {
     const uid = token.startsWith("token:") ? token.slice(6) : "";
     const user = this.users.get(uid);
     if (!user) throw new Error("auth/argument-error");
-    return { uid, email: user.email, email_verified: user.emailVerified, name: user.name } as never;
+    if (checkRevoked && user.disabled) throw Object.assign(new Error("auth/user-disabled"), { code: "auth/user-disabled" });
+    return {
+      uid,
+      email: user.email,
+      email_verified: user.emailVerified,
+      name: user.name,
+      ...(user.platformAdmin ? { platformAdmin: true } : {}),
+    } as never;
   }
 
   async getUserByEmail(email: string) {
     const user = [...this.users.values()].find((u) => u.email.toLowerCase() === email.toLowerCase());
     if (!user) throw Object.assign(new Error("auth/user-not-found"), { code: "auth/user-not-found" });
-    return user;
+    return this.record(user);
+  }
+
+  async getUser(uid: string) {
+    const user = this.users.get(uid);
+    if (!user) throw Object.assign(new Error("auth/user-not-found"), { code: "auth/user-not-found" });
+    return this.record(user);
+  }
+
+  async getUsers(identifiers: { uid: string }[]) {
+    return {
+      users: identifiers.flatMap(({ uid }) => (this.users.has(uid) ? [this.record(this.users.get(uid)!)] : [])),
+      notFound: [],
+    };
+  }
+
+  async listUsers() {
+    return { users: [...this.users.values()].map((user) => this.record(user)), pageToken: undefined };
+  }
+
+  async updateUser(uid: string, changes: { disabled?: boolean }) {
+    const user = this.users.get(uid);
+    if (!user) throw Object.assign(new Error("auth/user-not-found"), { code: "auth/user-not-found" });
+    if (changes.disabled !== undefined) user.disabled = changes.disabled;
+    return this.record(user);
+  }
+
+  revoked = new Set<string>();
+  async revokeRefreshTokens(uid: string) {
+    this.revoked.add(uid);
   }
 }

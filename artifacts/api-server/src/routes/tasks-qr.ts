@@ -29,7 +29,7 @@ import {
 import { getFirebaseServices } from "../lib/firebase-admin";
 
 const router: IRouter = Router();
-const managers = ["owner", "pastor"] as const;
+const managers = ["pastor"] as const;
 
 async function validAssignee(churchId: string, uid: string | null | undefined) {
   if (!uid) return true;
@@ -89,7 +89,7 @@ router.post("/tasks", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating tasks." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff", "department_leader"])) {
+    if (!hasRole(context, [...managers, "staff", "admin"])) {
       res.status(403).json({ error: "Your role cannot create tasks." });
       return;
     }
@@ -200,7 +200,7 @@ router.get("/qr-codes", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening QR codes." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff"])) {
+    if (!hasRole(context, [...managers, "staff", "admin"])) {
       res.status(403).json({ error: "Your role cannot manage QR codes." });
       return;
     }
@@ -235,7 +235,7 @@ router.post("/qr-codes", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating QR codes." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff"])) {
+    if (!hasRole(context, [...managers, "staff", "admin"])) {
       res.status(403).json({ error: "Your role cannot create QR codes." });
       return;
     }
@@ -280,7 +280,7 @@ router.patch("/qr-codes/:qrCodeId", firebaseAuth, async (req, res): Promise<void
       res.status(409).json({ error: "Complete church onboarding before updating QR codes." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff"])) {
+    if (!hasRole(context, [...managers, "staff", "admin"])) {
       res.status(403).json({ error: "Your role cannot update QR codes." });
       return;
     }

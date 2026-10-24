@@ -1,6 +1,6 @@
 import { FieldValue, type DocumentData } from "firebase-admin/firestore";
 import { getFirebaseServices } from "./firebase-admin";
-import { membershipDocId, type ChurchRole } from "./pastora-data";
+import { membershipDocId, normalizeRole, notifyChurchRoles } from "./pastora-data";
 import { appearanceFrom, normalizeEmail, slugify } from "./policies";
 
 export type WorkspaceInput = {
@@ -10,6 +10,8 @@ export type WorkspaceInput = {
   country: string;
   timeZone: string;
   theme: string;
+  /** "pastor" (default) or "admin" when setting the workspace up on the pastor's behalf. */
+  creatorRole?: "pastor" | "admin";
 };
 
 export type CreatedWorkspace = {
@@ -23,14 +25,16 @@ export class WorkspaceConflictError extends Error {}
 const MAX_SLUG_ATTEMPTS = 50;
 
 /**
- * Creates the church workspace, owner membership, settings, subscription record and
+ * Creates the church workspace, the creator's membership, settings, subscription record and
  * slug reservation in a single Firestore transaction.
  *
  * - Idempotent: if the user already owns a workspace (e.g. a retried request after a
  *   network failure), the existing workspace is returned instead of a duplicate.
  * - Slugs are reserved with `churchSlugs/{slug}` documents inside the transaction, so
  *   two churches can never receive the same public URL.
- * - The owner role is decided here on the server; nothing from the client can set it.
+ * - The creator becomes a pastor, or an admin when they are setting the church up for
+ *   their pastor. An admin never sees pastoral care, so a technically minded member can
+ *   create the workspace without gaining access to people's requests.
  */
 export async function createWorkspaceForUser(
   user: { uid: string; email?: string },
@@ -93,11 +97,9 @@ async function createWorkspaceOnce(
     }
     if (!activeMemberships.empty) {
       const membership = activeMemberships.docs[0];
-      if (membership.get("role") === "owner") {
-        const owned = await tx.get(db.collection("churches").doc(String(membership.get("churchId"))));
-        if (owned.exists && owned.get("ownerUid") === user.uid) {
-          return { churchId: owned.id, church: owned.data() ?? {}, created: false };
-        }
+      const owned = await tx.get(db.collection("churches").doc(String(membership.get("churchId"))));
+      if (owned.exists && owned.get("ownerUid") === user.uid) {
+        return { churchId: owned.id, church: owned.data() ?? {}, created: false };
       }
       throw new WorkspaceConflictError("This account already belongs to a church workspace.");
     }
@@ -111,6 +113,7 @@ async function createWorkspaceOnce(
     if (!slug) throw new Error("Could not reserve a unique address for this church. Try a different name.");
 
     const churchRef = db.collection("churches").doc();
+    const creatorRole = input.creatorRole === "admin" ? "admin" : "pastor";
     const now = FieldValue.serverTimestamp();
     // New workspaces: chosen palette (Warm Cream by default), Inter, normal text.
     const { theme } = appearanceFrom({ theme: input.theme });
@@ -121,20 +124,21 @@ async function createWorkspaceOnce(
       country: input.country.trim(),
       timeZone: input.timeZone.trim(),
       logoUrl: null,
-      ownerUid: user.uid,
+      ownerUid: user.uid, // the person who created the workspace
+      createdByEmail: user.email ?? null,
       status: "active",
       subscriptionStatus: "setup_required",
       createdAt: now,
       updatedAt: now,
     };
 
-    tx.create(db.collection(MEMBERSHIP_LOCKS).doc(user.uid), { churchId: churchRef.id, role: "owner", createdAt: now });
+    tx.create(db.collection(MEMBERSHIP_LOCKS).doc(user.uid), { churchId: churchRef.id, role: creatorRole, createdAt: now });
     tx.create(db.collection("churchSlugs").doc(slug), { churchId: churchRef.id, createdAt: now });
     tx.set(churchRef, church);
     tx.set(db.collection("churchMemberships").doc(membershipDocId(churchRef.id, user.uid)), {
       churchId: churchRef.id,
       uid: user.uid,
-      role: "owner",
+      role: creatorRole,
       department: null,
       active: true,
       createdAt: now,
@@ -179,6 +183,7 @@ async function createWorkspaceOnce(
       actorUid: user.uid,
       action: "workspace_created",
       recordId: churchRef.id,
+      role: creatorRole,
       createdAt: now,
     });
     return { churchId: churchRef.id, church, created: true };
@@ -210,7 +215,19 @@ export async function acceptPendingInvitation(user: {
   )[0];
 
   try {
-    return await acceptInvitationOnce(user, oldest.ref);
+    const accepted = await acceptInvitationOnce(user, oldest.ref);
+    if (accepted) {
+      const role = normalizeRole(oldest.get("role"));
+      await notifyChurchRoles(
+        String(oldest.get("churchId")),
+        `joined_${oldest.id}`,
+        "team",
+        `${email} joined as ${role ? role[0].toUpperCase() + role.slice(1) : "a member"}.`,
+        "/app/team",
+        ["pastor"],
+      ).catch(() => undefined);
+    }
+    return accepted;
   } catch (error) {
     if (isAlreadyExists(error)) return false; // already joined a church concurrently
     throw error;
@@ -229,8 +246,8 @@ async function acceptInvitationOnce(
     );
     if (!invite.exists || invite.get("status") !== "pending" || !existing.empty) return false;
     const churchId = invite.get("churchId") as string;
-    const role = invite.get("role") as ChurchRole;
-    if (role === "owner") return false;
+    const role = normalizeRole(invite.get("role"));
+    if (!role) return false;
     const now = FieldValue.serverTimestamp();
     tx.create(db.collection(MEMBERSHIP_LOCKS).doc(user.uid), { churchId, role, createdAt: now });
     tx.set(db.collection("churchMemberships").doc(membershipDocId(churchId, user.uid)), {

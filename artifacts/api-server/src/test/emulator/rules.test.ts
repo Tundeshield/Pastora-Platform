@@ -93,7 +93,7 @@ describe("Firestore rules", () => {
   });
 
   test("forged custom claims grant nothing", async () => {
-    const db = env.authenticatedContext("attacker", { platformOwner: true, role: "owner", churchId: "church-a" }).firestore();
+    const db = env.authenticatedContext("attacker", { platformAdmin: true, role: "pastor", churchId: "church-a" }).firestore();
     await assertFails(getDoc(doc(db, "churches/church-a")));
   });
 });

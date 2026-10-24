@@ -41,7 +41,13 @@ import type {
   Notification,
   PastoralRequest,
   Plan,
+  PlatformAuditEntry,
+  PlatformMemberUpdate,
+  PlatformUser,
+  PlatformUserUpdate,
   PlatformWorkspace,
+  PlatformWorkspaceDetail,
+  PlatformWorkspaceUpdate,
   PublicChurch,
   PublicRequestInput,
   PublicRequestReceipt,
@@ -2678,7 +2684,7 @@ export const getListPlatformWorkspacesUrl = () => {
 }
 
 /**
- * @summary List tenant workspaces for an authorized platform owner
+ * @summary List every church workspace (Pastora administrators only; no pastoral content)
  */
 export const listPlatformWorkspaces = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformWorkspace[]> => {
 
@@ -2725,7 +2731,7 @@ export type ListPlatformWorkspacesQueryError = ErrorType<ForbiddenResponse>
 
 
 /**
- * @summary List tenant workspaces for an authorized platform owner
+ * @summary List every church workspace (Pastora administrators only; no pastoral content)
  */
 
 export function useListPlatformWorkspaces<TData = Awaited<ReturnType<typeof listPlatformWorkspaces>>, TError = ErrorType<ForbiddenResponse>>(
@@ -2734,6 +2740,506 @@ export function useListPlatformWorkspaces<TData = Awaited<ReturnType<typeof list
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListPlatformWorkspacesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPlatformWorkspaceUrl = (churchId: string,) => {
+
+
+
+
+  return `/api/platform/workspaces/${churchId}`
+}
+
+/**
+ * @summary One workspace with its members (Pastora administrators only)
+ */
+export const getPlatformWorkspace = async (churchId: string, options?: Parameters<typeof customFetch>[1]): Promise<PlatformWorkspaceDetail> => {
+
+  return customFetch<PlatformWorkspaceDetail>(getGetPlatformWorkspaceUrl(churchId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPlatformWorkspaceQueryKey = (churchId: string,) => {
+    return [
+    `/api/platform/workspaces/${churchId}`
+    ] as const;
+    }
+
+
+export const getGetPlatformWorkspaceQueryOptions = <TData = Awaited<ReturnType<typeof getPlatformWorkspace>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(churchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformWorkspace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPlatformWorkspaceQueryKey(churchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPlatformWorkspace>>> = ({ signal }) => getPlatformWorkspace(churchId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: churchId !== null && churchId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPlatformWorkspace>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPlatformWorkspaceQueryResult = NonNullable<Awaited<ReturnType<typeof getPlatformWorkspace>>>
+export type GetPlatformWorkspaceQueryError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary One workspace with its members (Pastora administrators only)
+ */
+
+export function useGetPlatformWorkspace<TData = Awaited<ReturnType<typeof getPlatformWorkspace>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(
+ churchId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPlatformWorkspace>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPlatformWorkspaceQueryOptions(churchId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePlatformWorkspaceUrl = (churchId: string,) => {
+
+
+
+
+  return `/api/platform/workspaces/${churchId}`
+}
+
+/**
+ * @summary Suspend or reactivate a workspace (Pastora administrators only)
+ */
+export const updatePlatformWorkspace = async (churchId: string,
+    platformWorkspaceUpdate: PlatformWorkspaceUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformWorkspace> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformWorkspace>(getUpdatePlatformWorkspaceUrl(churchId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformWorkspaceUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformWorkspaceMutationKey = () => ['updatePlatformWorkspace'] as const;
+
+export const getUpdatePlatformWorkspaceMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformWorkspace>>, TError,UpdatePlatformWorkspaceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformWorkspace>>, TError,UpdatePlatformWorkspaceMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePlatformWorkspaceMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformWorkspace>>, UpdatePlatformWorkspaceMutationVariables> = (props) => {
+          const {churchId,data} = props ?? {};
+
+          return  updatePlatformWorkspace(churchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformWorkspaceMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformWorkspace>>>
+    export type UpdatePlatformWorkspaceMutationBody = BodyType<PlatformWorkspaceUpdate>
+    export type UpdatePlatformWorkspaceMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+    export type UpdatePlatformWorkspaceMutationVariables = {churchId: string;data: BodyType<PlatformWorkspaceUpdate>}
+
+    /**
+ * @summary Suspend or reactivate a workspace (Pastora administrators only)
+ */
+export const useUpdatePlatformWorkspace = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformWorkspace>>, TError,UpdatePlatformWorkspaceMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformWorkspace>>,
+        TError,
+        UpdatePlatformWorkspaceMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformWorkspaceMutationOptions(options));
+    }
+
+export const getUpdatePlatformMemberUrl = (churchId: string,
+    uid: string,) => {
+
+
+
+
+  return `/api/platform/workspaces/${churchId}/members/${uid}`
+}
+
+/**
+ * @summary Change a member's role to rescue a workspace (Pastora administrators only)
+ */
+export const updatePlatformMember = async (churchId: string,
+    uid: string,
+    platformMemberUpdate: PlatformMemberUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformWorkspaceDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformWorkspaceDetail>(getUpdatePlatformMemberUrl(churchId,uid),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformMemberUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformMemberMutationKey = () => ['updatePlatformMember'] as const;
+
+export const getUpdatePlatformMemberMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformMember>>, TError,UpdatePlatformMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformMember>>, TError,UpdatePlatformMemberMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePlatformMemberMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformMember>>, UpdatePlatformMemberMutationVariables> = (props) => {
+          const {churchId,uid,data} = props ?? {};
+
+          return  updatePlatformMember(churchId,uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformMemberMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformMember>>>
+    export type UpdatePlatformMemberMutationBody = BodyType<PlatformMemberUpdate>
+    export type UpdatePlatformMemberMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+    export type UpdatePlatformMemberMutationVariables = {churchId: string;uid: string;data: BodyType<PlatformMemberUpdate>}
+
+    /**
+ * @summary Change a member's role to rescue a workspace (Pastora administrators only)
+ */
+export const useUpdatePlatformMember = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformMember>>, TError,UpdatePlatformMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformMember>>,
+        TError,
+        UpdatePlatformMemberMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformMemberMutationOptions(options));
+    }
+
+export const getListPlatformUsersUrl = () => {
+
+
+
+
+  return `/api/platform/users`
+}
+
+/**
+ * @summary List every Pastora account (Pastora administrators only)
+ */
+export const listPlatformUsers = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformUser[]> => {
+
+  return customFetch<PlatformUser[]>(getListPlatformUsersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformUsersQueryKey = () => {
+    return [
+    `/api/platform/users`
+    ] as const;
+    }
+
+
+export const getListPlatformUsersQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformUsers>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformUsersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformUsers>>> = ({ signal }) => listPlatformUsers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformUsers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformUsersQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformUsers>>>
+export type ListPlatformUsersQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary List every Pastora account (Pastora administrators only)
+ */
+
+export function useListPlatformUsers<TData = Awaited<ReturnType<typeof listPlatformUsers>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformUsers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformUsersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePlatformUserUrl = (uid: string,) => {
+
+
+
+
+  return `/api/platform/users/${uid}`
+}
+
+/**
+ * @summary Disable or re-enable an account (Pastora administrators only)
+ */
+export const updatePlatformUser = async (uid: string,
+    platformUserUpdate: PlatformUserUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformUser> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformUser>(getUpdatePlatformUserUrl(uid),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformUserUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformUserMutationKey = () => ['updatePlatformUser'] as const;
+
+export const getUpdatePlatformUserMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformUser>>, TError,UpdatePlatformUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformUser>>, TError,UpdatePlatformUserMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePlatformUserMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformUser>>, UpdatePlatformUserMutationVariables> = (props) => {
+          const {uid,data} = props ?? {};
+
+          return  updatePlatformUser(uid,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformUserMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformUser>>>
+    export type UpdatePlatformUserMutationBody = BodyType<PlatformUserUpdate>
+    export type UpdatePlatformUserMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdatePlatformUserMutationVariables = {uid: string;data: BodyType<PlatformUserUpdate>}
+
+    /**
+ * @summary Disable or re-enable an account (Pastora administrators only)
+ */
+export const useUpdatePlatformUser = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformUser>>, TError,UpdatePlatformUserMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformUser>>,
+        TError,
+        UpdatePlatformUserMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformUserMutationOptions(options));
+    }
+
+export const getListPlatformAuditUrl = () => {
+
+
+
+
+  return `/api/platform/audit`
+}
+
+/**
+ * @summary Recent actions taken from the admin console (Pastora administrators only)
+ */
+export const listPlatformAudit = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformAuditEntry[]> => {
+
+  return customFetch<PlatformAuditEntry[]>(getListPlatformAuditUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformAuditQueryKey = () => {
+    return [
+    `/api/platform/audit`
+    ] as const;
+    }
+
+
+export const getListPlatformAuditQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformAudit>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformAuditQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformAudit>>> = ({ signal }) => listPlatformAudit({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformAudit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformAuditQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformAudit>>>
+export type ListPlatformAuditQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary Recent actions taken from the admin console (Pastora administrators only)
+ */
+
+export function useListPlatformAudit<TData = Awaited<ReturnType<typeof listPlatformAudit>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformAudit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformAuditQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2829,7 +3335,7 @@ export const getGetTeamUrl = () => {
 }
 
 /**
- * @summary List church members and pending invitations (owner and pastor only)
+ * @summary List church members and pending invitations (pastors and admins)
  */
 export const getTeam = async ( options?: Parameters<typeof customFetch>[1]): Promise<TeamOverview> => {
 
@@ -2876,7 +3382,7 @@ export type GetTeamQueryError = ErrorType<ForbiddenResponse>
 
 
 /**
- * @summary List church members and pending invitations (owner and pastor only)
+ * @summary List church members and pending invitations (pastors and admins)
  */
 
 export function useGetTeam<TData = Awaited<ReturnType<typeof getTeam>>, TError = ErrorType<ForbiddenResponse>>(
@@ -2906,7 +3412,7 @@ export const getCreateInvitationUrl = () => {
 }
 
 /**
- * @summary Invite a person by email to join the church with a role (owner only)
+ * @summary Invite a person by email to join the church with a role (pastors and admins; only pastors can add pastors once one exists)
  */
 export const createInvitation = async (invitationInput: InvitationInput, options?: Parameters<typeof customFetch>[1]): Promise<TeamInvitation> => {
 
@@ -2972,7 +3478,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateInvitationMutationVariables = {data: BodyType<InvitationInput>}
 
     /**
- * @summary Invite a person by email to join the church with a role (owner only)
+ * @summary Invite a person by email to join the church with a role (pastors and admins; only pastors can add pastors once one exists)
  */
 export const useCreateInvitation = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ApiError>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createInvitation>>, TError,CreateInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -2994,7 +3500,7 @@ export const getRevokeInvitationUrl = (invitationId: string,) => {
 }
 
 /**
- * @summary Revoke a pending invitation (owner only)
+ * @summary Revoke a pending invitation (pastors and admins)
  */
 export const revokeInvitation = async (invitationId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
 
@@ -3046,7 +3552,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RevokeInvitationMutationVariables = {invitationId: string}
 
     /**
- * @summary Revoke a pending invitation (owner only)
+ * @summary Revoke a pending invitation (pastors and admins)
  */
 export const useRevokeInvitation = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeInvitation>>, TError,RevokeInvitationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -3068,7 +3574,7 @@ export const getUpdateMemberUrl = (membershipId: string,) => {
 }
 
 /**
- * @summary Change a member's role, department or access (owner only; never your own)
+ * @summary Change a member's role, department or access (pastors and admins; never your own; only pastors can change a pastor)
  */
 export const updateMember = async (membershipId: string,
     memberUpdate: MemberUpdate, options?: Parameters<typeof customFetch>[1]): Promise<TeamMember> => {
@@ -3135,7 +3641,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMemberMutationVariables = {membershipId: string;data: BodyType<MemberUpdate>}
 
     /**
- * @summary Change a member's role, department or access (owner only; never your own)
+ * @summary Change a member's role, department or access (pastors and admins; never your own; only pastors can change a pastor)
  */
 export const useUpdateMember = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMember>>, TError,UpdateMemberMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

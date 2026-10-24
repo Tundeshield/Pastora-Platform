@@ -4,7 +4,7 @@ import {
   appointmentTimesOverlap,
   canApproveExpense,
   canRecordExpensePayment,
-  canViewCounselling,
+  canViewPastoralCare,
   sameChurch,
 } from "./policies";
 
@@ -14,12 +14,21 @@ test("tenant check denies cross-church identifiers", () => {
   assert.equal(sameChurch(undefined, "church-a"), false);
 });
 
-test("counselling access is restricted to pastoral care roles", () => {
-  assert.equal(canViewCounselling("owner"), true);
-  assert.equal(canViewCounselling("pastor"), true);
-  assert.equal(canViewCounselling("counsellor"), true);
-  assert.equal(canViewCounselling("staff"), false);
-  assert.equal(canViewCounselling("finance"), false);
+test("pastoral care is for pastors only, not even the workspace admin", () => {
+  assert.equal(canViewPastoralCare("pastor"), true);
+  assert.equal(canViewPastoralCare("staff"), false);
+  assert.equal(canViewPastoralCare("finance"), false);
+  assert.equal(canViewPastoralCare("admin"), false);
+});
+
+test("legacy roles map onto the simplified set", async () => {
+  const { normalizeRole } = await import("./pastora-data");
+  assert.equal(normalizeRole("owner"), "pastor");
+  assert.equal(normalizeRole("counsellor"), "pastor");
+  assert.equal(normalizeRole("department_leader"), "staff");
+  assert.equal(normalizeRole("finance"), "finance");
+  assert.equal(normalizeRole("admin"), "admin");
+  assert.equal(normalizeRole("superuser"), null);
 });
 
 test("expense requester cannot approve their own request", () => {
@@ -71,13 +80,39 @@ test("expense status machine blocks reversals and premature payment", async () =
   assert.equal(expenseTransitionAllowed(undefined, "approved"), false);
 });
 
-test("only the owner manages other non-owner members", async () => {
-  const { canManageMember } = await import("./policies");
-  const base = { actorRole: "owner" as const, actorUid: "o", targetUid: "s", targetRole: "staff" };
+test("pastors and admins manage the team; only pastors control pastor access", async () => {
+  const { canManageMember, canInviteRole } = await import("./policies");
+  const base = {
+    actorRole: "admin" as const,
+    actorUid: "a",
+    targetUid: "s",
+    targetRole: "staff" as const,
+    churchHasPastor: true,
+  };
   assert.equal(canManageMember(base), true);
-  assert.equal(canManageMember({ ...base, actorRole: "pastor" }), false);
-  assert.equal(canManageMember({ ...base, targetUid: "o" }), false);
-  assert.equal(canManageMember({ ...base, targetRole: "owner" }), false);
+  assert.equal(canManageMember({ ...base, actorRole: "pastor" }), true);
+  assert.equal(canManageMember({ ...base, actorRole: "staff" }), false);
+  assert.equal(canManageMember({ ...base, targetUid: "a" }), false, "never yourself");
+  assert.equal(canManageMember({ ...base, targetRole: "pastor" }), false, "admin cannot touch a pastor");
+  assert.equal(canManageMember({ ...base, actorRole: "pastor", targetRole: "pastor" }), true);
+  assert.equal(canManageMember({ ...base, newRole: "pastor" }), false, "admin cannot promote once a pastor exists");
+  assert.equal(canManageMember({ ...base, newRole: "pastor", churchHasPastor: false }), true);
+  assert.equal(canManageMember({ ...base, newRole: "finance" }), true);
+  assert.equal(canInviteRole("admin", "pastor", true), false);
+  assert.equal(canInviteRole("admin", "pastor", false), true);
+  assert.equal(canInviteRole("pastor", "pastor", true), true);
+  assert.equal(canInviteRole("staff", "staff", true), false);
+});
+
+test("platform admins come only from a verified email on the server allow list or a claim", async () => {
+  const { isPlatformAdmin } = await import("./policies");
+  const list = "Admin@Pastora.test, other@pastora.test";
+  assert.equal(isPlatformAdmin({ email: "admin@pastora.test", email_verified: true }, list), true);
+  assert.equal(isPlatformAdmin({ email: "admin@pastora.test", email_verified: false }, list), false);
+  assert.equal(isPlatformAdmin({ email: "someone@pastora.test", email_verified: true }, list), false);
+  assert.equal(isPlatformAdmin({ email: "admin@pastora.test", email_verified: true }, undefined), false);
+  assert.equal(isPlatformAdmin({ email: "x@y.test", email_verified: true, platformAdmin: true }, ""), true);
+  assert.equal(isPlatformAdmin(null, list), false);
 });
 
 test("slugs are URL-safe and never empty", async () => {

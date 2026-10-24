@@ -23,8 +23,9 @@ import {
 import { getFirebaseServices } from "../lib/firebase-admin";
 
 const router: IRouter = Router();
-const leaders = ["owner", "pastor", "department_leader"] as const;
-const reviewers = ["owner", "pastor"] as const;
+/** Staff submit reports for their department; pastors review them. */
+const leaders = ["pastor", "staff"] as const;
+const reviewers = ["pastor"] as const;
 
 router.get("/reports", firebaseAuth, async (req, res): Promise<void> => {
   try {
@@ -34,7 +35,7 @@ router.get("/reports", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening reports." });
       return;
     }
-    if (!hasRole(context, [...leaders, "staff"])) {
+    if (!hasRole(context, [...leaders])) {
       res.status(403).json({ error: "Your role cannot view department reports." });
       return;
     }
@@ -97,7 +98,7 @@ router.post("/reports", firebaseAuth, async (req, res): Promise<void> => {
         "report",
         "A department report is ready for review.",
         "/app/reports",
-        ["owner", "pastor"],
+        ["pastor"],
       );
     } catch (notificationError) {
       req.log.warn({ notificationError }, "Report saved without review notification");

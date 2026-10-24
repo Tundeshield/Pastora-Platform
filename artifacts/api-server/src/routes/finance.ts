@@ -23,8 +23,8 @@ import { getFirebaseServices } from "../lib/firebase-admin";
 import { canApproveExpense, canRecordExpensePayment, expenseTransitionAllowed } from "../lib/policies";
 
 const router: IRouter = Router();
-const approvers = ["owner", "pastor"] as const;
-const submitters = ["owner", "pastor", "staff", "department_leader", "finance"] as const;
+const approvers = ["pastor"] as const;
+const submitters = ["pastor", "staff", "finance"] as const;
 
 router.get("/expenses", firebaseAuth, async (req, res): Promise<void> => {
   try {
@@ -107,7 +107,7 @@ router.post("/expenses", firebaseAuth, async (req, res): Promise<void> => {
         "expense",
         "An expense request is waiting for review.",
         "/app/expenses",
-        ["owner", "pastor"],
+        ["pastor"],
       );
     } catch (notificationError) {
       req.log.warn({ notificationError }, "Expense saved without approval notification");
@@ -195,7 +195,7 @@ router.patch("/expenses/:expenseId", firebaseAuth, async (req, res): Promise<voi
           return { code: 403, error: "You cannot review your own expense request." } as const;
         }
         if (!canApproveExpense(context.role, user.uid, current.requesterId)) {
-          return { code: 403, error: "Only a pastor or the church owner can review expense requests." } as const;
+          return { code: 403, error: "Only a pastor can review expense requests." } as const;
         }
         if (status === "clarification" && !parsed.data.clarification?.trim()) {
           return { code: 400, error: "Explain what needs clarification." } as const;

@@ -2,7 +2,6 @@ import { Router, type IRouter } from "express";
 import {
   GetSettingsResponse,
   ListNotificationsResponse,
-  ListPlatformWorkspacesResponse,
   MarkNotificationReadParams,
   UpdateSettingsBody,
   UpdateSettingsResponse,
@@ -29,7 +28,7 @@ router.get("/settings", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening settings." });
       return;
     }
-    if (!hasRole(context, ["owner", "pastor"])) {
+    if (!hasRole(context, ["pastor", "admin"])) {
       res.status(403).json({ error: "Only a pastor can view church settings." });
       return;
     }
@@ -82,7 +81,7 @@ router.patch("/settings", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before updating settings." });
       return;
     }
-    if (!hasRole(context, ["owner", "pastor"])) {
+    if (!hasRole(context, ["pastor", "admin"])) {
       res.status(403).json({ error: "Only a pastor can update church settings." });
       return;
     }
@@ -214,35 +213,5 @@ router.post(
     }
   },
 );
-
-router.get("/platform/workspaces", firebaseAuth, async (req, res): Promise<void> => {
-  try {
-    const user = authenticatedUser(req);
-    if (!user) {
-      res.status(401).json({ error: "Sign in to continue." });
-      return;
-    }
-    if (user.platformOwner !== true) {
-      res.status(403).json({ error: "Platform owner access is required." });
-      return;
-    }
-    const { db } = getFirebaseServices();
-    const workspaces = await db.collection("churches").limit(300).get();
-    const response = workspaces.docs.map((doc) => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        name: data.name,
-        status: data.status ?? "setup_required",
-        plan: data.planName ?? "Not configured",
-        createdAt: data.createdAt?.toDate?.().toISOString?.() ?? new Date(0).toISOString(),
-      };
-    });
-    res.json(ListPlatformWorkspacesResponse.parse(response));
-  } catch (error) {
-    if (failFirebaseSetup(res, error)) return;
-    res.status(400).json({ error: errorMessage(error, "Unable to load platform workspaces.") });
-  }
-});
 
 export default router;

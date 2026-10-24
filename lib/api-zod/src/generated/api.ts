@@ -34,7 +34,7 @@ export const GetSessionResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['owner', 'pastor', 'counsellor', 'staff', 'department_leader', 'finance'])
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')
 }),
   "church": zod.union([zod.object({
   "id": zod.string(),
@@ -49,7 +49,9 @@ export const GetSessionResponse = zod.object({
   "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).describe('Workspace interface font. Inter is the default.'),
   "fontSize": zod.enum(['small', 'normal', 'large']).describe('Workspace text size. Normal is the default.'),
   "emailVerified": zod.boolean(),
-  "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.')
+  "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.'),
+  "churchSuspended": zod.boolean().describe('True when Pastora has paused this church\'s workspace.'),
+  "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).')
 })
 
 
@@ -72,7 +74,8 @@ export const CreateWorkspaceBody = zod.object({
   "phone": zod.string().nullish(),
   "country": zod.string().min(createWorkspaceBodyCountryMin).max(createWorkspaceBodyCountryMax),
   "timeZone": zod.string(),
-  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark', 'system'])
+  "theme": zod.enum(['warm-cream', 'modern-cool', 'sage', 'heritage-blue', 'forest-dark', 'system']),
+  "creatorRole": zod.enum(['pastor', 'admin']).optional().describe('Whether the person creating the workspace is the pastor or sets it up on the pastor\'s behalf.')
 })
 
 export const CreateWorkspaceResponse = zod.object({
@@ -80,7 +83,7 @@ export const CreateWorkspaceResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['owner', 'pastor', 'counsellor', 'staff', 'department_leader', 'finance'])
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')
 }),
   "church": zod.union([zod.object({
   "id": zod.string(),
@@ -95,7 +98,9 @@ export const CreateWorkspaceResponse = zod.object({
   "fontFamily": zod.enum(['inter', 'manrope', 'roboto', 'lora']).describe('Workspace interface font. Inter is the default.'),
   "fontSize": zod.enum(['small', 'normal', 'large']).describe('Workspace text size. Normal is the default.'),
   "emailVerified": zod.boolean(),
-  "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.')
+  "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.'),
+  "churchSuspended": zod.boolean().describe('True when Pastora has paused this church\'s workspace.'),
+  "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).')
 })
 
 
@@ -843,7 +848,7 @@ export const UpdateSettingsResponse = zod.object({
  */
 export const ListNotificationsResponseItem = zod.object({
   "id": zod.string(),
-  "type": zod.enum(['pastoral_request', 'appointment', 'follow_up', 'task', 'report', 'expense']),
+  "type": zod.enum(['pastoral_request', 'appointment', 'follow_up', 'task', 'report', 'expense', 'team']),
   "title": zod.string(),
   "createdAt": zod.coerce.date(),
   "read": zod.boolean(),
@@ -880,16 +885,182 @@ export const ListPlansResponse = zod.array(ListPlansResponseItem)
 
 
 /**
- * @summary List tenant workspaces for an authorized platform owner
+ * @summary List every church workspace (Pastora administrators only; no pastoral content)
  */
 export const ListPlatformWorkspacesResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "status": zod.string(),
-  "plan": zod.string(),
+  "slug": zod.string(),
+  "country": zod.string(),
+  "status": zod.enum(['active', 'suspended']),
+  "memberCount": zod.number().int(),
+  "createdByEmail": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListPlatformWorkspacesResponse = zod.array(ListPlatformWorkspacesResponseItem)
+
+
+/**
+ * @summary One workspace with its members (Pastora administrators only)
+ */
+export const getPlatformWorkspacePathChurchIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,128}$');
+
+
+export const GetPlatformWorkspaceParams = zod.object({
+  "churchId": zod.coerce.string().regex(getPlatformWorkspacePathChurchIdRegExp)
+})
+
+export const GetPlatformWorkspaceResponse = zod.object({
+  "workspace": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "country": zod.string(),
+  "status": zod.enum(['active', 'suspended']),
+  "memberCount": zod.number().int(),
+  "createdByEmail": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "members": zod.array(zod.object({
+  "uid": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "active": zod.boolean(),
+  "disabled": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary Suspend or reactivate a workspace (Pastora administrators only)
+ */
+export const updatePlatformWorkspacePathChurchIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,128}$');
+
+
+export const UpdatePlatformWorkspaceParams = zod.object({
+  "churchId": zod.coerce.string().regex(updatePlatformWorkspacePathChurchIdRegExp)
+})
+
+export const updatePlatformWorkspaceBodyReasonMax = 300;
+
+
+
+export const UpdatePlatformWorkspaceBody = zod.object({
+  "status": zod.enum(['active', 'suspended']),
+  "reason": zod.string().max(updatePlatformWorkspaceBodyReasonMax).nullish()
+})
+
+export const UpdatePlatformWorkspaceResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "country": zod.string(),
+  "status": zod.enum(['active', 'suspended']),
+  "memberCount": zod.number().int(),
+  "createdByEmail": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Change a member's role to rescue a workspace (Pastora administrators only)
+ */
+export const updatePlatformMemberPathChurchIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,128}$');
+export const updatePlatformMemberPathUidRegExp = new RegExp('^[A-Za-z0-9_-]{1,128}$');
+
+
+export const UpdatePlatformMemberParams = zod.object({
+  "churchId": zod.coerce.string().regex(updatePlatformMemberPathChurchIdRegExp),
+  "uid": zod.coerce.string().regex(updatePlatformMemberPathUidRegExp)
+})
+
+export const UpdatePlatformMemberBody = zod.object({
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')
+})
+
+export const UpdatePlatformMemberResponse = zod.object({
+  "workspace": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "country": zod.string(),
+  "status": zod.enum(['active', 'suspended']),
+  "memberCount": zod.number().int(),
+  "createdByEmail": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "members": zod.array(zod.object({
+  "uid": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "active": zod.boolean(),
+  "disabled": zod.boolean()
+}))
+})
+
+
+/**
+ * @summary List every Pastora account (Pastora administrators only)
+ */
+export const ListPlatformUsersResponseItem = zod.object({
+  "uid": zod.string(),
+  "email": zod.string(),
+  "name": zod.string().nullable(),
+  "emailVerified": zod.boolean(),
+  "disabled": zod.boolean(),
+  "createdAt": zod.coerce.date().nullable(),
+  "lastSignInAt": zod.coerce.date().nullable(),
+  "churchId": zod.string().nullable(),
+  "churchName": zod.string().nullable(),
+  "role": zod.union([zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),zod.null()]),
+  "platformAdmin": zod.boolean()
+})
+export const ListPlatformUsersResponse = zod.array(ListPlatformUsersResponseItem)
+
+
+/**
+ * @summary Disable or re-enable an account (Pastora administrators only)
+ */
+export const updatePlatformUserPathUidRegExp = new RegExp('^[A-Za-z0-9_-]{1,128}$');
+
+
+export const UpdatePlatformUserParams = zod.object({
+  "uid": zod.coerce.string().regex(updatePlatformUserPathUidRegExp)
+})
+
+export const UpdatePlatformUserBody = zod.object({
+  "disabled": zod.boolean()
+})
+
+export const UpdatePlatformUserResponse = zod.object({
+  "uid": zod.string(),
+  "email": zod.string(),
+  "name": zod.string().nullable(),
+  "emailVerified": zod.boolean(),
+  "disabled": zod.boolean(),
+  "createdAt": zod.coerce.date().nullable(),
+  "lastSignInAt": zod.coerce.date().nullable(),
+  "churchId": zod.string().nullable(),
+  "churchName": zod.string().nullable(),
+  "role": zod.union([zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),zod.null()]),
+  "platformAdmin": zod.boolean()
+})
+
+
+/**
+ * @summary Recent actions taken from the admin console (Pastora administrators only)
+ */
+export const ListPlatformAuditResponseItem = zod.object({
+  "id": zod.string(),
+  "action": zod.string(),
+  "actorEmail": zod.string(),
+  "target": zod.string(),
+  "details": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+export const ListPlatformAuditResponse = zod.array(ListPlatformAuditResponseItem)
 
 
 /**
@@ -903,7 +1074,7 @@ export const RecordQrVisitResponse = zod.void()
 
 
 /**
- * @summary List church members and pending invitations (owner and pastor only)
+ * @summary List church members and pending invitations (pastors and admins)
  */
 export const GetTeamResponse = zod.object({
   "members": zod.array(zod.object({
@@ -911,7 +1082,7 @@ export const GetTeamResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['owner', 'pastor', 'counsellor', 'staff', 'department_leader', 'finance']),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "department": zod.string().nullable(),
   "active": zod.boolean(),
   "isCurrentUser": zod.boolean()
@@ -919,7 +1090,7 @@ export const GetTeamResponse = zod.object({
   "invitations": zod.array(zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "department": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 }))
@@ -927,7 +1098,7 @@ export const GetTeamResponse = zod.object({
 
 
 /**
- * @summary Invite a person by email to join the church with a role (owner only)
+ * @summary Invite a person by email to join the church with a role (pastors and admins; only pastors can add pastors once one exists)
  */
 export const createInvitationBodyEmailMax = 254;
 
@@ -937,21 +1108,21 @@ export const createInvitationBodyDepartmentMax = 120;
 
 export const CreateInvitationBody = zod.object({
   "email": zod.string().email().max(createInvitationBodyEmailMax),
-  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "department": zod.string().max(createInvitationBodyDepartmentMax).nullish()
 })
 
 export const CreateInvitationResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "department": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
 
 
 /**
- * @summary Revoke a pending invitation (owner only)
+ * @summary Revoke a pending invitation (pastors and admins)
  */
 export const RevokeInvitationParams = zod.object({
   "invitationId": zod.coerce.string()
@@ -961,7 +1132,7 @@ export const RevokeInvitationResponse = zod.void()
 
 
 /**
- * @summary Change a member's role, department or access (owner only; never your own)
+ * @summary Change a member's role, department or access (pastors and admins; never your own; only pastors can change a pastor)
  */
 export const UpdateMemberParams = zod.object({
   "membershipId": zod.coerce.string()
@@ -972,7 +1143,7 @@ export const updateMemberBodyDepartmentMax = 120;
 
 
 export const UpdateMemberBody = zod.object({
-  "role": zod.enum(['pastor', 'counsellor', 'staff', 'department_leader', 'finance']).optional().describe('Roles an owner can grant. The owner role is never granted through the API.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).optional().describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "department": zod.string().max(updateMemberBodyDepartmentMax).nullish(),
   "active": zod.boolean().optional()
 })
@@ -982,7 +1153,7 @@ export const UpdateMemberResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['owner', 'pastor', 'counsellor', 'staff', 'department_leader', 'finance']),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "department": zod.string().nullable(),
   "active": zod.boolean(),
   "isCurrentUser": zod.boolean()

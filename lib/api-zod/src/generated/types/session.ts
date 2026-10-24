@@ -22,4 +22,8 @@ export interface Session {
   emailVerified: boolean;
   /** True when an invitation is waiting for this email but the email is not yet verified. */
   invitationPending: boolean;
+  /** True when Pastora has paused this church's workspace. */
+  churchSuspended: boolean;
+  /** True for Pastora's own administrators (server-side allow list). */
+  platformAdmin: boolean;
 }
