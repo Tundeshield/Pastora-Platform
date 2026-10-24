@@ -21,6 +21,11 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Lets Netlify Forms detect the Support form at build time; the app posts to it. -->
+    <form name="support" data-netlify="true" netlify-honeypot="bot-field" hidden>
+      <input name="bot-field" /><input name="name" /><input name="email" /><input name="church" />
+      <input name="topic" /><textarea name="message"></textarea>
+    </form>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -288,8 +288,11 @@ export function CarePortalPage() {
                   </StatusLine>
                 )}
                 <small className="privacy-reminder">
-                  <LockKeyhole size={13} /> Your request is handled by the church. Only submit what you feel
-                  comfortable sharing.
+                  <LockKeyhole size={13} />
+                  <span>
+                    Your request is handled by the church. Only submit what you feel comfortable sharing.{" "}
+                    <a href="/privacy">Privacy</a>
+                  </span>
                 </small>
               </form>
             )}

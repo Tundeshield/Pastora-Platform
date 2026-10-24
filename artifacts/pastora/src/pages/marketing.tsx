@@ -4,7 +4,6 @@ import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  FileText,
   HeartHandshake,
   LockKeyhole,
   ShieldCheck,
@@ -306,36 +305,6 @@ export function PricingPage() {
           <ShieldCheck size={17} />
           Billing is not available until a provider is configured.
         </div>
-      </main>
-    </PublicFrame>
-  );
-}
-
-export function DocumentPage({ title, category }: { title: string; category: string }) {
-  return (
-    <PublicFrame>
-      <main className="inner-page legal-page">
-        <p className="eyebrow">{category} / Draft</p>
-        <h1 className="serif">{title}</h1>
-        <div className="draft-banner">
-          <FileText size={17} /> Draft content — review with your church and legal adviser before publication.
-        </div>
-        <article>
-          <h2 className="serif">A note on this page</h2>
-          <p>
-            This page is a starting point and is not legal or professional advice. Final details should
-            reflect your church’s policies, applicable local requirements and the services you have
-            configured.
-          </p>
-          <h2 className="serif">How to reach us</h2>
-          <p>
-            For questions about Pastora or your church workspace, contact your church administrator or visit
-            the support page.
-          </p>
-          <Link className="under-link" href="/support">
-            Go to support <ArrowRight size={15} />
-          </Link>
-        </article>
       </main>
     </PublicFrame>
   );

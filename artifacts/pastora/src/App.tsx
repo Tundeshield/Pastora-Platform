@@ -9,7 +9,8 @@ import { AuthPage } from "@/pages/auth";
 import { CarePortalPage } from "@/pages/care-portal";
 import { DashboardPage } from "@/pages/dashboard";
 import { ExpensesPage } from "@/pages/expenses";
-import { DocumentPage, FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
+import { PrivacyPage, SupportPage, TermsPage } from "@/pages/legal";
+import { FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
 import { OnboardingPage } from "@/pages/onboarding";
 import { QrPage } from "@/pages/qr-codes";
 import { ReportsPage } from "@/pages/reports";
@@ -103,15 +104,9 @@ function Router() {
         </WorkspaceLayout>
       </Route>
       <Route path="/care/:slug" component={CarePortalPage} />
-      <Route path="/privacy">
-        <DocumentPage title="Privacy, with care" category="Privacy" />
-      </Route>
-      <Route path="/terms">
-        <DocumentPage title="Terms of use" category="Terms" />
-      </Route>
-      <Route path="/support">
-        <DocumentPage title="A human answer, when you need one" category="Support" />
-      </Route>
+      <Route path="/privacy" component={PrivacyPage} />
+      <Route path="/terms" component={TermsPage} />
+      <Route path="/support" component={SupportPage} />
       <Route path="/admin" component={AdminPage} />
       <Route path="/platform/workspaces" component={AdminPage} />
       <Route>

@@ -226,6 +226,12 @@ export function AuthPage({ mode }: { mode: Mode }) {
                       : "Send reset link"}{" "}
                 <ArrowRight size={15} />
               </Button>
+              {mode === "sign-up" && (
+                <p className="auth-terms">
+                  By creating an account you agree to the <Link href="/terms">Terms of use</Link> and{" "}
+                  <Link href="/privacy">Privacy policy</Link>.
+                </p>
+              )}
             </form>
           )}
           {message && <StatusLine>{message}</StatusLine>}
