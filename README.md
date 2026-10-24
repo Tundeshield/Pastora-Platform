@@ -30,18 +30,33 @@ storage.rules          Deny-all: uploads are not enabled yet
 
 ## Roles
 
+Pastora keeps roles few. Pastoral care belongs to pastors; nobody else, including
+whoever set the workspace up, can read prayer or counselling requests.
+
 | Role | Can do |
 | --- | --- |
-| Owner | Everything, plus invite people and change roles (never their own) |
-| Pastor | Care inbox incl. counselling, appointments, review reports, approve expenses, settings |
-| Counsellor | Care inbox incl. confidential counselling, appointments |
-| Staff | General enquiries, appointments, tasks, QR links, submit expenses |
-| Department leader | Department reports, submit expenses, tasks |
+| Pastor | Prayer and counselling requests, private notes, calendar, review reports, approve expenses, team, settings |
+| Staff | The church office: general enquiries, calendar, tasks, QR links, submit reports and expenses |
 | Finance | Record payments for approved expenses (never their own or ones they approved) |
+| Workspace admin | Set-up only: team, settings, QR links. No care, calendar, reports or expenses |
 
-The person who creates a workspace becomes its owner. Others join by invitation
-(Team page): the owner enters their email and role; the invitee creates a Pastora
-account with that email, confirms it, and joins automatically.
+Whoever creates a workspace chooses "I'm the pastor" (Pastor) or "I'm setting this up
+for my pastor" (Workspace admin). Others join by invitation (Team page); the invitee
+creates a Pastora account with that email, confirms it, and joins automatically.
+Once a church has a pastor, only a pastor can add another pastor or change a pastor's
+access, and pastors are notified of every team change.
+
+Workspaces created before this model keep working: owners and counsellors are read as
+pastors, department leaders as staff.
+
+## Pastora Admin (for Pastora's own team)
+
+`/admin` lists every church and account. It can pause or reactivate a church (its
+workspace and public care page close at once), disable or re-enable an account (takes
+effect on the next request), send a password reset, and fix a church's roles when no
+one inside can. It never shows pastoral content. Access is granted only on the server:
+set `PLATFORM_ADMIN_EMAILS` (comma-separated, verified emails) on the API, or a
+`platformAdmin` custom claim. Every action is logged in `platformAuditLogs`.
 
 ## Local development
 
