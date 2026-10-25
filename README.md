@@ -81,6 +81,13 @@ Prep** (each pastor's private sermon and study notes, with a pulpit view) and
 read). Formatted text in notes and posts is cleaned to a small safe subset of HTML on
 the server (`src/lib/rich-text.ts`) and again in the browser before it is shown.
 
+## Church addresses
+
+Each church can have its own address (`<church>.getpastora.app`) for its care page
+and blog once the domain is set up; until then links use `/care/<church>` and
+`/blog/<church>`, which keep working afterwards. See
+[docs/CHURCH_ADDRESSES.md](docs/CHURCH_ADDRESSES.md).
+
 ## Local development
 
 Requirements: Node 22+, pnpm 10 (`corepack enable`), and Java 21+ for the emulators.

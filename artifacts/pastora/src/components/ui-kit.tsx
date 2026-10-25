@@ -1,10 +1,20 @@
 import { Activity, ArrowRight, CircleHelp, Sparkles } from "lucide-react";
-import { type ReactNode } from "react";
-import { Link } from "wouter";
+import React, { type ReactNode } from "react";
+import { Link as RouterLink } from "wouter";
+import { churchFromHost, mainUrl } from "@/site";
 
 import { useAuth } from "@/auth";
 import { PastoraMark } from "@/components/logo";
 import { apiErrorMessage } from "@/firebase-auth";
+
+/**
+ * A link to one of Pastora's own pages. On a church's own address (e.g.
+ * grace.getpastora.app) those pages live on the main site, so it becomes a full link.
+ */
+function Link({ href, ...props }: Omit<React.ComponentProps<"a">, "href"> & { href: string }) {
+  if (churchFromHost()) return <a href={mainUrl(href)} {...props} />;
+  return <RouterLink href={href} {...props} />;
+}
 
 export function Button({
   children,

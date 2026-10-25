@@ -652,3 +652,10 @@ body { font-size: calc(16px * var(--text-scale)); }
   .public-post-card h2 { font-size:calc(23px * var(--text-scale)); }
 }
 .editor-body.rich-editor { resize:none; }
+
+/* Sidebar: the menu scrolls when it is taller than the screen (more modules, small screens). */
+.sidebar { height:100dvh; overflow:hidden; }
+.sidebar-brand, .workspace-switch, .sidebar-bottom { flex:none; }
+.sidebar-nav { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; align-content:start; margin:0 -8px; padding:0 8px 12px; scrollbar-width:thin; scrollbar-color:hsl(var(--sidebar-border)) transparent; }
+.sidebar-nav::-webkit-scrollbar { width:6px; }
+.sidebar-nav::-webkit-scrollbar-thumb { background:hsl(var(--sidebar-border)); border-radius:6px; }

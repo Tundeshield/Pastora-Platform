@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { Route, Switch, Router as WouterRouter } from "wouter";
 
 import { AuthProvider } from "@/auth";
@@ -21,6 +22,7 @@ import { RequestsPage } from "@/pages/requests";
 import { SettingsPage } from "@/pages/settings";
 import { TasksPage } from "@/pages/tasks";
 import { TeamPage } from "@/pages/team";
+import { churchFromHost, mainUrl } from "@/site";
 import { applyAppearance, storedAppearance } from "@/theme";
 
 const queryClient = new QueryClient({
@@ -42,7 +44,37 @@ function App() {
   );
 }
 
+/** Anything else asked of a church's own address belongs to Pastora's main site. */
+function ToMainSite() {
+  useEffect(() => {
+    window.location.replace(mainUrl(`${window.location.pathname}${window.location.search}`));
+  }, []);
+  return null;
+}
+
+/** grace.getpastora.app: the church's care page at "/", its blog at "/blog". */
+function ChurchSite({ slug }: { slug: string }) {
+  return (
+    <Switch>
+      <Route path="/">
+        <CarePortalPage slug={slug} />
+      </Route>
+      <Route path="/blog">
+        <PublicBlogPage slug={slug} />
+      </Route>
+      <Route path="/blog/:postId">
+        <PublicPostPage slug={slug} />
+      </Route>
+      <Route>
+        <ToMainSite />
+      </Route>
+    </Switch>
+  );
+}
+
 function Router() {
+  const churchSlug = churchFromHost();
+  if (churchSlug) return <ChurchSite slug={churchSlug} />;
   return (
     <Switch>
       <Route path="/" component={HomePage} />
@@ -132,9 +164,15 @@ function Router() {
           <SettingsPage />
         </WorkspaceLayout>
       </Route>
-      <Route path="/care/:slug" component={CarePortalPage} />
-      <Route path="/blog/:slug/:postId" component={PublicPostPage} />
-      <Route path="/blog/:slug" component={PublicBlogPage} />
+      <Route path="/care/:slug">
+        <CarePortalPage />
+      </Route>
+      <Route path="/blog/:slug/:postId">
+        <PublicPostPage />
+      </Route>
+      <Route path="/blog/:slug">
+        <PublicBlogPage />
+      </Route>
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/support" component={SupportPage} />

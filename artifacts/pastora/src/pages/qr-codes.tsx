@@ -13,6 +13,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useSession } from "@/auth";
 import { Badge, Button, EmptyState, ErrorPanel, Field, PageHeading, SkeletonRows } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
+import { churchUrl } from "@/site";
 
 type Destination = QrCode["destination"];
 
@@ -29,7 +30,8 @@ const DESTINATIONS: { value: Destination; label: string }[] = [
  * QR link id — never names, contacts or request details.
  */
 export function publicFormUrl(slug: string, destination: Destination, qrId?: string): string {
-  const url = new URL(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/care/${slug}`, window.location.origin);
+  // The church's own address when configured (grace.getpastora.app), else /care/<church>.
+  const url = new URL(churchUrl(slug, { page: "care" }));
   const type = {
     care: null,
     prayer: "prayer",

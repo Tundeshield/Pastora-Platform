@@ -10,6 +10,7 @@ import { useParams, useSearch } from "wouter";
 
 import { Button, Field, Footer, Header, SkeletonRows, StatusLine, Toggle } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
+import { churchLink } from "@/site";
 
 type RequestType = "prayer" | "counselling" | "appointment" | "general";
 type Format = "in-person" | "phone" | "video";
@@ -22,8 +23,10 @@ function minDateTime(): string {
   return d.toISOString().slice(0, 16);
 }
 
-export function CarePortalPage() {
-  const { slug = "" } = useParams();
+/** The church's care page, at /care/<church> or at the church's own address. */
+export function CarePortalPage({ slug: slugProp }: { slug?: string } = {}) {
+  const params0 = useParams<{ slug?: string }>();
+  const slug = slugProp ?? params0.slug ?? "";
   const params = new URLSearchParams(useSearch());
   const requestedType = params.get("type");
   const qrCodeId = params.get("qr");
@@ -136,7 +139,7 @@ export function CarePortalPage() {
                 </div>
               )}
               {church.data.blogEnabled && (
-                <a className="under-link portal-blog-link" href={`/blog/${church.data.slug}`}>
+                <a className="under-link portal-blog-link" href={churchLink(church.data.slug, { page: "blog" })}>
                   Read the pastor's blog <ArrowRight size={14} />
                 </a>
               )}

@@ -182,6 +182,13 @@ describe("authentication and onboarding", () => {
     assert.equal((await call("GET", "/session", pastor.token)).body.church.id, first.body.church.id);
   });
 
+  test("a church can't take an address Pastora uses for its own hosts", async () => {
+    const church = await ownerWithChurch("App");
+    assert.equal(church.church.slug, "app-2");
+    const www = await ownerWithChurch("WWW");
+    assert.equal(www.church.slug, "www-2");
+  });
+
   test("churches with the same name get unique public addresses", async () => {
     const one = await ownerWithChurch("Grace Chapel");
     const two = await ownerWithChurch("Grace Chapel");

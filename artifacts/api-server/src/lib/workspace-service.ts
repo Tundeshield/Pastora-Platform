@@ -25,6 +25,16 @@ export class WorkspaceConflictError extends Error {}
 const MAX_SLUG_ATTEMPTS = 50;
 
 /**
+ * A church's address becomes its own web address (<address>.getpastora.app), so it can
+ * never be a name Pastora uses for its own hosts. Keep in sync with
+ * artifacts/pastora/src/site.ts.
+ */
+export const RESERVED_ADDRESSES = new Set([
+  "www", "app", "api", "admin", "mail", "email", "help", "support", "status", "blog", "docs",
+  "staging", "dev", "test", "beta", "demo", "ftp", "smtp", "ns1", "ns2", "cdn", "static", "assets",
+]);
+
+/**
  * Creates the church workspace, the creator's membership, settings, subscription record and
  * slug reservation in a single Firestore transaction.
  *
@@ -107,6 +117,7 @@ async function createWorkspaceOnce(
     let slug: string | null = null;
     for (let attempt = 1; attempt <= MAX_SLUG_ATTEMPTS && !slug; attempt += 1) {
       const candidate = attempt === 1 ? baseSlug : `${baseSlug}-${attempt}`;
+      if (RESERVED_ADDRESSES.has(candidate)) continue;
       const reservation = await tx.get(db.collection("churchSlugs").doc(candidate));
       if (!reservation.exists) slug = candidate;
     }

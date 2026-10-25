@@ -26,9 +26,10 @@ import { RichTextEditor, SafeHtml } from "@/components/rich-text";
 import { Badge, Button, EmptyState, ErrorPanel, MutationError, PageHeading, SkeletonRows } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 import { useAutosave } from "@/hooks/use-autosave";
+import { churchLink, churchUrl, mainUrl } from "@/site";
 
-const blogUrl = (slug: string) => `${window.location.origin}/blog/${slug}`;
-const postUrl = (slug: string, id: string) => `${blogUrl(slug)}/${id}`;
+const blogUrl = (slug: string) => churchUrl(slug, { page: "blog" });
+const postUrl = (slug: string, id: string) => churchUrl(slug, { page: "post", postId: id });
 const longDate = (value: string | null) =>
   value ? new Date(value).toLocaleDateString(undefined, { day: "numeric", month: "long", year: "numeric" }) : "";
 
@@ -86,7 +87,7 @@ export function BlogPage() {
             <small>{blogUrl(slug)}</small>
           </div>
           <CopyButton text={blogUrl(slug)} />
-          <a className="button outline" href={`/blog/${slug}`} target="_blank" rel="noreferrer">
+          <a className="button outline" href={blogUrl(slug)} target="_blank" rel="noreferrer">
             <ExternalLink size={15} /> Open
           </a>
         </div>
@@ -245,7 +246,7 @@ function PostEditor({ initial }: { initial: Post }) {
             <small>{postUrl(slug, initial.id)}</small>
           </div>
           <CopyButton text={postUrl(slug, initial.id)} />
-          <a className="button outline" href={`/blog/${slug}/${initial.id}`} target="_blank" rel="noreferrer">
+          <a className="button outline" href={postUrl(slug, initial.id)} target="_blank" rel="noreferrer">
             <ExternalLink size={15} /> View
           </a>
         </div>
@@ -323,21 +324,21 @@ function PublicBlogFrame({ church, children }: { church?: PublicBlogChurch; chil
     <div className="public-blog">
       <header className="public-blog-top">
         {church ? (
-          <Link href={`/blog/${church.slug}`} className="public-blog-name serif">
+          <Link href={churchLink(church.slug, { page: "blog" })} className="public-blog-name serif">
             {church.name}
           </Link>
         ) : (
           <span />
         )}
         {church?.careEnabled && (
-          <a className="under-link" href={`/care/${church.slug}`}>
+          <a className="under-link" href={churchLink(church.slug, { page: "care" })}>
             Need prayer or a conversation? <ArrowRight size={14} />
           </a>
         )}
       </header>
       <main className="public-blog-main">{children}</main>
       <footer className="public-blog-foot">
-        <a href="/" className="powered-by">
+        <a href={mainUrl("/")} className="powered-by">
           <PastoraMark size={18} /> Powered by Pastora
         </a>
       </footer>
@@ -356,8 +357,9 @@ function Unavailable() {
   );
 }
 
-export function PublicBlogPage() {
-  const { slug = "" } = useParams<{ slug: string }>();
+export function PublicBlogPage({ slug: slugProp }: { slug?: string } = {}) {
+  const params = useParams<{ slug?: string }>();
+  const slug = slugProp ?? params.slug ?? "";
   const blog = useGetPublicBlog(slug, { query: { queryKey: getGetPublicBlogQueryKey(slug), retry: 1 } });
   useEffect(() => {
     if (blog.data) document.title = `${blog.data.church.name} · Blog`;
@@ -374,7 +376,7 @@ export function PublicBlogPage() {
       {posts.length ? (
         <div className="public-post-list">
           {posts.map((p) => (
-            <Link key={p.id} href={`/blog/${church.slug}/${p.id}`} className="public-post-card">
+            <Link key={p.id} href={churchLink(church.slug, { page: "post", postId: p.id })} className="public-post-card">
               <small>
                 {longDate(p.publishedAt)}
                 {p.scripture ? ` · ${p.scripture}` : ""}
@@ -394,8 +396,10 @@ export function PublicBlogPage() {
   );
 }
 
-export function PublicPostPage() {
-  const { slug = "", postId = "" } = useParams<{ slug: string; postId: string }>();
+export function PublicPostPage({ slug: slugProp }: { slug?: string } = {}) {
+  const params = useParams<{ slug?: string; postId?: string }>();
+  const slug = slugProp ?? params.slug ?? "";
+  const postId = params.postId ?? "";
   const page = useGetPublicPost(slug, postId, { query: { queryKey: getGetPublicPostQueryKey(slug, postId), retry: 1 } });
   useEffect(() => {
     if (page.data) document.title = `${page.data.post.title} · ${page.data.church.name}`;
@@ -410,7 +414,7 @@ export function PublicPostPage() {
   return (
     <PublicBlogFrame church={church}>
       <article className="public-post">
-        <Link href={`/blog/${church.slug}`} className="under-link">
+        <Link href={churchLink(church.slug, { page: "blog" })} className="under-link">
           <ArrowLeft size={14} /> All posts
         </Link>
         <h1 className="serif">{post.title}</h1>
