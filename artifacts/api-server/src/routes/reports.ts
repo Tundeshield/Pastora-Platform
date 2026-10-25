@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAuth } from "../middlewares/firebase-auth";
+import { moduleGate } from "../middlewares/module-gate";
 import {
   authenticatedUser,
   errorMessage,
@@ -27,7 +28,9 @@ const router: IRouter = Router();
 const leaders = ["pastor", "staff"] as const;
 const reviewers = ["pastor"] as const;
 
-router.get("/reports", firebaseAuth, async (req, res): Promise<void> => {
+router.get("/reports", firebaseAuth,
+  moduleGate("reports"),
+  async (req, res): Promise<void> => {
   try {
     const context = await tenantFor(req);
     const user = authenticatedUser(req);
@@ -63,7 +66,9 @@ router.get("/reports", firebaseAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.post("/reports", firebaseAuth, async (req, res): Promise<void> => {
+router.post("/reports", firebaseAuth,
+  moduleGate("reports"),
+  async (req, res): Promise<void> => {
   const parsed = CreateReportBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -113,7 +118,9 @@ router.post("/reports", firebaseAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.patch("/reports/:reportId", firebaseAuth, async (req, res): Promise<void> => {
+router.patch("/reports/:reportId", firebaseAuth,
+  moduleGate("reports"),
+  async (req, res): Promise<void> => {
   const params = ReviewReportParams.safeParse(req.params);
   const parsed = ReviewReportBody.safeParse(req.body);
   if (!params.success) {

@@ -20,6 +20,7 @@ import {
 } from "../lib/pastora-data";
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
 import { appearanceFrom, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
+import { activeModules } from "../lib/modules";
 import {
   acceptPendingInvitation,
   createWorkspaceForUser,
@@ -127,6 +128,7 @@ async function buildSession(user: DecodedIdToken) {
     invitationPending: !context && user.email_verified !== true ? await hasPendingInvitation(user.email) : false,
     churchSuspended: context?.suspended === true,
     platformAdmin: isPlatformAdmin(user),
+    modules: context && !context.suspended ? await activeModules(context.churchId) : [],
   });
 }
 
@@ -186,13 +188,18 @@ router.get("/dashboard", firebaseAuth, async (req, res): Promise<void> => {
       return;
     }
     const pastor = canViewPastoralCare(context.role);
+    const modules = await activeModules(context.churchId);
 
     const [allRequests, appointments, tasks, reports, expenses] = await Promise.all([
       listTenantDocuments("pastoralRequests", context.churchId),
       listTenantDocuments("appointments", context.churchId),
       listTenantDocuments("tasks", context.churchId),
-      pastor ? listTenantDocuments("departmentReports", context.churchId) : Promise.resolve([]),
-      pastor ? listTenantDocuments("financialRequests", context.churchId) : Promise.resolve([]),
+      pastor && modules.includes("reports")
+        ? listTenantDocuments("departmentReports", context.churchId)
+        : Promise.resolve([]),
+      pastor && modules.includes("expenses")
+        ? listTenantDocuments("financialRequests", context.churchId)
+        : Promise.resolve([]),
     ]);
     // Staff only ever see general enquiries, including in the counts.
     const requests = pastor ? allRequests : allRequests.filter((item) => item.type === "general");

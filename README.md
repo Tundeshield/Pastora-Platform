@@ -58,6 +58,22 @@ one inside can. It never shows pastoral content. Access is granted only on the s
 set `PLATFORM_ADMIN_EMAILS` (comma-separated, verified emails) on the API, or a
 `platformAdmin` custom claim. Every action is logged in `platformAuditLogs`.
 
+## Modules
+
+Optional features are **modules** that each church switches on in **Modules**
+(pastors and workspace admins). The catalog lives in Firestore (`modules`), seeded
+once from `DEFAULT_MODULES` in `artifacts/api-server/src/lib/modules.ts`, and is
+managed by Pastora admins in **Pastora Admin → Modules**: add, edit, retire or delete
+modules (built-in ones such as Department reports and Expenses can be retired but not
+deleted), see how many churches use or want each one, and read churches' suggestions.
+
+A church can use a module when it is *available* or *beta* and the church is entitled
+to it: **early access** is on (the default, all modules free), its **plan**
+(Starter / Church / Church Plus) includes it, or Pastora **granted** it free (Pastora
+Admin → Churches → People). The API enforces this (`moduleGate`), so a switched-off
+module is closed even to direct API calls. To make new code a module, add it to
+`DEFAULT_MODULES` as built in and guard its routes with `moduleGate("<id>")`.
+
 ## Local development
 
 Requirements: Node 22+, pnpm 10 (`corepack enable`), and Java 21+ for the emulators.

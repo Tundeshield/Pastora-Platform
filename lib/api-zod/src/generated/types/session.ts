@@ -26,4 +26,6 @@ export interface Session {
   churchSuspended: boolean;
   /** True for Pastora's own administrators (server-side allow list). */
   platformAdmin: boolean;
+  /** Ids of modules switched on and available to this church. */
+  modules: string[];
 }

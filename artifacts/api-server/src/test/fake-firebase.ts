@@ -81,6 +81,12 @@ export class FakeDocRef {
   async update(data: Data) {
     this.db.write(this, data, true, true);
   }
+  async create(data: Data) {
+    if (this.db.store.has(this.path)) {
+      throw Object.assign(new Error(`ALREADY_EXISTS: ${this.path}`), { code: 6 });
+    }
+    this.db.write(this, data, false, false);
+  }
   async delete() {
     this.db.store.delete(this.path);
   }
@@ -163,8 +169,14 @@ export class FakeFirestore {
       update: (ref: FakeDocRef, data: Data) => {
         writes.push({ ref, data, merge: true, requireExists: true });
       },
+      delete: (ref: FakeDocRef) => {
+        writes.push({ ref, data: { __delete: true }, merge: false, requireExists: false });
+      },
       commit: async () => {
-        for (const w of writes) this.write(w.ref, w.data, w.merge, w.requireExists);
+        for (const w of writes) {
+          if (w.data.__delete) this.store.delete(w.ref.path);
+          else this.write(w.ref, w.data, w.merge, w.requireExists);
+        }
       },
     };
   }

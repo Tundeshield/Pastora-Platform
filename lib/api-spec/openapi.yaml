@@ -22,6 +22,7 @@ tags:
   - name: notifications
   - name: platform
   - name: team
+  - name: modules
 paths:
   /healthz:
     get:
@@ -725,6 +726,192 @@ paths:
                   $ref: "#/components/schemas/PlatformAuditEntry"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /modules:
+    get:
+      operationId: listChurchModules
+      tags: [modules]
+      summary: The module catalog with this church's access and switches (pastors and admins)
+      responses:
+        "200":
+          description: Modules for this church
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchModules"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /modules/suggestions:
+    post:
+      operationId: suggestModule
+      tags: [modules]
+      summary: Suggest a module Pastora should build (pastors and admins)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleSuggestionInput"
+      responses:
+        "204":
+          description: Suggestion received
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /modules/{moduleId}:
+    patch:
+      operationId: updateChurchModule
+      tags: [modules]
+      summary: Switch a module on or off, or register interest in an upcoming one (pastors and admins)
+      parameters:
+        - $ref: "#/components/parameters/ModuleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChurchModuleUpdate"
+      responses:
+        "200":
+          description: The module for this church
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChurchModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /platform/modules:
+    get:
+      operationId: listPlatformModules
+      tags: [platform]
+      summary: Module catalog with usage, demand and suggestions (Pastora administrators only)
+      responses:
+        "200":
+          description: Catalog overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformModules"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createPlatformModule
+      tags: [platform]
+      summary: Add a module to the catalog (Pastora administrators only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleInput"
+      responses:
+        "201":
+          description: Created module
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: A module with this id already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /platform/modules/{moduleId}:
+    patch:
+      operationId: updatePlatformModule
+      tags: [platform]
+      summary: Edit a module in the catalog (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/ModuleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleUpdate"
+      responses:
+        "200":
+          description: Updated module
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePlatformModule
+      tags: [platform]
+      summary: Delete a module from the catalog; built-in modules can only be retired (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/ModuleId"
+      responses:
+        "204":
+          description: Deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /platform/settings:
+    patch:
+      operationId: updatePlatformSettings
+      tags: [platform]
+      summary: Platform-wide switches such as early access (Pastora administrators only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformSettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformSettings"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /platform/workspaces/{churchId}/access:
+    patch:
+      operationId: updatePlatformWorkspaceAccess
+      tags: [platform]
+      summary: Set a church's plan and free module grants (Pastora administrators only)
+      parameters:
+        - $ref: "#/components/parameters/ChurchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceAccessUpdate"
+      responses:
+        "200":
+          description: Updated workspace
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformWorkspaceDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /public/qr-codes/{qrCodeId}/visit:
     post:
       operationId: recordQrVisit
@@ -817,6 +1004,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 components:
   parameters:
+    ModuleId:
+      name: moduleId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[a-z0-9][a-z0-9-]{1,39}$"
     ChurchId:
       name: churchId
       in: path
@@ -997,7 +1191,12 @@ components:
         platformAdmin:
           type: boolean
           description: True for Pastora's own administrators (server-side allow list).
-      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending, churchSuspended, platformAdmin]
+        modules:
+          type: array
+          description: Ids of modules switched on and available to this church.
+          items:
+            type: string
+      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending, churchSuspended, platformAdmin, modules]
     WorkspaceInput:
       type: object
       properties:
@@ -1694,7 +1893,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PlatformMember"
-      required: [workspace, members]
+        plan:
+          $ref: "#/components/schemas/PlanTier"
+        grants:
+          type: array
+          description: Module ids given to this church free of charge.
+          items:
+            type: string
+      required: [workspace, members, plan, grants]
     PlatformWorkspaceUpdate:
       type: object
       properties:
@@ -1747,6 +1953,205 @@ components:
         disabled:
           type: boolean
       required: [disabled]
+    PlanTier:
+      type: string
+      enum: [starter, church, plus]
+      description: The church's plan. Modules list the lowest plan that includes them.
+    ModulePlan:
+      type: string
+      enum: [starter, church, plus, addon]
+      description: Lowest plan that includes the module; "addon" is sold or granted separately.
+    ModuleStatus:
+      type: string
+      enum: [available, beta, coming_soon, retired]
+    ModuleBase:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          $ref: "#/components/schemas/ModuleStatus"
+        plan:
+          $ref: "#/components/schemas/ModulePlan"
+        roles:
+          type: array
+          description: Roles that use the module once switched on.
+          items:
+            $ref: "#/components/schemas/MemberRole"
+        priceNote:
+          type: ["string", "null"]
+        builtin:
+          type: boolean
+          description: Backed by product code; built-in modules can be retired but not deleted.
+        sortOrder:
+          type: integer
+      required: [id, name, description, status, plan, roles, priceNote, builtin, sortOrder]
+    ChurchModule:
+      allOf:
+        - $ref: "#/components/schemas/ModuleBase"
+        - type: object
+          properties:
+            entitled:
+              type: boolean
+              description: The church's plan, a free grant or early access includes it.
+            granted:
+              type: boolean
+            enabled:
+              type: boolean
+              description: The church has it switched on.
+            active:
+              type: boolean
+              description: Available, entitled and switched on.
+            interested:
+              type: boolean
+              description: This church said "We'd use this".
+          required: [entitled, granted, enabled, active, interested]
+    ChurchModules:
+      type: object
+      properties:
+        plan:
+          $ref: "#/components/schemas/PlanTier"
+        earlyAccess:
+          type: boolean
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChurchModule"
+      required: [plan, earlyAccess, modules]
+    ChurchModuleUpdate:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        interested:
+          type: boolean
+    ModuleSuggestionInput:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 5
+          maxLength: 1000
+      required: [text]
+    PlatformModule:
+      allOf:
+        - $ref: "#/components/schemas/ModuleBase"
+        - type: object
+          properties:
+            activeChurches:
+              type: integer
+            interestedChurches:
+              type: integer
+            grantedChurches:
+              type: integer
+          required: [activeChurches, interestedChurches, grantedChurches]
+    ModuleSuggestion:
+      type: object
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+        churchName:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, text, churchName, email, createdAt]
+    PlatformModules:
+      type: object
+      properties:
+        earlyAccess:
+          type: boolean
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlatformModule"
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleSuggestion"
+      required: [earlyAccess, modules, suggestions]
+    ModuleInput:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: "^[a-z0-9][a-z0-9-]{1,39}$"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        description:
+          type: string
+          minLength: 5
+          maxLength: 500
+        status:
+          $ref: "#/components/schemas/ModuleStatus"
+        plan:
+          $ref: "#/components/schemas/ModulePlan"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberRole"
+        priceNote:
+          type: ["string", "null"]
+          maxLength: 120
+        sortOrder:
+          type: integer
+      required: [id, name, description, status, plan]
+    ModuleUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 80
+        description:
+          type: string
+          minLength: 5
+          maxLength: 500
+        status:
+          $ref: "#/components/schemas/ModuleStatus"
+        plan:
+          $ref: "#/components/schemas/ModulePlan"
+        roles:
+          type: array
+          items:
+            $ref: "#/components/schemas/MemberRole"
+        priceNote:
+          type: ["string", "null"]
+          maxLength: 120
+        sortOrder:
+          type: integer
+    PlatformSettings:
+      type: object
+      properties:
+        earlyAccess:
+          type: boolean
+          description: While true, every church can use every available module without a plan.
+      required: [earlyAccess]
+    PlatformSettingsUpdate:
+      type: object
+      properties:
+        earlyAccess:
+          type: boolean
+      required: [earlyAccess]
+    WorkspaceAccessUpdate:
+      type: object
+      properties:
+        plan:
+          $ref: "#/components/schemas/PlanTier"
+        grants:
+          type: array
+          items:
+            type: string
     PlatformAuditEntry:
       type: object
       properties:

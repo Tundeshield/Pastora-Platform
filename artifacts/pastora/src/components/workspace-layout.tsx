@@ -16,6 +16,7 @@ import {
   Menu,
   QrCode,
   Receipt,
+  Puzzle,
   Settings2,
   ShieldCheck,
   Users,
@@ -29,7 +30,8 @@ import { RequireWorkspace, useAuth, useSession } from "@/auth";
 import { Brand } from "@/components/ui-kit";
 import { applyAppearance } from "@/theme";
 
-type NavItem = { href: string; label: string; icon: LucideIcon; roles: MemberRole[] };
+/** `module` hides the item unless that module is switched on for the church. */
+type NavItem = { href: string; label: string; icon: LucideIcon; roles: MemberRole[]; module?: string };
 
 /**
  * Navigation mirrors the API's role checks so people only see pages they can use.
@@ -65,12 +67,14 @@ export const navSections: { label: string; items: NavItem[] }[] = [
         label: "Department reports",
         icon: FileText,
         roles: ["pastor", "staff"],
+        module: "reports",
       },
       {
         href: "/app/expenses",
         label: "Expenses",
         icon: Receipt,
         roles: ["pastor", "staff", "finance"],
+        module: "expenses",
       },
       { href: "/app/team", label: "Team", icon: Users, roles: ["pastor", "admin"] },
     ],
@@ -101,6 +105,7 @@ export function pageTitle(path: string) {
         "/app/expenses": "Expenses",
         "/app/team": "Team",
         "/app/settings": "Settings",
+        "/app/modules": "Modules",
       } as Record<string, string>
     )[path] || "Workspace"
   );
@@ -121,6 +126,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
   const { signOutUser } = useAuth();
   const session = useSession();
   const role = session.data?.user.role;
+  const activeModules = session.data?.modules ?? [];
   const notifications = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey(), retry: 1, enabled: !!session.data?.church },
   });
@@ -168,7 +174,10 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
         </div>
         <nav className="sidebar-nav" aria-label="Workspace">
           {navSections.map((section) => {
-            const items = section.items.filter((item) => !role || item.roles.includes(role));
+            const items = section.items.filter(
+              (item) =>
+                (!role || item.roles.includes(role)) && (!item.module || activeModules.includes(item.module)),
+            );
             if (!items.length) return null;
             return (
               <div key={section.label}>
@@ -190,6 +199,16 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
           })}
         </nav>
         <div className="sidebar-bottom">
+          {(role === "pastor" || role === "admin") && (
+            <Link
+              href="/app/modules"
+              onClick={() => setMobile(false)}
+              className={`sidebar-link ${loc === "/app/modules" ? "active" : ""}`}
+            >
+              <Puzzle size={17} />
+              <span>Modules</span>
+            </Link>
+          )}
           {(role === "pastor" || role === "admin") && (
             <Link
               href="/app/settings"

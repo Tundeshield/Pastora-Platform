@@ -51,7 +51,8 @@ export const GetSessionResponse = zod.object({
   "emailVerified": zod.boolean(),
   "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.'),
   "churchSuspended": zod.boolean().describe('True when Pastora has paused this church\'s workspace.'),
-  "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).')
+  "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).'),
+  "modules": zod.array(zod.string()).describe('Ids of modules switched on and available to this church.')
 })
 
 
@@ -100,7 +101,8 @@ export const CreateWorkspaceResponse = zod.object({
   "emailVerified": zod.boolean(),
   "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.'),
   "churchSuspended": zod.boolean().describe('True when Pastora has paused this church\'s workspace.'),
-  "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).')
+  "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).'),
+  "modules": zod.array(zod.string()).describe('Ids of modules switched on and available to this church.')
 })
 
 
@@ -928,7 +930,9 @@ export const GetPlatformWorkspaceResponse = zod.object({
   "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "active": zod.boolean(),
   "disabled": zod.boolean()
-}))
+})),
+  "plan": zod.enum(['starter', 'church', 'plus']).describe('The church\'s plan. Modules list the lowest plan that includes them.'),
+  "grants": zod.array(zod.string()).describe('Module ids given to this church free of charge.')
 })
 
 
@@ -997,7 +1001,9 @@ export const UpdatePlatformMemberResponse = zod.object({
   "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
   "active": zod.boolean(),
   "disabled": zod.boolean()
-}))
+})),
+  "plan": zod.enum(['starter', 'church', 'plus']).describe('The church\'s plan. Modules list the lowest plan that includes them.'),
+  "grants": zod.array(zod.string()).describe('Module ids given to this church free of charge.')
 })
 
 
@@ -1061,6 +1067,264 @@ export const ListPlatformAuditResponseItem = zod.object({
   "createdAt": zod.coerce.date()
 })
 export const ListPlatformAuditResponse = zod.array(ListPlatformAuditResponseItem)
+
+
+/**
+ * @summary The module catalog with this church's access and switches (pastors and admins)
+ */
+export const ListChurchModulesResponse = zod.object({
+  "plan": zod.enum(['starter', 'church', 'plus']).describe('The church\'s plan. Modules list the lowest plan that includes them.'),
+  "earlyAccess": zod.boolean(),
+  "modules": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "priceNote": zod.string().nullable(),
+  "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
+  "sortOrder": zod.number().int()
+}).and(zod.object({
+  "entitled": zod.boolean().describe('The church\'s plan, a free grant or early access includes it.'),
+  "granted": zod.boolean(),
+  "enabled": zod.boolean().describe('The church has it switched on.'),
+  "active": zod.boolean().describe('Available, entitled and switched on.'),
+  "interested": zod.boolean().describe('This church said "We\'d use this".')
+})))
+})
+
+
+/**
+ * @summary Suggest a module Pastora should build (pastors and admins)
+ */
+export const suggestModuleBodyTextMin = 5;
+export const suggestModuleBodyTextMax = 1000;
+
+
+
+export const SuggestModuleBody = zod.object({
+  "text": zod.string().min(suggestModuleBodyTextMin).max(suggestModuleBodyTextMax)
+})
+
+export const SuggestModuleResponse = zod.void()
+
+
+/**
+ * @summary Switch a module on or off, or register interest in an upcoming one (pastors and admins)
+ */
+export const updateChurchModulePathModuleIdRegExp = new RegExp('^[a-z0-9][a-z0-9-]{1,39}$');
+
+
+export const UpdateChurchModuleParams = zod.object({
+  "moduleId": zod.coerce.string().regex(updateChurchModulePathModuleIdRegExp)
+})
+
+export const UpdateChurchModuleBody = zod.object({
+  "enabled": zod.boolean().optional(),
+  "interested": zod.boolean().optional()
+})
+
+export const UpdateChurchModuleResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "priceNote": zod.string().nullable(),
+  "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
+  "sortOrder": zod.number().int()
+}).and(zod.object({
+  "entitled": zod.boolean().describe('The church\'s plan, a free grant or early access includes it.'),
+  "granted": zod.boolean(),
+  "enabled": zod.boolean().describe('The church has it switched on.'),
+  "active": zod.boolean().describe('Available, entitled and switched on.'),
+  "interested": zod.boolean().describe('This church said "We\'d use this".')
+}))
+
+
+/**
+ * @summary Module catalog with usage, demand and suggestions (Pastora administrators only)
+ */
+export const ListPlatformModulesResponse = zod.object({
+  "earlyAccess": zod.boolean(),
+  "modules": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "priceNote": zod.string().nullable(),
+  "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
+  "sortOrder": zod.number().int()
+}).and(zod.object({
+  "activeChurches": zod.number().int(),
+  "interestedChurches": zod.number().int(),
+  "grantedChurches": zod.number().int()
+}))),
+  "suggestions": zod.array(zod.object({
+  "id": zod.string(),
+  "text": zod.string(),
+  "churchName": zod.string(),
+  "email": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Add a module to the catalog (Pastora administrators only)
+ */
+export const createPlatformModuleBodyIdRegExp = new RegExp('^[a-z0-9][a-z0-9-]{1,39}$');
+export const createPlatformModuleBodyNameMin = 2;
+export const createPlatformModuleBodyNameMax = 80;
+
+export const createPlatformModuleBodyDescriptionMin = 5;
+export const createPlatformModuleBodyDescriptionMax = 500;
+
+export const createPlatformModuleBodyPriceNoteMax = 120;
+
+
+
+export const CreatePlatformModuleBody = zod.object({
+  "id": zod.string().regex(createPlatformModuleBodyIdRegExp),
+  "name": zod.string().min(createPlatformModuleBodyNameMin).max(createPlatformModuleBodyNameMax),
+  "description": zod.string().min(createPlatformModuleBodyDescriptionMin).max(createPlatformModuleBodyDescriptionMax),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).optional(),
+  "priceNote": zod.string().max(createPlatformModuleBodyPriceNoteMax).nullish(),
+  "sortOrder": zod.number().int().optional()
+})
+
+export const CreatePlatformModuleResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "priceNote": zod.string().nullable(),
+  "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
+  "sortOrder": zod.number().int()
+}).and(zod.object({
+  "activeChurches": zod.number().int(),
+  "interestedChurches": zod.number().int(),
+  "grantedChurches": zod.number().int()
+}))
+
+
+/**
+ * @summary Edit a module in the catalog (Pastora administrators only)
+ */
+export const updatePlatformModulePathModuleIdRegExp = new RegExp('^[a-z0-9][a-z0-9-]{1,39}$');
+
+
+export const UpdatePlatformModuleParams = zod.object({
+  "moduleId": zod.coerce.string().regex(updatePlatformModulePathModuleIdRegExp)
+})
+
+export const updatePlatformModuleBodyNameMin = 2;
+export const updatePlatformModuleBodyNameMax = 80;
+
+export const updatePlatformModuleBodyDescriptionMin = 5;
+export const updatePlatformModuleBodyDescriptionMax = 500;
+
+export const updatePlatformModuleBodyPriceNoteMax = 120;
+
+
+
+export const UpdatePlatformModuleBody = zod.object({
+  "name": zod.string().min(updatePlatformModuleBodyNameMin).max(updatePlatformModuleBodyNameMax).optional(),
+  "description": zod.string().min(updatePlatformModuleBodyDescriptionMin).max(updatePlatformModuleBodyDescriptionMax).optional(),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']).optional(),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).optional().describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).optional(),
+  "priceNote": zod.string().max(updatePlatformModuleBodyPriceNoteMax).nullish(),
+  "sortOrder": zod.number().int().optional()
+})
+
+export const UpdatePlatformModuleResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "description": zod.string(),
+  "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
+  "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "priceNote": zod.string().nullable(),
+  "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
+  "sortOrder": zod.number().int()
+}).and(zod.object({
+  "activeChurches": zod.number().int(),
+  "interestedChurches": zod.number().int(),
+  "grantedChurches": zod.number().int()
+}))
+
+
+/**
+ * @summary Delete a module from the catalog; built-in modules can only be retired (Pastora administrators only)
+ */
+export const deletePlatformModulePathModuleIdRegExp = new RegExp('^[a-z0-9][a-z0-9-]{1,39}$');
+
+
+export const DeletePlatformModuleParams = zod.object({
+  "moduleId": zod.coerce.string().regex(deletePlatformModulePathModuleIdRegExp)
+})
+
+export const DeletePlatformModuleResponse = zod.void()
+
+
+/**
+ * @summary Platform-wide switches such as early access (Pastora administrators only)
+ */
+export const UpdatePlatformSettingsBody = zod.object({
+  "earlyAccess": zod.boolean()
+})
+
+export const UpdatePlatformSettingsResponse = zod.object({
+  "earlyAccess": zod.boolean().describe('While true, every church can use every available module without a plan.')
+})
+
+
+/**
+ * @summary Set a church's plan and free module grants (Pastora administrators only)
+ */
+export const updatePlatformWorkspaceAccessPathChurchIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,128}$');
+
+
+export const UpdatePlatformWorkspaceAccessParams = zod.object({
+  "churchId": zod.coerce.string().regex(updatePlatformWorkspaceAccessPathChurchIdRegExp)
+})
+
+export const UpdatePlatformWorkspaceAccessBody = zod.object({
+  "plan": zod.enum(['starter', 'church', 'plus']).optional().describe('The church\'s plan. Modules list the lowest plan that includes them.'),
+  "grants": zod.array(zod.string()).optional()
+})
+
+export const UpdatePlatformWorkspaceAccessResponse = zod.object({
+  "workspace": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "slug": zod.string(),
+  "country": zod.string(),
+  "status": zod.enum(['active', 'suspended']),
+  "memberCount": zod.number().int(),
+  "createdByEmail": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),
+  "members": zod.array(zod.object({
+  "uid": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "active": zod.boolean(),
+  "disabled": zod.boolean()
+})),
+  "plan": zod.enum(['starter', 'church', 'plus']).describe('The church\'s plan. Modules list the lowest plan that includes them.'),
+  "grants": zod.array(zod.string()).describe('Module ids given to this church free of charge.')
+})
 
 
 /**

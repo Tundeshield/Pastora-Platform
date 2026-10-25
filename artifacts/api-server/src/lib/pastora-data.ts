@@ -11,6 +11,7 @@ import {
   getFirebaseServices,
 } from "./firebase-admin";
 import { sameChurch } from "./policies";
+import { ModuleOffError } from "./modules";
 
 /**
  * Church roles, kept deliberately small:
@@ -178,7 +179,7 @@ export function failFirebaseSetup(res: Response, error: unknown): boolean {
     res.status(503).json({ error: error.message });
     return true;
   }
-  if (error instanceof ChurchSuspendedError) {
+  if (error instanceof ChurchSuspendedError || error instanceof ModuleOffError) {
     res.status(403).json({ error: error.message });
     return true;
   }

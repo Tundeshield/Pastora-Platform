@@ -25,6 +25,9 @@ import type {
   AppointmentInput,
   AppointmentUpdate,
   BadRequestResponse,
+  ChurchModule,
+  ChurchModuleUpdate,
+  ChurchModules,
   ChurchSettings,
   DashboardSummary,
   DepartmentReport,
@@ -37,12 +40,19 @@ import type {
   InvitationInput,
   ListRequestsParams,
   MemberUpdate,
+  ModuleInput,
+  ModuleSuggestionInput,
+  ModuleUpdate,
   NotFoundResponse,
   Notification,
   PastoralRequest,
   Plan,
   PlatformAuditEntry,
   PlatformMemberUpdate,
+  PlatformModule,
+  PlatformModules,
+  PlatformSettings,
+  PlatformSettingsUpdate,
   PlatformUser,
   PlatformUserUpdate,
   PlatformWorkspace,
@@ -70,6 +80,7 @@ import type {
   TeamMember,
   TeamOverview,
   UnauthorizedResponse,
+  WorkspaceAccessUpdate,
   WorkspaceInput
 } from './api.schemas';
 
@@ -3251,6 +3262,765 @@ export function useListPlatformAudit<TData = Awaited<ReturnType<typeof listPlatf
 
 
 
+
+export const getListChurchModulesUrl = () => {
+
+
+
+
+  return `/api/modules`
+}
+
+/**
+ * @summary The module catalog with this church's access and switches (pastors and admins)
+ */
+export const listChurchModules = async ( options?: Parameters<typeof customFetch>[1]): Promise<ChurchModules> => {
+
+  return customFetch<ChurchModules>(getListChurchModulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListChurchModulesQueryKey = () => {
+    return [
+    `/api/modules`
+    ] as const;
+    }
+
+
+export const getListChurchModulesQueryOptions = <TData = Awaited<ReturnType<typeof listChurchModules>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChurchModules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListChurchModulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listChurchModules>>> = ({ signal }) => listChurchModules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listChurchModules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListChurchModulesQueryResult = NonNullable<Awaited<ReturnType<typeof listChurchModules>>>
+export type ListChurchModulesQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary The module catalog with this church's access and switches (pastors and admins)
+ */
+
+export function useListChurchModules<TData = Awaited<ReturnType<typeof listChurchModules>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listChurchModules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListChurchModulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSuggestModuleUrl = () => {
+
+
+
+
+  return `/api/modules/suggestions`
+}
+
+/**
+ * @summary Suggest a module Pastora should build (pastors and admins)
+ */
+export const suggestModule = async (moduleSuggestionInput: ModuleSuggestionInput, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<void>(getSuggestModuleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(moduleSuggestionInput)
+  }
+);}
+
+
+
+
+
+export const getSuggestModuleMutationKey = () => ['suggestModule'] as const;
+
+export const getSuggestModuleMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestModule>>, TError,SuggestModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof suggestModule>>, TError,SuggestModuleMutationVariables, TContext> => {
+
+const mutationKey = getSuggestModuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof suggestModule>>, SuggestModuleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  suggestModule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SuggestModuleMutationResult = NonNullable<Awaited<ReturnType<typeof suggestModule>>>
+    export type SuggestModuleMutationBody = BodyType<ModuleSuggestionInput>
+    export type SuggestModuleMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+    export type SuggestModuleMutationVariables = {data: BodyType<ModuleSuggestionInput>}
+
+    /**
+ * @summary Suggest a module Pastora should build (pastors and admins)
+ */
+export const useSuggestModule = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof suggestModule>>, TError,SuggestModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof suggestModule>>,
+        TError,
+        SuggestModuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSuggestModuleMutationOptions(options));
+    }
+
+export const getUpdateChurchModuleUrl = (moduleId: string,) => {
+
+
+
+
+  return `/api/modules/${moduleId}`
+}
+
+/**
+ * @summary Switch a module on or off, or register interest in an upcoming one (pastors and admins)
+ */
+export const updateChurchModule = async (moduleId: string,
+    churchModuleUpdate: ChurchModuleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<ChurchModule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ChurchModule>(getUpdateChurchModuleUrl(moduleId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(churchModuleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateChurchModuleMutationKey = () => ['updateChurchModule'] as const;
+
+export const getUpdateChurchModuleMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateChurchModule>>, TError,UpdateChurchModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateChurchModule>>, TError,UpdateChurchModuleMutationVariables, TContext> => {
+
+const mutationKey = getUpdateChurchModuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateChurchModule>>, UpdateChurchModuleMutationVariables> = (props) => {
+          const {moduleId,data} = props ?? {};
+
+          return  updateChurchModule(moduleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateChurchModuleMutationResult = NonNullable<Awaited<ReturnType<typeof updateChurchModule>>>
+    export type UpdateChurchModuleMutationBody = BodyType<ChurchModuleUpdate>
+    export type UpdateChurchModuleMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdateChurchModuleMutationVariables = {moduleId: string;data: BodyType<ChurchModuleUpdate>}
+
+    /**
+ * @summary Switch a module on or off, or register interest in an upcoming one (pastors and admins)
+ */
+export const useUpdateChurchModule = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateChurchModule>>, TError,UpdateChurchModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateChurchModule>>,
+        TError,
+        UpdateChurchModuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateChurchModuleMutationOptions(options));
+    }
+
+export const getListPlatformModulesUrl = () => {
+
+
+
+
+  return `/api/platform/modules`
+}
+
+/**
+ * @summary Module catalog with usage, demand and suggestions (Pastora administrators only)
+ */
+export const listPlatformModules = async ( options?: Parameters<typeof customFetch>[1]): Promise<PlatformModules> => {
+
+  return customFetch<PlatformModules>(getListPlatformModulesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPlatformModulesQueryKey = () => {
+    return [
+    `/api/platform/modules`
+    ] as const;
+    }
+
+
+export const getListPlatformModulesQueryOptions = <TData = Awaited<ReturnType<typeof listPlatformModules>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformModules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPlatformModulesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPlatformModules>>> = ({ signal }) => listPlatformModules({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPlatformModules>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPlatformModulesQueryResult = NonNullable<Awaited<ReturnType<typeof listPlatformModules>>>
+export type ListPlatformModulesQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary Module catalog with usage, demand and suggestions (Pastora administrators only)
+ */
+
+export function useListPlatformModules<TData = Awaited<ReturnType<typeof listPlatformModules>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPlatformModules>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPlatformModulesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePlatformModuleUrl = () => {
+
+
+
+
+  return `/api/platform/modules`
+}
+
+/**
+ * @summary Add a module to the catalog (Pastora administrators only)
+ */
+export const createPlatformModule = async (moduleInput: ModuleInput, options?: Parameters<typeof customFetch>[1]): Promise<PlatformModule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformModule>(getCreatePlatformModuleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(moduleInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePlatformModuleMutationKey = () => ['createPlatformModule'] as const;
+
+export const getCreatePlatformModuleMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformModule>>, TError,CreatePlatformModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPlatformModule>>, TError,CreatePlatformModuleMutationVariables, TContext> => {
+
+const mutationKey = getCreatePlatformModuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPlatformModule>>, CreatePlatformModuleMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPlatformModule(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePlatformModuleMutationResult = NonNullable<Awaited<ReturnType<typeof createPlatformModule>>>
+    export type CreatePlatformModuleMutationBody = BodyType<ModuleInput>
+    export type CreatePlatformModuleMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | ApiError>
+    export type CreatePlatformModuleMutationVariables = {data: BodyType<ModuleInput>}
+
+    /**
+ * @summary Add a module to the catalog (Pastora administrators only)
+ */
+export const useCreatePlatformModule = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | ApiError>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPlatformModule>>, TError,CreatePlatformModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPlatformModule>>,
+        TError,
+        CreatePlatformModuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePlatformModuleMutationOptions(options));
+    }
+
+export const getUpdatePlatformModuleUrl = (moduleId: string,) => {
+
+
+
+
+  return `/api/platform/modules/${moduleId}`
+}
+
+/**
+ * @summary Edit a module in the catalog (Pastora administrators only)
+ */
+export const updatePlatformModule = async (moduleId: string,
+    moduleUpdate: ModuleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformModule> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformModule>(getUpdatePlatformModuleUrl(moduleId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(moduleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformModuleMutationKey = () => ['updatePlatformModule'] as const;
+
+export const getUpdatePlatformModuleMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformModule>>, TError,UpdatePlatformModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformModule>>, TError,UpdatePlatformModuleMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePlatformModuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformModule>>, UpdatePlatformModuleMutationVariables> = (props) => {
+          const {moduleId,data} = props ?? {};
+
+          return  updatePlatformModule(moduleId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformModuleMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformModule>>>
+    export type UpdatePlatformModuleMutationBody = BodyType<ModuleUpdate>
+    export type UpdatePlatformModuleMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdatePlatformModuleMutationVariables = {moduleId: string;data: BodyType<ModuleUpdate>}
+
+    /**
+ * @summary Edit a module in the catalog (Pastora administrators only)
+ */
+export const useUpdatePlatformModule = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformModule>>, TError,UpdatePlatformModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformModule>>,
+        TError,
+        UpdatePlatformModuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformModuleMutationOptions(options));
+    }
+
+export const getDeletePlatformModuleUrl = (moduleId: string,) => {
+
+
+
+
+  return `/api/platform/modules/${moduleId}`
+}
+
+/**
+ * @summary Delete a module from the catalog; built-in modules can only be retired (Pastora administrators only)
+ */
+export const deletePlatformModule = async (moduleId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeletePlatformModuleUrl(moduleId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePlatformModuleMutationKey = () => ['deletePlatformModule'] as const;
+
+export const getDeletePlatformModuleMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePlatformModule>>, TError,DeletePlatformModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePlatformModule>>, TError,DeletePlatformModuleMutationVariables, TContext> => {
+
+const mutationKey = getDeletePlatformModuleMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePlatformModule>>, DeletePlatformModuleMutationVariables> = (props) => {
+          const {moduleId} = props ?? {};
+
+          return  deletePlatformModule(moduleId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePlatformModuleMutationResult = NonNullable<Awaited<ReturnType<typeof deletePlatformModule>>>
+
+    export type DeletePlatformModuleMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type DeletePlatformModuleMutationVariables = {moduleId: string}
+
+    /**
+ * @summary Delete a module from the catalog; built-in modules can only be retired (Pastora administrators only)
+ */
+export const useDeletePlatformModule = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePlatformModule>>, TError,DeletePlatformModuleMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePlatformModule>>,
+        TError,
+        DeletePlatformModuleMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeletePlatformModuleMutationOptions(options));
+    }
+
+export const getUpdatePlatformSettingsUrl = () => {
+
+
+
+
+  return `/api/platform/settings`
+}
+
+/**
+ * @summary Platform-wide switches such as early access (Pastora administrators only)
+ */
+export const updatePlatformSettings = async (platformSettingsUpdate: PlatformSettingsUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformSettings> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformSettings>(getUpdatePlatformSettingsUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(platformSettingsUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformSettingsMutationKey = () => ['updatePlatformSettings'] as const;
+
+export const getUpdatePlatformSettingsMutationOptions = <TError = ErrorType<ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformSettings>>, TError,UpdatePlatformSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformSettings>>, TError,UpdatePlatformSettingsMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePlatformSettingsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformSettings>>, UpdatePlatformSettingsMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updatePlatformSettings(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformSettings>>>
+    export type UpdatePlatformSettingsMutationBody = BodyType<PlatformSettingsUpdate>
+    export type UpdatePlatformSettingsMutationError = ErrorType<ForbiddenResponse>
+    export type UpdatePlatformSettingsMutationVariables = {data: BodyType<PlatformSettingsUpdate>}
+
+    /**
+ * @summary Platform-wide switches such as early access (Pastora administrators only)
+ */
+export const useUpdatePlatformSettings = <TError = ErrorType<ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformSettings>>, TError,UpdatePlatformSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformSettings>>,
+        TError,
+        UpdatePlatformSettingsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformSettingsMutationOptions(options));
+    }
+
+export const getUpdatePlatformWorkspaceAccessUrl = (churchId: string,) => {
+
+
+
+
+  return `/api/platform/workspaces/${churchId}/access`
+}
+
+/**
+ * @summary Set a church's plan and free module grants (Pastora administrators only)
+ */
+export const updatePlatformWorkspaceAccess = async (churchId: string,
+    workspaceAccessUpdate: WorkspaceAccessUpdate, options?: Parameters<typeof customFetch>[1]): Promise<PlatformWorkspaceDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<PlatformWorkspaceDetail>(getUpdatePlatformWorkspaceAccessUrl(churchId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(workspaceAccessUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePlatformWorkspaceAccessMutationKey = () => ['updatePlatformWorkspaceAccess'] as const;
+
+export const getUpdatePlatformWorkspaceAccessMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformWorkspaceAccess>>, TError,UpdatePlatformWorkspaceAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePlatformWorkspaceAccess>>, TError,UpdatePlatformWorkspaceAccessMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePlatformWorkspaceAccessMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePlatformWorkspaceAccess>>, UpdatePlatformWorkspaceAccessMutationVariables> = (props) => {
+          const {churchId,data} = props ?? {};
+
+          return  updatePlatformWorkspaceAccess(churchId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePlatformWorkspaceAccessMutationResult = NonNullable<Awaited<ReturnType<typeof updatePlatformWorkspaceAccess>>>
+    export type UpdatePlatformWorkspaceAccessMutationBody = BodyType<WorkspaceAccessUpdate>
+    export type UpdatePlatformWorkspaceAccessMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdatePlatformWorkspaceAccessMutationVariables = {churchId: string;data: BodyType<WorkspaceAccessUpdate>}
+
+    /**
+ * @summary Set a church's plan and free module grants (Pastora administrators only)
+ */
+export const useUpdatePlatformWorkspaceAccess = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePlatformWorkspaceAccess>>, TError,UpdatePlatformWorkspaceAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePlatformWorkspaceAccess>>,
+        TError,
+        UpdatePlatformWorkspaceAccessMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePlatformWorkspaceAccessMutationOptions(options));
+    }
 
 export const getRecordQrVisitUrl = (qrCodeId: string,) => {
 

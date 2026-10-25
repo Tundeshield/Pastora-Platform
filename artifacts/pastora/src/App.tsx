@@ -11,6 +11,7 @@ import { DashboardPage } from "@/pages/dashboard";
 import { ExpensesPage } from "@/pages/expenses";
 import { PrivacyPage, SupportPage, TermsPage } from "@/pages/legal";
 import { FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
+import { ModulesPage } from "@/pages/modules";
 import { OnboardingPage } from "@/pages/onboarding";
 import { QrPage } from "@/pages/qr-codes";
 import { ReportsPage } from "@/pages/reports";
@@ -96,6 +97,11 @@ function Router() {
       <Route path="/app/team">
         <WorkspaceLayout>
           <TeamPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/modules">
+        <WorkspaceLayout>
+          <ModulesPage />
         </WorkspaceLayout>
       </Route>
       <Route path="/app/settings">

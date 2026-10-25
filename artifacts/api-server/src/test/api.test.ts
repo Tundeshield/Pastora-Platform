@@ -826,3 +826,133 @@ describe("Pastora admin console", () => {
     );
   });
 });
+
+describe("modules", () => {
+  function platformAdmin() {
+    const person = user({ email: "ops@pastora.test" });
+    auth.users.get(person.uid)!.platformAdmin = true;
+    return person;
+  }
+  const report = {
+    department: "Choir",
+    period: "June",
+    activities: "Rehearsals",
+    challenges: null,
+    supportNeeded: null,
+    nextPlans: "Easter",
+  };
+
+  test("during early access, reports and expenses are on by default", async () => {
+    const pastor = await ownerWithChurch();
+    const session = await call("GET", "/session", pastor.token);
+    assert.deepEqual(session.body.modules.sort(), ["expenses", "reports"]);
+    const list = await call("GET", "/modules", pastor.token);
+    assert.equal(list.status, 200);
+    assert.equal(list.body.earlyAccess, true);
+    const prep = list.body.modules.find((m: Json) => m.id === "message-prep");
+    assert.equal(prep.status, "coming_soon");
+    assert.equal(prep.active, false);
+  });
+
+  test("pastors and admins switch modules; switched-off modules are closed on the server", async () => {
+    const pastor = await ownerWithChurch();
+    const admin = await member(pastor.token, "admin");
+    const staff = await member(pastor.token, "staff", "Choir");
+    assert.equal((await call("GET", "/modules", staff.token)).status, 403);
+    assert.equal((await call("PATCH", "/modules/reports", staff.token, { enabled: false })).status, 403);
+
+    const off = await call("PATCH", "/modules/reports", admin.token, { enabled: false });
+    assert.equal(off.status, 200);
+    assert.equal(off.body.active, false);
+    assert.equal((await call("GET", "/reports", staff.token)).status, 403);
+    assert.equal((await call("POST", "/reports", staff.token, report)).status, 403);
+    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules, ["expenses"]);
+    assert.ok(db.all("notifications").some((n) => n.uid === pastor.uid && /turned off/.test(String(n.title))));
+
+    await call("PATCH", "/modules/reports", pastor.token, { enabled: true });
+    assert.equal((await call("POST", "/reports", staff.token, report)).status, 201);
+    // Upcoming modules can't be switched on, but churches can say they'd use them.
+    assert.equal((await call("PATCH", "/modules/message-prep", pastor.token, { enabled: true })).status, 400);
+    const keen = await call("PATCH", "/modules/message-prep", pastor.token, { interested: true });
+    assert.equal(keen.body.interested, true);
+  });
+
+  test("without early access, plans and free grants decide what a church can use", async () => {
+    const pastor = await ownerWithChurch();
+    const ops = platformAdmin();
+    assert.equal((await call("PATCH", "/platform/settings", ops.token, { earlyAccess: false })).status, 200);
+
+    // Starter plan: reports and expenses (Church plan) are not included.
+    assert.deepEqual((await call("GET", "/session", pastor.token)).body.modules, []);
+    assert.equal((await call("GET", "/reports", pastor.token)).status, 403);
+    assert.equal((await call("PATCH", "/modules/reports", pastor.token, { enabled: true })).status, 403);
+
+    // A free grant unlocks one module.
+    const granted = await call("PATCH", `/platform/workspaces/${pastor.church.id}/access`, ops.token, {
+      grants: ["reports", "not-a-module"],
+    });
+    assert.equal(granted.status, 200);
+    assert.deepEqual(granted.body.grants, ["reports"]);
+    assert.equal((await call("GET", "/reports", pastor.token)).status, 200);
+    assert.equal((await call("GET", "/expenses", pastor.token)).status, 403);
+
+    // Moving to the Church plan includes expenses too.
+    await call("PATCH", `/platform/workspaces/${pastor.church.id}/access`, ops.token, { plan: "church" });
+    assert.equal((await call("GET", "/expenses", pastor.token)).status, 200);
+  });
+
+  test("Pastora admins add, edit, retire and delete modules, and see demand", async () => {
+    const pastor = await ownerWithChurch();
+    const ops = platformAdmin();
+    assert.equal((await call("GET", "/platform/modules", pastor.token)).status, 403);
+    assert.equal(
+      (await call("POST", "/platform/modules", pastor.token, { id: "x-mod", name: "X", description: "Nope nope", status: "available", plan: "church" })).status,
+      403,
+    );
+
+    const created = await call("POST", "/platform/modules", ops.token, {
+      id: "hospital-visits",
+      name: "Hospital visits",
+      description: "Plan and record hospital visits.",
+      status: "coming_soon",
+      plan: "church",
+      roles: ["pastor"],
+    });
+    assert.equal(created.status, 201, JSON.stringify(created.body));
+    assert.equal(created.body.builtin, false);
+    assert.equal(
+      (await call("POST", "/platform/modules", ops.token, { id: "hospital-visits", name: "Again", description: "Duplicate id", status: "beta", plan: "church" })).status,
+      409,
+    );
+
+    await call("PATCH", "/modules/hospital-visits", pastor.token, { interested: true });
+    await call("POST", "/modules/suggestions", pastor.token, { text: "A rota for ushers" });
+    const overview = await call("GET", "/platform/modules", ops.token);
+    const visits = overview.body.modules.find((m: Json) => m.id === "hospital-visits");
+    assert.equal(visits.interestedChurches, 1);
+    assert.equal(overview.body.modules.find((m: Json) => m.id === "reports").activeChurches, 1);
+    assert.equal(overview.body.suggestions[0].text, "A rota for ushers");
+    assert.equal(overview.body.suggestions[0].churchName, "Grace Chapel");
+
+    const edited = await call("PATCH", "/platform/modules/hospital-visits", ops.token, { name: "Hospital & home visits" });
+    assert.equal(edited.body.name, "Hospital & home visits");
+
+    // Built-in modules can be retired (hidden and off everywhere) but never deleted.
+    assert.equal((await call("DELETE", "/platform/modules/reports", ops.token)).status, 400);
+    assert.equal((await call("PATCH", "/platform/modules/reports", ops.token, { status: "coming_soon" })).status, 400);
+    await call("PATCH", "/platform/modules/reports", ops.token, { status: "retired" });
+    const churchView = await call("GET", "/modules", pastor.token);
+    assert.ok(!churchView.body.modules.some((m: Json) => m.id === "reports"));
+    assert.equal((await call("GET", "/reports", pastor.token)).status, 403);
+
+    assert.equal((await call("DELETE", "/platform/modules/hospital-visits", ops.token)).status, 204);
+    assert.ok(!(await call("GET", "/platform/modules", ops.token)).body.modules.some((m: Json) => m.id === "hospital-visits"));
+    assert.equal(db.all("moduleInterest").length, 0, "interest for a deleted module is removed");
+    // Deleted defaults stay deleted: the catalog is only seeded once.
+    assert.equal((await call("DELETE", "/platform/modules/welfare", ops.token)).status, 204);
+    assert.ok(!(await call("GET", "/modules", pastor.token)).body.modules.some((m: Json) => m.id === "welfare"));
+
+    const actions = (await call("GET", "/platform/audit", ops.token)).body.map((e: Json) => e.action);
+    for (const action of ["module_created", "module_updated", "module_deleted"]) assert.ok(actions.includes(action), action);
+  });
+});

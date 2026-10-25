@@ -8,7 +8,19 @@
  */
 import { Router, type IRouter, type Request, type Response } from "express";
 import {
+  CreatePlatformModuleBody,
+  CreatePlatformModuleResponse,
+  DeletePlatformModuleParams,
   GetPlatformWorkspaceParams,
+  ListPlatformModulesResponse,
+  UpdatePlatformModuleBody,
+  UpdatePlatformModuleParams,
+  UpdatePlatformModuleResponse,
+  UpdatePlatformSettingsBody,
+  UpdatePlatformSettingsResponse,
+  UpdatePlatformWorkspaceAccessBody,
+  UpdatePlatformWorkspaceAccessParams,
+  UpdatePlatformWorkspaceAccessResponse,
   GetPlatformWorkspaceResponse,
   ListPlatformAuditResponse,
   ListPlatformUsersResponse,
@@ -38,6 +50,18 @@ import {
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isPlatformAdmin } from "../lib/policies";
+import {
+  CHURCH_MODULES,
+  MODULE_INTEREST,
+  MODULE_SUGGESTIONS,
+  MODULES,
+  churchAccess,
+  getPlatformSettings,
+  loadCatalog,
+  moduleFrom,
+  moduleState,
+  setEarlyAccess,
+} from "../lib/modules";
 
 const router: IRouter = Router();
 
@@ -139,7 +163,13 @@ async function workspaceDetail(churchId: string) {
     };
   });
   const activeCount = members.filter((member) => member.active).length;
-  return { workspace: await workspaceSummary(church, activeCount), members };
+  const access = await churchAccess(churchId);
+  return {
+    workspace: await workspaceSummary(church, activeCount),
+    members,
+    plan: access.plan,
+    grants: access.grants,
+  };
 }
 
 router.get("/platform/workspaces", firebaseAuth, async (req, res): Promise<void> => {
@@ -395,6 +425,246 @@ router.get("/platform/audit", firebaseAuth, async (req, res): Promise<void> => {
     );
   } catch (error) {
     fail(res, error, "Unable to load the activity log.");
+  }
+});
+
+/* ---------------------------------------------------------------- Modules ---- */
+
+async function platformModules() {
+  const { db } = getFirebaseServices();
+  const [catalog, settings, churches, churchModuleDocs, subscriptions, interest, suggestions] = await Promise.all([
+    loadCatalog(),
+    getPlatformSettings(),
+    db.collection("churches").limit(1000).get(),
+    db.collection(CHURCH_MODULES).get(),
+    db.collection("subscriptions").get(),
+    db.collection(MODULE_INTEREST).get(),
+    db.collection(MODULE_SUGGESTIONS).limit(500).get(),
+  ]);
+  const churchName = new Map(churches.docs.map((doc) => [doc.id, String(doc.get("name") ?? "")]));
+  const settingsOf = new Map(churchModuleDocs.docs.map((doc) => [doc.id, doc.data()]));
+  const planOf = new Map(subscriptions.docs.map((doc) => [doc.id, doc.get("planId")]));
+  const counts = new Map(catalog.map((m) => [m.id, { active: 0, interested: 0, granted: 0 }]));
+  for (const church of churches.docs) {
+    if (church.get("status") === "suspended") continue;
+    const stored = settingsOf.get(church.id) ?? {};
+    const access = {
+      plan: (["starter", "church", "plus"].includes(planOf.get(church.id)) ? planOf.get(church.id) : "starter") as
+        | "starter"
+        | "church"
+        | "plus",
+      grants: Array.isArray(stored.grants) ? stored.grants.map(String) : [],
+      enabled: (stored.enabled as Record<string, boolean>) ?? {},
+      interested: new Set<string>(),
+    };
+    for (const module of catalog) {
+      const state = moduleState(module, access, settings.earlyAccess);
+      const count = counts.get(module.id)!;
+      if (state.active) count.active += 1;
+      if (state.granted) count.granted += 1;
+    }
+  }
+  for (const doc of interest.docs) {
+    const count = counts.get(String(doc.get("moduleId")));
+    if (count && churchName.has(String(doc.get("churchId")))) count.interested += 1;
+  }
+  return {
+    earlyAccess: settings.earlyAccess,
+    modules: catalog.map(({ defaultEnabled: _d, ...m }) => ({
+      ...m,
+      activeChurches: counts.get(m.id)!.active,
+      interestedChurches: counts.get(m.id)!.interested,
+      grantedChurches: counts.get(m.id)!.granted,
+    })),
+    suggestions: [...suggestions.docs]
+      .sort((a, b) => iso(b.get("createdAt")).localeCompare(iso(a.get("createdAt"))))
+      .slice(0, 100)
+      .map((doc) => ({
+        id: doc.id,
+        text: String(doc.get("text") ?? ""),
+        churchName: churchName.get(String(doc.get("churchId"))) ?? "Unknown church",
+        email: String(doc.get("email") ?? ""),
+        createdAt: iso(doc.get("createdAt")),
+      })),
+  };
+}
+
+async function platformModule(id: string) {
+  return (await platformModules()).modules.find((m) => m.id === id);
+}
+
+router.get("/platform/modules", firebaseAuth, async (req, res): Promise<void> => {
+  if (!requirePlatformAdmin(req, res)) return;
+  try {
+    res.json(ListPlatformModulesResponse.parse(await platformModules()));
+  } catch (error) {
+    fail(res, error, "Unable to load modules.");
+  }
+});
+
+router.post("/platform/modules", firebaseAuth, async (req, res): Promise<void> => {
+  const actor = requirePlatformAdmin(req, res);
+  if (!actor) return;
+  const body = CreatePlatformModuleBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Give the module an id (lowercase letters, numbers and dashes), a name and a description." });
+    return;
+  }
+  try {
+    const { db } = getFirebaseServices();
+    await loadCatalog(); // make sure the defaults are seeded first
+    const ref = db.collection(MODULES).doc(body.data.id);
+    const { id, ...fields } = body.data;
+    try {
+      await ref.create({
+        ...fields,
+        roles: fields.roles ?? ["pastor"],
+        priceNote: fields.priceNote?.trim() || null,
+        sortOrder: fields.sortOrder ?? 500,
+        defaultEnabled: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    } catch (error) {
+      const code = (error as { code?: unknown }).code;
+      if (code === 6 || code === "already-exists" || /exists/i.test(String(error))) {
+        res.status(409).json({ error: "A module with this id already exists." });
+        return;
+      }
+      throw error;
+    }
+    await platformAudit(actor, "module_created", body.data.name, `id ${id}, ${body.data.status}`);
+    res.status(201).json(CreatePlatformModuleResponse.parse(await platformModule(id)));
+  } catch (error) {
+    fail(res, error, "Unable to create the module.");
+  }
+});
+
+router.patch("/platform/modules/:moduleId", firebaseAuth, async (req, res): Promise<void> => {
+  const actor = requirePlatformAdmin(req, res);
+  if (!actor) return;
+  const params = UpdatePlatformModuleParams.safeParse(req.params);
+  const body = UpdatePlatformModuleBody.safeParse(req.body);
+  if (!params.success || !body.success) {
+    res.status(400).json({ error: "Invalid module update." });
+    return;
+  }
+  try {
+    const { db } = getFirebaseServices();
+    await loadCatalog();
+    const ref = db.collection(MODULES).doc(params.data.moduleId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      res.status(404).json({ error: "Module not found." });
+      return;
+    }
+    const before = moduleFrom(snap.id, snap.data());
+    const update: Record<string, unknown> = { ...body.data, updatedAt: FieldValue.serverTimestamp() };
+    if (body.data.priceNote !== undefined) update.priceNote = body.data.priceNote?.trim() || null;
+    // Built-in modules are backed by product code; "coming soon" would hide working features.
+    if (before.builtin && body.data.status === "coming_soon") {
+      res.status(400).json({ error: "A built-in module can be available, beta or retired." });
+      return;
+    }
+    await ref.update(update);
+    const changes = Object.keys(body.data).join(", ");
+    await platformAudit(actor, "module_updated", before.name, changes || null);
+    res.json(UpdatePlatformModuleResponse.parse(await platformModule(params.data.moduleId)));
+  } catch (error) {
+    fail(res, error, "Unable to update the module.");
+  }
+});
+
+router.delete("/platform/modules/:moduleId", firebaseAuth, async (req, res): Promise<void> => {
+  const actor = requirePlatformAdmin(req, res);
+  if (!actor) return;
+  const params = DeletePlatformModuleParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: "Invalid module." });
+    return;
+  }
+  try {
+    const { db } = getFirebaseServices();
+    await loadCatalog();
+    const ref = db.collection(MODULES).doc(params.data.moduleId);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      res.status(404).json({ error: "Module not found." });
+      return;
+    }
+    const module = moduleFrom(snap.id, snap.data());
+    if (module.builtin) {
+      res.status(400).json({
+        error: "Built-in modules hold churches' records, so they can be retired (hidden and switched off) but not deleted.",
+      });
+      return;
+    }
+    const interest = await db.collection(MODULE_INTEREST).where("moduleId", "==", module.id).get();
+    const batch = db.batch();
+    batch.delete(ref);
+    for (const doc of interest.docs) batch.delete(doc.ref);
+    await batch.commit();
+    await platformAudit(actor, "module_deleted", module.name);
+    res.sendStatus(204);
+  } catch (error) {
+    fail(res, error, "Unable to delete the module.");
+  }
+});
+
+router.patch("/platform/settings", firebaseAuth, async (req, res): Promise<void> => {
+  const actor = requirePlatformAdmin(req, res);
+  if (!actor) return;
+  const body = UpdatePlatformSettingsBody.safeParse(req.body);
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid settings." });
+    return;
+  }
+  try {
+    const saved = await setEarlyAccess(body.data.earlyAccess);
+    await platformAudit(actor, body.data.earlyAccess ? "early_access_on" : "early_access_off", "All churches");
+    res.json(UpdatePlatformSettingsResponse.parse(saved));
+  } catch (error) {
+    fail(res, error, "Unable to update settings.");
+  }
+});
+
+router.patch("/platform/workspaces/:churchId/access", firebaseAuth, async (req, res): Promise<void> => {
+  const actor = requirePlatformAdmin(req, res);
+  if (!actor) return;
+  const params = UpdatePlatformWorkspaceAccessParams.safeParse(req.params);
+  const body = UpdatePlatformWorkspaceAccessBody.safeParse(req.body);
+  if (!params.success || !body.success || (body.data.plan === undefined && body.data.grants === undefined)) {
+    res.status(400).json({ error: "Choose a plan or modules to grant." });
+    return;
+  }
+  try {
+    const { db } = getFirebaseServices();
+    const { churchId } = params.data;
+    const church = await db.collection("churches").doc(churchId).get();
+    if (!church.exists) {
+      res.status(404).json({ error: "Workspace not found." });
+      return;
+    }
+    const details: string[] = [];
+    if (body.data.plan !== undefined) {
+      await db
+        .collection("subscriptions")
+        .doc(churchId)
+        .set({ churchId, planId: body.data.plan, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      details.push(`plan ${body.data.plan}`);
+    }
+    if (body.data.grants !== undefined) {
+      const known = new Set((await loadCatalog()).map((m) => m.id));
+      const grants = [...new Set(body.data.grants)].filter((id) => known.has(id));
+      await db
+        .collection(CHURCH_MODULES)
+        .doc(churchId)
+        .set({ churchId, grants, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+      details.push(`free modules: ${grants.join(", ") || "none"}`);
+    }
+    await platformAudit(actor, "workspace_access_changed", String(church.get("name") ?? churchId), details.join("; "));
+    res.json(UpdatePlatformWorkspaceAccessResponse.parse(await workspaceDetail(churchId)));
+  } catch (error) {
+    fail(res, error, "Unable to update this church's access.");
   }
 });
 

@@ -5,10 +5,14 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
+import type { PlanTier } from './planTier';
 import type { PlatformMember } from './platformMember';
 import type { PlatformWorkspace } from './platformWorkspace';
 
 export interface PlatformWorkspaceDetail {
   workspace: PlatformWorkspace;
   members: PlatformMember[];
+  plan: PlanTier;
+  /** Module ids given to this church free of charge. */
+  grants: string[];
 }

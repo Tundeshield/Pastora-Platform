@@ -9,6 +9,7 @@ import {
 } from "@workspace/api-zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAuth } from "../middlewares/firebase-auth";
+import { moduleGate } from "../middlewares/module-gate";
 import {
   authenticatedUser,
   errorMessage,
@@ -26,7 +27,9 @@ const router: IRouter = Router();
 const approvers = ["pastor"] as const;
 const submitters = ["pastor", "staff", "finance"] as const;
 
-router.get("/expenses", firebaseAuth, async (req, res): Promise<void> => {
+router.get("/expenses", firebaseAuth,
+  moduleGate("expenses"),
+  async (req, res): Promise<void> => {
   try {
     const context = await tenantFor(req);
     const user = authenticatedUser(req);
@@ -61,7 +64,9 @@ router.get("/expenses", firebaseAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.post("/expenses", firebaseAuth, async (req, res): Promise<void> => {
+router.post("/expenses", firebaseAuth,
+  moduleGate("expenses"),
+  async (req, res): Promise<void> => {
   const parsed = CreateExpenseBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -122,7 +127,9 @@ router.post("/expenses", firebaseAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.patch("/expenses/:expenseId", firebaseAuth, async (req, res): Promise<void> => {
+router.patch("/expenses/:expenseId", firebaseAuth,
+  moduleGate("expenses"),
+  async (req, res): Promise<void> => {
   const params = UpdateExpenseParams.safeParse(req.params);
   const parsed = UpdateExpenseBody.safeParse(req.body);
   if (!params.success) {

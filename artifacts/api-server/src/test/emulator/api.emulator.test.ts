@@ -149,4 +149,17 @@ describe("with real Firebase emulators", () => {
       delete process.env.PLATFORM_ADMIN_EMAILS;
     }
   });
+
+  test("modules: seeded once, switched per church and enforced", async () => {
+    const pastor = await account();
+    await call("POST", "/onboarding", pastor.token, workspace("Module Chapel"));
+    const [a, b] = await Promise.all([call("GET", "/modules", pastor.token), call("GET", "/modules", pastor.token)]);
+    assert.equal(a.status, 200);
+    assert.equal(a.body.modules.length, b.body.modules.length, "concurrent first reads seed the catalog once");
+    assert.ok((await call("GET", "/session", pastor.token)).body.modules.includes("reports"));
+    await call("PATCH", "/modules/reports", pastor.token, { enabled: false });
+    assert.equal((await call("GET", "/reports", pastor.token)).status, 403);
+    await call("PATCH", "/modules/reports", pastor.token, { enabled: true });
+    assert.equal((await call("GET", "/reports", pastor.token)).status, 200);
+  });
 });

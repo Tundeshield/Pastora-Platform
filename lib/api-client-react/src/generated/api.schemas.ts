@@ -114,6 +114,8 @@ export interface Session {
   churchSuspended: boolean;
   /** True for Pastora's own administrators (server-side allow list). */
   platformAdmin: boolean;
+  /** Ids of modules switched on and available to this church. */
+  modules: string[];
 }
 
 export type WorkspaceInputTheme = typeof WorkspaceInputTheme[keyof typeof WorkspaceInputTheme];
@@ -924,9 +926,24 @@ export interface PlatformMember {
   disabled: boolean;
 }
 
+/**
+ * The church's plan. Modules list the lowest plan that includes them.
+ */
+export type PlanTier = typeof PlanTier[keyof typeof PlanTier];
+
+
+export const PlanTier = {
+  starter: 'starter',
+  church: 'church',
+  plus: 'plus',
+} as const;
+
 export interface PlatformWorkspaceDetail {
   workspace: PlatformWorkspace;
   members: PlatformMember[];
+  plan: PlanTier;
+  /** Module ids given to this church free of charge. */
+  grants: string[];
 }
 
 export type PlatformWorkspaceUpdateStatus = typeof PlatformWorkspaceUpdateStatus[keyof typeof PlatformWorkspaceUpdateStatus];
@@ -971,6 +988,155 @@ export interface PlatformUser {
 
 export interface PlatformUserUpdate {
   disabled: boolean;
+}
+
+/**
+ * Lowest plan that includes the module; "addon" is sold or granted separately.
+ */
+export type ModulePlan = typeof ModulePlan[keyof typeof ModulePlan];
+
+
+export const ModulePlan = {
+  starter: 'starter',
+  church: 'church',
+  plus: 'plus',
+  addon: 'addon',
+} as const;
+
+export type ModuleStatus = typeof ModuleStatus[keyof typeof ModuleStatus];
+
+
+export const ModuleStatus = {
+  available: 'available',
+  beta: 'beta',
+  coming_soon: 'coming_soon',
+  retired: 'retired',
+} as const;
+
+export interface ModuleBase {
+  id: string;
+  name: string;
+  description: string;
+  status: ModuleStatus;
+  plan: ModulePlan;
+  /** Roles that use the module once switched on. */
+  roles: MemberRole[];
+  /** @nullable */
+  priceNote: string | null;
+  /** Backed by product code; built-in modules can be retired but not deleted. */
+  builtin: boolean;
+  sortOrder: number;
+}
+
+export type ChurchModule = ModuleBase & {
+  /** The church's plan, a free grant or early access includes it. */
+  entitled: boolean;
+  granted: boolean;
+  /** The church has it switched on. */
+  enabled: boolean;
+  /** Available, entitled and switched on. */
+  active: boolean;
+  /** This church said "We'd use this". */
+  interested: boolean;
+};
+
+export interface ChurchModules {
+  plan: PlanTier;
+  earlyAccess: boolean;
+  modules: ChurchModule[];
+}
+
+export interface ChurchModuleUpdate {
+  enabled?: boolean;
+  interested?: boolean;
+}
+
+export interface ModuleSuggestionInput {
+  /**
+     * @minLength 5
+     * @maxLength 1000
+     */
+  text: string;
+}
+
+export type PlatformModule = ModuleBase & {
+  activeChurches: number;
+  interestedChurches: number;
+  grantedChurches: number;
+};
+
+export interface ModuleSuggestion {
+  id: string;
+  text: string;
+  churchName: string;
+  email: string;
+  createdAt: string;
+}
+
+export interface PlatformModules {
+  earlyAccess: boolean;
+  modules: PlatformModule[];
+  suggestions: ModuleSuggestion[];
+}
+
+export interface ModuleInput {
+  /** @pattern ^[a-z0-9][a-z0-9-]{1,39}$ */
+  id: string;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  description: string;
+  status: ModuleStatus;
+  plan: ModulePlan;
+  roles?: MemberRole[];
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  priceNote?: string | null;
+  sortOrder?: number;
+}
+
+export interface ModuleUpdate {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  name?: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  description?: string;
+  status?: ModuleStatus;
+  plan?: ModulePlan;
+  roles?: MemberRole[];
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  priceNote?: string | null;
+  sortOrder?: number;
+}
+
+export interface PlatformSettings {
+  /** While true, every church can use every available module without a plan. */
+  earlyAccess: boolean;
+}
+
+export interface PlatformSettingsUpdate {
+  earlyAccess: boolean;
+}
+
+export interface WorkspaceAccessUpdate {
+  plan?: PlanTier;
+  grants?: string[];
 }
 
 export interface PlatformAuditEntry {

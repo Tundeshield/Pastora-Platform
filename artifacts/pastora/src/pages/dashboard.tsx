@@ -25,6 +25,8 @@ function greeting(): string {
 
 /** Pastoral counts, reviews and approvals are for pastors; staff see the office view. */
 const PASTOR_ONLY = new Set(["Prayer requests", "Counselling review", "Reports to review", "Expenses awaiting"]);
+/** Cards that belong to a module are hidden when the church has it switched off. */
+const MODULE_OF: Record<string, string> = { "Reports to review": "reports", "Expenses awaiting": "expenses" };
 
 export function DashboardPage() {
   const session = useSession();
@@ -32,10 +34,13 @@ export function DashboardPage() {
   const [, setLocation] = useLocation();
   const hasOverview = role === "pastor" || role === "staff";
   // Finance and the workspace admin have no overview; send them to their main page.
+  const modules = session.data?.modules ?? [];
   useEffect(() => {
-    if (role === "finance") setLocation("/app/expenses", { replace: true });
+    if (role === "finance") {
+      setLocation(modules.includes("expenses") ? "/app/expenses" : "/app/tasks", { replace: true });
+    }
     if (role === "admin") setLocation("/app/team", { replace: true });
-  }, [role, setLocation]);
+  }, [role, setLocation, modules]);
   const dashboard = useGetDashboard({
     query: { queryKey: getGetDashboardQueryKey(), retry: 1, enabled: hasOverview },
   });
@@ -98,7 +103,10 @@ export function DashboardPage() {
       ) : summary ? (
         <>
           <div className="metrics-grid">
-            {metrics.filter(([label]) => role === "pastor" || !PASTOR_ONLY.has(label)).map(([label, value, href, Icon, hint]) => (
+            {metrics
+              .filter(([label]) => role === "pastor" || !PASTOR_ONLY.has(label))
+              .filter(([label]) => !MODULE_OF[label] || modules.includes(MODULE_OF[label]))
+              .map(([label, value, href, Icon, hint]) => (
               <Link href={href} className="metric-card" key={label}>
                 <div className="metric-top">
                   <span>{label}</span>

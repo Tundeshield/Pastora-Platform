@@ -10,6 +10,7 @@ import financeRouter from "./finance";
 import settingsPlatformRouter from "./settings-platform";
 import teamRouter from "./team";
 import platformRouter from "./platform";
+import modulesRouter from "./modules";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(financeRouter);
 router.use(settingsPlatformRouter);
 router.use(teamRouter);
 router.use(platformRouter);
+router.use(modulesRouter);
 
 export default router;

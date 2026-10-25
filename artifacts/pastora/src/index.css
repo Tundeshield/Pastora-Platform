@@ -464,3 +464,46 @@ body { font-size: calc(16px * var(--text-scale)); }
 .legal-page article ul { list-style:disc; }
 .legal-page article li::marker { color:hsl(var(--primary)); }
 .legal-contents ol { list-style:decimal; }
+
+/* Modules */
+.module-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px; margin-bottom:28px; }
+.module-card { display:flex; flex-direction:column; gap:12px; padding:18px; background:hsl(var(--card)); border:1px solid hsl(var(--card-border)); border-radius:9px; }
+.module-card.on { border-color:hsl(var(--primary)/.45); box-shadow:0 0 0 1px hsl(var(--primary)/.15); }
+.module-card.upcoming { background:hsl(var(--card)/.6); }
+.module-head { display:flex; gap:11px; align-items:flex-start; }
+.module-icon { flex:none; width:32px; height:32px; display:grid; place-items:center; border-radius:8px; background:hsl(var(--secondary)/.75); color:hsl(var(--primary)); }
+.module-head h3 { margin:0 0 3px; font:calc(19px * var(--text-scale)) var(--app-font-serif); color:hsl(var(--foreground)); }
+.module-head small { color:hsl(var(--muted-foreground)); font-size:calc(9px * var(--text-scale)); }
+.module-card>p { margin:0; color:hsl(var(--muted-foreground)); font-size:calc(11px * var(--text-scale)); line-height:1.7; flex:1; }
+.module-foot { display:grid; gap:8px; padding-top:12px; border-top:1px solid hsl(var(--border)); }
+.module-foot .button { justify-self:start; }
+.module-plan { color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); }
+.module-plan a { color:hsl(var(--primary)); }
+.module-suggest { grid-template-columns:1fr; max-width:720px; }
+.module-suggest .form-actions { flex-wrap:wrap; }
+
+/* Pastora Admin: modules and access */
+.admin-card { padding:16px 18px; margin:0 0 20px; background:hsl(var(--card)); border:1px solid hsl(var(--card-border)); border-radius:9px; }
+.admin-card .toggle-row>span { display:grid; gap:4px; }
+.admin-card .toggle-row b { font-size:calc(12px * var(--text-scale)); }
+.admin-card .toggle-row small { color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); line-height:1.6; }
+.admin-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.admin-module { border-top:1px solid hsl(var(--border)); }
+.admin-module:first-child { border-top:0; }
+.admin-module>.admin-row { border-top:0; }
+.module-builtin { margin-left:6px; padding:2px 7px; border-radius:20px; background:hsl(var(--secondary)); color:hsl(var(--muted-foreground)); font-size:calc(8px * var(--text-scale)); font-weight:600; letter-spacing:.06em; text-transform:uppercase; vertical-align:middle; }
+.module-form { margin:0 0 14px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.module-form>.field:has(textarea), .module-form>.form-actions, .module-roles { grid-column:1/-1; }
+.module-roles, .admin-grants { display:flex; flex-wrap:wrap; gap:8px; margin:0; padding:0; border:0; min-width:0; }
+.module-roles legend { width:100%; margin-bottom:8px; color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); font-weight:600; }
+.module-roles input, .admin-grants input { accent-color:hsl(var(--primary)); }
+.admin-access { display:grid; gap:12px; margin:0 0 16px; padding:14px 16px; border:1px solid hsl(var(--border)); border-radius:8px; background:hsl(var(--background)); }
+.admin-access-row { display:grid; grid-template-columns:110px 1fr; gap:12px; align-items:center; }
+.admin-access-row>b { color:hsl(var(--foreground)); font-size:calc(11px * var(--text-scale)); }
+.admin-access-row select { justify-self:start; min-height:34px; border:1px solid hsl(var(--input)); border-radius:7px; background:hsl(var(--background)); color:hsl(var(--foreground)); padding:6px 10px; font-size:calc(11px * var(--text-scale)); }
+.admin-access-row small { grid-column:2; color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); }
+@media (max-width:760px) {
+  .module-form { grid-template-columns:1fr; }
+  .admin-access-row { grid-template-columns:1fr; }
+  .admin-access-row small { grid-column:1; }
+}
