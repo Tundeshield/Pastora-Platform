@@ -845,7 +845,7 @@ describe("modules", () => {
   test("during early access, reports and expenses are on by default", async () => {
     const pastor = await ownerWithChurch();
     const session = await call("GET", "/session", pastor.token);
-    assert.deepEqual(session.body.modules.sort(), ["expenses", "message-prep", "reports"]);
+    assert.deepEqual(session.body.modules.sort(), ["blog", "expenses", "message-prep", "reports"]);
     const list = await call("GET", "/modules", pastor.token);
     assert.equal(list.status, 200);
     assert.equal(list.body.earlyAccess, true);
@@ -866,7 +866,7 @@ describe("modules", () => {
     assert.equal(off.body.active, false);
     assert.equal((await call("GET", "/reports", staff.token)).status, 403);
     assert.equal((await call("POST", "/reports", staff.token, report)).status, 403);
-    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules.sort(), ["expenses", "message-prep"]);
+    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules.sort(), ["blog", "expenses", "message-prep"]);
     assert.ok(db.all("notifications").some((n) => n.uid === pastor.uid && /turned off/.test(String(n.title))));
 
     await call("PATCH", "/modules/reports", pastor.token, { enabled: true });
@@ -882,8 +882,8 @@ describe("modules", () => {
     const ops = platformAdmin();
     assert.equal((await call("PATCH", "/platform/settings", ops.token, { earlyAccess: false })).status, 200);
 
-    // Starter plan: reports and expenses (Church plan) are not included.
-    assert.deepEqual((await call("GET", "/session", pastor.token)).body.modules, []);
+    // Starter plan: only Starter modules (the blog); reports and expenses are Church plan.
+    assert.deepEqual((await call("GET", "/session", pastor.token)).body.modules, ["blog"]);
     assert.equal((await call("GET", "/reports", pastor.token)).status, 403);
     assert.equal((await call("PATCH", "/modules/reports", pastor.token, { enabled: true })).status, 403);
 
@@ -958,6 +958,25 @@ describe("modules", () => {
 });
 
 describe("Message Prep", () => {
+  test("formatting is kept, but anything unsafe is removed before saving", async () => {
+    const pastor = await ownerWithChurch();
+    const draft = await call("POST", "/messages", pastor.token, { title: "Formatting" });
+    const saved = await call("PATCH", `/messages/${draft.body.id}`, pastor.token, {
+      outline:
+        '<h2>Point one</h2><p><strong>Bold</strong>, <em>italic</em>, <u>underlined</u> and <a href="https://bible.com">a link</a>.</p>' +
+        '<script>alert(1)</script><p onclick="steal()">Hi<img src=x onerror="alert(2)"></p><a href="javascript:alert(3)">bad</a><ul><li>One</li></ul>',
+    });
+    const html = saved.body.outline as string;
+    for (const kept of ["<h2>Point one</h2>", "<strong>Bold</strong>", "<em>italic</em>", "<u>underlined</u>", "<li>One</li>"]) {
+      assert.ok(html.includes(kept), kept);
+    }
+    assert.match(html, /<a href="https:\/\/bible.com" target="_blank" rel="noopener noreferrer nofollow">a link<\/a>/);
+    for (const removed of ["script", "alert", "onclick", "onerror", "<img", "javascript:"]) {
+      assert.ok(!html.includes(removed), `${removed} must be removed`);
+    }
+    assert.equal(saved.body.wordCount, 11);
+  });
+
   test("a pastor captures an idea, writes a message and sees only their own", async () => {
     const pastor = await ownerWithChurch();
     const idea = await call("POST", "/messages", pastor.token, { title: "The vine and the branches", status: "idea" });
@@ -976,7 +995,11 @@ describe("Message Prep", () => {
     assert.equal(saved.status, 200);
     assert.equal(saved.body.wordCount, 13);
     assert.equal(saved.body.preachDate, "2026-11-01");
-    assert.equal((await call("GET", `/messages/${idea.body.id}`, pastor.token)).body.outline, "1. The vine\n2. The pruning\n3. The fruit");
+    assert.equal(
+      (await call("GET", `/messages/${idea.body.id}`, pastor.token)).body.outline,
+      "<p>1. The vine<br />2. The pruning<br />3. The fruit</p>",
+      "plain text is stored as formatted paragraphs",
+    );
     assert.equal((await call("PATCH", `/messages/${idea.body.id}`, pastor.token, { preachDate: "next sunday" })).status, 400);
 
     // Another pastor in the same church cannot see or touch it.
@@ -1008,5 +1031,85 @@ describe("Message Prep", () => {
     for (const path of ["/platform/workspaces", `/platform/workspaces/${pastor.church.id}`, "/platform/users", "/platform/modules"]) {
       assert.ok(!JSON.stringify((await call("GET", path, ops.token)).body).includes("Hidden sermon title"), path);
     }
+  });
+});
+
+describe("Pastor's blog", () => {
+  const publicBlog = (slug: string) => call("GET", `/public/churches/${slug}/posts`);
+  const publicPost = (slug: string, id: string) => call("GET", `/public/churches/${slug}/posts/${id}`);
+
+  test("drafts stay private; published posts are public and safe", async () => {
+    const pastor = await ownerWithChurch();
+    const draft = await call("POST", "/posts", pastor.token, { title: "Morning mercies" });
+    assert.equal(draft.status, 201, JSON.stringify(draft.body));
+    assert.equal(draft.body.status, "draft");
+    const id = draft.body.id;
+
+    // Nothing public until it is published, and an empty post can't be published.
+    assert.equal((await call("PATCH", `/posts/${id}`, pastor.token, { status: "published" })).status, 400);
+    assert.equal((await publicPost(pastor.church.slug, id)).status, 404);
+    assert.equal((await publicBlog(pastor.church.slug)).body.posts.length, 0);
+
+    const saved = await call("PATCH", `/posts/${id}`, pastor.token, {
+      scripture: "Lamentations 3:22-23",
+      body: "<p>His mercies are <strong>new every morning</strong>.</p><script>steal()</script><p><img src=x onerror=alert(1)></p>",
+    });
+    assert.equal(saved.status, 200);
+    assert.ok(!saved.body.body.includes("script") && !saved.body.body.includes("onerror"));
+    const published = await call("PATCH", `/posts/${id}`, pastor.token, { status: "published" });
+    assert.equal(published.body.status, "published");
+    assert.ok(published.body.publishedAt);
+
+    const blog = await publicBlog(pastor.church.slug);
+    assert.equal(blog.status, 200);
+    assert.equal(blog.body.church.name, "Grace Chapel");
+    assert.equal(blog.body.posts[0].excerpt, "His mercies are new every morning.");
+    assert.equal(blog.body.posts[0].authorName, "Pastor Ade");
+    const post = await publicPost(pastor.church.slug, id);
+    assert.equal(post.body.post.body, "<p>His mercies are <strong>new every morning</strong>.</p>");
+    assert.equal((await call("GET", `/public/churches/${pastor.church.slug}`)).body.blogEnabled, true);
+
+    // Unpublishing takes it down; publishing again keeps the first date.
+    await call("PATCH", `/posts/${id}`, pastor.token, { status: "draft" });
+    assert.equal((await publicPost(pastor.church.slug, id)).status, 404);
+    const again = await call("PATCH", `/posts/${id}`, pastor.token, { status: "published" });
+    assert.equal(again.body.publishedAt, published.body.publishedAt);
+  });
+
+  test("pastors see each other's published posts but only edit their own; others can't write", async () => {
+    const pastor = await ownerWithChurch();
+    const colleague = await member(pastor.token, "pastor");
+    const staff = await member(pastor.token, "staff");
+    const mine = await call("POST", "/posts", pastor.token, { title: "Draft thoughts" });
+    const live = await call("POST", "/posts", pastor.token, { title: "Published thoughts" });
+    await call("PATCH", `/posts/${live.body.id}`, pastor.token, { body: "<p>Hello church</p>", status: "published" });
+
+    const seen = (await call("GET", "/posts", colleague.token)).body.map((p: Json) => p.title);
+    assert.deepEqual(seen, ["Published thoughts"]);
+    assert.equal((await call("GET", `/posts/${mine.body.id}`, colleague.token)).status, 404);
+    assert.equal((await call("GET", `/posts/${live.body.id}`, colleague.token)).body.isMine, false);
+    assert.equal((await call("PATCH", `/posts/${live.body.id}`, colleague.token, { title: "Edited" })).status, 404);
+    assert.equal((await call("DELETE", `/posts/${live.body.id}`, colleague.token)).status, 404);
+    assert.equal((await call("POST", "/posts", staff.token, { title: "x" })).status, 403);
+
+    // Another church's slug never shows this church's posts.
+    const other = await ownerWithChurch("Other Church");
+    assert.equal((await publicPost(other.church.slug, live.body.id)).status, 404);
+  });
+
+  test("switching the blog off hides the public page; new built-in modules reach existing catalogs", async () => {
+    const pastor = await ownerWithChurch();
+    const live = await call("POST", "/posts", pastor.token, { title: "Hello" });
+    await call("PATCH", `/posts/${live.body.id}`, pastor.token, { body: "<p>Hi</p>", status: "published" });
+    await call("PATCH", "/modules/blog", pastor.token, { enabled: false });
+    assert.equal((await publicBlog(pastor.church.slug)).status, 404);
+    assert.equal((await publicPost(pastor.church.slug, live.body.id)).status, 404);
+    assert.equal((await call("GET", `/public/churches/${pastor.church.slug}`)).body.blogEnabled, false);
+    assert.equal((await call("GET", "/posts", pastor.token)).status, 403);
+
+    // A catalog created before the blog existed gets it added automatically.
+    db.store.delete("modules/blog");
+    const modules = await call("GET", "/modules", pastor.token);
+    assert.ok(modules.body.modules.some((m: Json) => m.id === "blog"));
   });
 });

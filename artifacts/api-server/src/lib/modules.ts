@@ -85,6 +85,19 @@ export const DEFAULT_MODULES: ModuleRecord[] = [
     defaultEnabled: true,
   },
   {
+    id: "blog",
+    name: "Pastor's blog",
+    description:
+      "Share devotionals and reflections on a public page your members can read and pass on, without signing in. Write, format and publish when you're ready.",
+    status: "available",
+    plan: "starter",
+    roles: ["pastor"],
+    priceNote: null,
+    builtin: true,
+    sortOrder: 35,
+    defaultEnabled: true,
+  },
+  {
     id: "messaging",
     name: "Messaging (SMS & WhatsApp)",
     description:
@@ -242,9 +255,32 @@ async function ensureCatalog(): Promise<void> {
   });
 }
 
+/**
+ * Built-in modules ship with product code, so a catalog seeded before one existed
+ * gets it added here. (Built-in modules can't be deleted, so a missing one is new.)
+ */
+async function addMissingBuiltins(present: Set<string>): Promise<boolean> {
+  const missing = DEFAULT_MODULES.filter((m) => m.builtin && !present.has(m.id));
+  if (!missing.length) return false;
+  const { db } = getFirebaseServices();
+  await db.runTransaction(async (tx) => {
+    const refs = missing.map((m) => db.collection(MODULES).doc(m.id));
+    const existing = await Promise.all(refs.map((ref) => tx.get(ref)));
+    missing.forEach((m, i) => {
+      if (existing[i].exists) return;
+      const { id: _id, ...data } = m;
+      tx.set(refs[i], { ...data, createdAt: FieldValue.serverTimestamp() });
+    });
+  });
+  return true;
+}
+
 export async function loadCatalog(): Promise<ModuleRecord[]> {
   await ensureCatalog();
-  const snap = await getFirebaseServices().db.collection(MODULES).get();
+  let snap = await getFirebaseServices().db.collection(MODULES).get();
+  if (await addMissingBuiltins(new Set(snap.docs.map((doc) => doc.id)))) {
+    snap = await getFirebaseServices().db.collection(MODULES).get();
+  }
   return snap.docs
     .map((doc) => moduleFrom(doc.id, doc.data()))
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));

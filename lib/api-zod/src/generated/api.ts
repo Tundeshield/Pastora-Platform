@@ -163,7 +163,8 @@ export const GetPublicChurchResponse = zod.object({
   "welcomeMessage": zod.string(),
   "categories": zod.array(zod.string()),
   "appointmentEnabled": zod.boolean(),
-  "emergencyNotice": zod.string()
+  "emergencyNotice": zod.string(),
+  "blogEnabled": zod.boolean().describe('The church has the Pastor\'s blog module switched on.')
 })
 
 
@@ -1485,6 +1486,199 @@ export const DeleteMessageParams = zod.object({
 })
 
 export const DeleteMessageResponse = zod.void()
+
+
+/**
+ * @summary The church's blog posts for pastors (published posts, plus your own drafts)
+ */
+export const ListPostsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "scripture": zod.string().nullable(),
+  "excerpt": zod.string(),
+  "authorName": zod.string(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "status": zod.enum(['draft', 'published']),
+  "isMine": zod.boolean(),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+export const ListPostsResponse = zod.array(ListPostsResponseItem)
+
+
+/**
+ * @summary Start a blog post (as a draft)
+ */
+export const createPostBodyTitleMax = 200;
+
+
+
+export const CreatePostBody = zod.object({
+  "title": zod.string().min(1).max(createPostBodyTitleMax)
+})
+
+export const CreatePostResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "scripture": zod.string().nullable(),
+  "excerpt": zod.string(),
+  "authorName": zod.string(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "status": zod.enum(['draft', 'published']),
+  "isMine": zod.boolean(),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "body": zod.string().describe('Formatted text (a safe subset of HTML).')
+}))
+
+
+/**
+ * @summary One post (your own, or a published one)
+ */
+export const getPostPathPostIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const GetPostParams = zod.object({
+  "postId": zod.coerce.string().regex(getPostPathPostIdRegExp)
+})
+
+export const GetPostResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "scripture": zod.string().nullable(),
+  "excerpt": zod.string(),
+  "authorName": zod.string(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "status": zod.enum(['draft', 'published']),
+  "isMine": zod.boolean(),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "body": zod.string().describe('Formatted text (a safe subset of HTML).')
+}))
+
+
+/**
+ * @summary Save, publish or unpublish your own post
+ */
+export const updatePostPathPostIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const UpdatePostParams = zod.object({
+  "postId": zod.coerce.string().regex(updatePostPathPostIdRegExp)
+})
+
+export const updatePostBodyTitleMax = 200;
+
+export const updatePostBodyScriptureMax = 300;
+
+export const updatePostBodyBodyMax = 100000;
+
+
+
+export const UpdatePostBody = zod.object({
+  "title": zod.string().min(1).max(updatePostBodyTitleMax).optional(),
+  "scripture": zod.string().max(updatePostBodyScriptureMax).nullish(),
+  "body": zod.string().max(updatePostBodyBodyMax).optional(),
+  "status": zod.enum(['draft', 'published']).optional()
+})
+
+export const UpdatePostResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "scripture": zod.string().nullable(),
+  "excerpt": zod.string(),
+  "authorName": zod.string(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "status": zod.enum(['draft', 'published']),
+  "isMine": zod.boolean(),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})).and(zod.object({
+  "body": zod.string().describe('Formatted text (a safe subset of HTML).')
+}))
+
+
+/**
+ * @summary Delete your own post
+ */
+export const deletePostPathPostIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const DeletePostParams = zod.object({
+  "postId": zod.coerce.string().regex(deletePostPathPostIdRegExp)
+})
+
+export const DeletePostResponse = zod.void()
+
+
+/**
+ * @summary A church's published blog posts (no sign-in needed)
+ */
+export const getPublicBlogPathSlugMin = 2;
+
+
+
+export const GetPublicBlogParams = zod.object({
+  "slug": zod.coerce.string().min(getPublicBlogPathSlugMin)
+})
+
+export const GetPublicBlogResponse = zod.object({
+  "church": zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "careEnabled": zod.boolean()
+}),
+  "posts": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "scripture": zod.string().nullable(),
+  "excerpt": zod.string(),
+  "authorName": zod.string(),
+  "publishedAt": zod.coerce.date().nullable()
+}))
+})
+
+
+/**
+ * @summary One published blog post (no sign-in needed)
+ */
+export const getPublicPostPathSlugMin = 2;
+
+export const getPublicPostPathPostIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const GetPublicPostParams = zod.object({
+  "slug": zod.coerce.string().min(getPublicPostPathSlugMin),
+  "postId": zod.coerce.string().regex(getPublicPostPathPostIdRegExp)
+})
+
+export const GetPublicPostResponse = zod.object({
+  "church": zod.object({
+  "name": zod.string(),
+  "slug": zod.string(),
+  "careEnabled": zod.boolean()
+}),
+  "post": zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "scripture": zod.string().nullable(),
+  "excerpt": zod.string(),
+  "authorName": zod.string(),
+  "publishedAt": zod.coerce.date().nullable()
+}).and(zod.object({
+  "body": zod.string()
+}))
+})
 
 
 /**

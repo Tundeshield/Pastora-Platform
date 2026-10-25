@@ -28,14 +28,11 @@ import {
   type TenantContext,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
+import { toSafeHtml, wordsIn } from "../lib/rich-text";
 
 const router: IRouter = Router();
 const SERMONS = "sermons";
 const TEXT_FIELDS = ["outline", "study", "illustrations", "application"] as const;
-
-function words(text: unknown): number {
-  return typeof text === "string" ? (text.trim().match(/\S+/g)?.length ?? 0) : 0;
-}
 
 function summary(id: string, data: DocumentData) {
   return {
@@ -55,10 +52,11 @@ function summary(id: string, data: DocumentData) {
 function full(id: string, data: DocumentData) {
   return {
     ...summary(id, data),
-    outline: String(data.outline ?? ""),
-    study: String(data.study ?? ""),
-    illustrations: String(data.illustrations ?? ""),
-    application: String(data.application ?? ""),
+    // Sections are formatted text (safe HTML); older plain-text notes are converted.
+    outline: toSafeHtml(data.outline),
+    study: toSafeHtml(data.study),
+    illustrations: toSafeHtml(data.illustrations),
+    application: toSafeHtml(data.application),
   };
 }
 
@@ -184,12 +182,13 @@ router.patch("/messages/:messageId", firebaseAuth, moduleGate("message-prep"), a
     const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
     for (const [key, value] of Object.entries(body.data)) {
       if (value === undefined) continue;
-      update[key] = typeof value === "string" && !TEXT_FIELDS.includes(key as never) ? value.trim() || null : value;
+      if (TEXT_FIELDS.includes(key as never)) update[key] = toSafeHtml(value);
+      else update[key] = typeof value === "string" ? value.trim() || null : value;
     }
     if (typeof update.title !== "string" || !update.title) delete update.title;
     if (TEXT_FIELDS.some((field) => body.data[field] !== undefined)) {
-      const merged = { ...message.data, ...body.data };
-      update.wordCount = TEXT_FIELDS.reduce((total, field) => total + words(merged[field]), 0);
+      const merged = { ...message.data, ...update };
+      update.wordCount = TEXT_FIELDS.reduce((total, field) => total + wordsIn(merged[field]), 0);
     }
     await message.ref.update(update);
     const saved = await message.ref.get();

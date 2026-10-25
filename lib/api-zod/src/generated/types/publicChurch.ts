@@ -15,4 +15,6 @@ export interface PublicChurch {
   categories: string[];
   appointmentEnabled: boolean;
   emergencyNotice: string;
+  /** The church has the Pastor's blog module switched on. */
+  blogEnabled: boolean;
 }

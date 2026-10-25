@@ -62,7 +62,13 @@ import type {
   PlatformWorkspace,
   PlatformWorkspaceDetail,
   PlatformWorkspaceUpdate,
+  Post,
+  PostInput,
+  PostSummary,
+  PostUpdate,
+  PublicBlog,
   PublicChurch,
+  PublicPostPage,
   PublicRequestInput,
   PublicRequestReceipt,
   QrCode,
@@ -4430,6 +4436,570 @@ export const useDeleteMessage = <TError = ErrorType<ForbiddenResponse | NotFound
       > => {
       return useMutation(getDeleteMessageMutationOptions(options));
     }
+
+export const getListPostsUrl = () => {
+
+
+
+
+  return `/api/posts`
+}
+
+/**
+ * @summary The church's blog posts for pastors (published posts, plus your own drafts)
+ */
+export const listPosts = async ( options?: Parameters<typeof customFetch>[1]): Promise<PostSummary[]> => {
+
+  return customFetch<PostSummary[]>(getListPostsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListPostsQueryKey = () => {
+    return [
+    `/api/posts`
+    ] as const;
+    }
+
+
+export const getListPostsQueryOptions = <TData = Awaited<ReturnType<typeof listPosts>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListPostsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPosts>>> = ({ signal }) => listPosts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPosts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListPostsQueryResult = NonNullable<Awaited<ReturnType<typeof listPosts>>>
+export type ListPostsQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary The church's blog posts for pastors (published posts, plus your own drafts)
+ */
+
+export function useListPosts<TData = Awaited<ReturnType<typeof listPosts>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listPosts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListPostsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreatePostUrl = () => {
+
+
+
+
+  return `/api/posts`
+}
+
+/**
+ * @summary Start a blog post (as a draft)
+ */
+export const createPost = async (postInput: PostInput, options?: Parameters<typeof customFetch>[1]): Promise<Post> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Post>(getCreatePostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(postInput)
+  }
+);}
+
+
+
+
+
+export const getCreatePostMutationKey = () => ['createPost'] as const;
+
+export const getCreatePostMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPost>>, TError,CreatePostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPost>>, TError,CreatePostMutationVariables, TContext> => {
+
+const mutationKey = getCreatePostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPost>>, CreatePostMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPost(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePostMutationResult = NonNullable<Awaited<ReturnType<typeof createPost>>>
+    export type CreatePostMutationBody = BodyType<PostInput>
+    export type CreatePostMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+    export type CreatePostMutationVariables = {data: BodyType<PostInput>}
+
+    /**
+ * @summary Start a blog post (as a draft)
+ */
+export const useCreatePost = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPost>>, TError,CreatePostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createPost>>,
+        TError,
+        CreatePostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePostMutationOptions(options));
+    }
+
+export const getGetPostUrl = (postId: string,) => {
+
+
+
+
+  return `/api/posts/${postId}`
+}
+
+/**
+ * @summary One post (your own, or a published one)
+ */
+export const getPost = async (postId: string, options?: Parameters<typeof customFetch>[1]): Promise<Post> => {
+
+  return customFetch<Post>(getGetPostUrl(postId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPostQueryKey = (postId: string,) => {
+    return [
+    `/api/posts/${postId}`
+    ] as const;
+    }
+
+
+export const getGetPostQueryOptions = <TData = Awaited<ReturnType<typeof getPost>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(postId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPostQueryKey(postId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPost>>> = ({ signal }) => getPost(postId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: postId !== null && postId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPostQueryResult = NonNullable<Awaited<ReturnType<typeof getPost>>>
+export type GetPostQueryError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary One post (your own, or a published one)
+ */
+
+export function useGetPost<TData = Awaited<ReturnType<typeof getPost>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(
+ postId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPostQueryOptions(postId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdatePostUrl = (postId: string,) => {
+
+
+
+
+  return `/api/posts/${postId}`
+}
+
+/**
+ * @summary Save, publish or unpublish your own post
+ */
+export const updatePost = async (postId: string,
+    postUpdate: PostUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Post> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Post>(getUpdatePostUrl(postId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(postUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdatePostMutationKey = () => ['updatePost'] as const;
+
+export const getUpdatePostMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePost>>, TError,UpdatePostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updatePost>>, TError,UpdatePostMutationVariables, TContext> => {
+
+const mutationKey = getUpdatePostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updatePost>>, UpdatePostMutationVariables> = (props) => {
+          const {postId,data} = props ?? {};
+
+          return  updatePost(postId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdatePostMutationResult = NonNullable<Awaited<ReturnType<typeof updatePost>>>
+    export type UpdatePostMutationBody = BodyType<PostUpdate>
+    export type UpdatePostMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdatePostMutationVariables = {postId: string;data: BodyType<PostUpdate>}
+
+    /**
+ * @summary Save, publish or unpublish your own post
+ */
+export const useUpdatePost = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updatePost>>, TError,UpdatePostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updatePost>>,
+        TError,
+        UpdatePostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdatePostMutationOptions(options));
+    }
+
+export const getDeletePostUrl = (postId: string,) => {
+
+
+
+
+  return `/api/posts/${postId}`
+}
+
+/**
+ * @summary Delete your own post
+ */
+export const deletePost = async (postId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeletePostUrl(postId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeletePostMutationKey = () => ['deletePost'] as const;
+
+export const getDeletePostMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePost>>, TError,DeletePostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePost>>, TError,DeletePostMutationVariables, TContext> => {
+
+const mutationKey = getDeletePostMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePost>>, DeletePostMutationVariables> = (props) => {
+          const {postId} = props ?? {};
+
+          return  deletePost(postId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePostMutationResult = NonNullable<Awaited<ReturnType<typeof deletePost>>>
+
+    export type DeletePostMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+    export type DeletePostMutationVariables = {postId: string}
+
+    /**
+ * @summary Delete your own post
+ */
+export const useDeletePost = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePost>>, TError,DeletePostMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deletePost>>,
+        TError,
+        DeletePostMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeletePostMutationOptions(options));
+    }
+
+export const getGetPublicBlogUrl = (slug: string,) => {
+
+
+
+
+  return `/api/public/churches/${slug}/posts`
+}
+
+/**
+ * @summary A church's published blog posts (no sign-in needed)
+ */
+export const getPublicBlog = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<PublicBlog> => {
+
+  return customFetch<PublicBlog>(getGetPublicBlogUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicBlogQueryKey = (slug: string,) => {
+    return [
+    `/api/public/churches/${slug}/posts`
+    ] as const;
+    }
+
+
+export const getGetPublicBlogQueryOptions = <TData = Awaited<ReturnType<typeof getPublicBlog>>, TError = ErrorType<NotFoundResponse>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicBlog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicBlogQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicBlog>>> = ({ signal }) => getPublicBlog(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicBlog>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicBlogQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicBlog>>>
+export type GetPublicBlogQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary A church's published blog posts (no sign-in needed)
+ */
+
+export function useGetPublicBlog<TData = Awaited<ReturnType<typeof getPublicBlog>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicBlog>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicBlogQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPublicPostUrl = (slug: string,
+    postId: string,) => {
+
+
+
+
+  return `/api/public/churches/${slug}/posts/${postId}`
+}
+
+/**
+ * @summary One published blog post (no sign-in needed)
+ */
+export const getPublicPost = async (slug: string,
+    postId: string, options?: Parameters<typeof customFetch>[1]): Promise<PublicPostPage> => {
+
+  return customFetch<PublicPostPage>(getGetPublicPostUrl(slug,postId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicPostQueryKey = (slug: string,
+    postId: string,) => {
+    return [
+    `/api/public/churches/${slug}/posts/${postId}`
+    ] as const;
+    }
+
+
+export const getGetPublicPostQueryOptions = <TData = Awaited<ReturnType<typeof getPublicPost>>, TError = ErrorType<NotFoundResponse>>(slug: string,
+    postId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicPostQueryKey(slug,postId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicPost>>> = ({ signal }) => getPublicPost(slug,postId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && postId !== null && postId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicPost>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicPostQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicPost>>>
+export type GetPublicPostQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary One published blog post (no sign-in needed)
+ */
+
+export function useGetPublicPost<TData = Awaited<ReturnType<typeof getPublicPost>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string,
+    postId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicPost>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicPostQueryOptions(slug,postId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getRecordQrVisitUrl = (qrCodeId: string,) => {
 

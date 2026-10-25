@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  PenLine,
   QrCode,
   Receipt,
   Puzzle,
@@ -64,6 +65,7 @@ export const navSections: { label: string; items: NavItem[] }[] = [
         roles: ["pastor"],
         module: "message-prep",
       },
+      { href: "/app/blog", label: "Blog", icon: PenLine, roles: ["pastor"], module: "blog" },
     ],
   },
   {
@@ -102,6 +104,7 @@ export function roleLabel(role: MemberRole | undefined): string {
 
 export function pageTitle(path: string) {
   if (path.startsWith("/app/messages/")) return "Message prep";
+  if (path.startsWith("/app/blog/")) return "Blog";
   return (
     (
       {
@@ -116,6 +119,7 @@ export function pageTitle(path: string) {
         "/app/settings": "Settings",
         "/app/modules": "Modules",
         "/app/messages": "Message prep",
+        "/app/blog": "Blog",
       } as Record<string, string>
     )[path] || "Workspace"
   );

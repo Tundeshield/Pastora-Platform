@@ -10,6 +10,7 @@ import {
 import { FieldValue } from "firebase-admin/firestore";
 import { failFirebaseSetup, notifyChurchRoles } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
+import { isModuleActive } from "../lib/modules";
 
 const router: IRouter = Router();
 
@@ -93,6 +94,7 @@ router.get("/public/churches/:slug", async (req, res): Promise<void> => {
         emergencyNotice:
           settings.emergencyNotice ??
           "Pastora is not an emergency response service or a replacement for professional healthcare.",
+        blogEnabled: await isModuleActive(churchDoc.id, "blog"),
       }),
     );
   } catch (error) {

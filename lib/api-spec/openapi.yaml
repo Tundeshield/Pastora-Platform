@@ -24,6 +24,7 @@ tags:
   - name: team
   - name: modules
   - name: messages
+  - name: blog
 paths:
   /healthz:
     get:
@@ -1006,6 +1007,132 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /posts:
+    get:
+      operationId: listPosts
+      tags: [blog]
+      summary: The church's blog posts for pastors (published posts, plus your own drafts)
+      responses:
+        "200":
+          description: Posts, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostSummary"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createPost
+      tags: [blog]
+      summary: Start a blog post (as a draft)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Created draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /posts/{postId}:
+    get:
+      operationId: getPost
+      tags: [blog]
+      summary: One post (your own, or a published one)
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: The post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updatePost
+      tags: [blog]
+      summary: Save, publish or unpublish your own post
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostUpdate"
+      responses:
+        "200":
+          description: The saved post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePost
+      tags: [blog]
+      summary: Delete your own post
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public/churches/{slug}/posts:
+    get:
+      operationId: getPublicBlog
+      tags: [public-care]
+      summary: A church's published blog posts (no sign-in needed)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: The church's blog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicBlog"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public/churches/{slug}/posts/{postId}:
+    get:
+      operationId: getPublicPost
+      tags: [public-care]
+      summary: One published blog post (no sign-in needed)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: The post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicPostPage"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /public/qr-codes/{qrCodeId}/visit:
     post:
       operationId: recordQrVisit
@@ -1098,6 +1225,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 components:
   parameters:
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,64}$"
     MessageId:
       name: messageId
       in: path
@@ -1379,7 +1513,10 @@ components:
           type: boolean
         emergencyNotice:
           type: string
-      required: [name, slug, logoUrl, welcomeMessage, categories, appointmentEnabled, emergencyNotice]
+        blogEnabled:
+          type: boolean
+          description: The church has the Pastor's blog module switched on.
+      required: [name, slug, logoUrl, welcomeMessage, categories, appointmentEnabled, emergencyNotice, blogEnabled]
     PublicRequestInput:
       type: object
       properties:
@@ -2054,6 +2191,112 @@ components:
         disabled:
           type: boolean
       required: [disabled]
+    PostStatus:
+      type: string
+      enum: [draft, published]
+    PublicPostSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        scripture:
+          type: ["string", "null"]
+        excerpt:
+          type: string
+        authorName:
+          type: string
+        publishedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, title, scripture, excerpt, authorName, publishedAt]
+    PostSummary:
+      allOf:
+        - $ref: "#/components/schemas/PublicPostSummary"
+        - type: object
+          properties:
+            status:
+              $ref: "#/components/schemas/PostStatus"
+            isMine:
+              type: boolean
+            wordCount:
+              type: integer
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+          required: [status, isMine, wordCount, createdAt, updatedAt]
+    Post:
+      allOf:
+        - $ref: "#/components/schemas/PostSummary"
+        - type: object
+          properties:
+            body:
+              type: string
+              description: Formatted text (a safe subset of HTML).
+          required: [body]
+    PostInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+      required: [title]
+    PostUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        scripture:
+          type: ["string", "null"]
+          maxLength: 300
+        body:
+          type: string
+          maxLength: 100000
+        status:
+          $ref: "#/components/schemas/PostStatus"
+    PublicPost:
+      allOf:
+        - $ref: "#/components/schemas/PublicPostSummary"
+        - type: object
+          properties:
+            body:
+              type: string
+          required: [body]
+    PublicBlogChurch:
+      type: object
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        careEnabled:
+          type: boolean
+      required: [name, slug, careEnabled]
+    PublicBlog:
+      type: object
+      properties:
+        church:
+          $ref: "#/components/schemas/PublicBlogChurch"
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicPostSummary"
+      required: [church, posts]
+    PublicPostPage:
+      type: object
+      properties:
+        church:
+          $ref: "#/components/schemas/PublicBlogChurch"
+        post:
+          $ref: "#/components/schemas/PublicPost"
+      required: [church, post]
     MessageStatus:
       type: string
       enum: [idea, drafting, ready, preached]

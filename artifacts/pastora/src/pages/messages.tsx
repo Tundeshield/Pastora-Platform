@@ -17,6 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { Link, useLocation, useParams } from "wouter";
 
 import { FullPageMessage, RequireWorkspace } from "@/auth";
+import { RichTextEditor, SafeHtml } from "@/components/rich-text";
 import { Badge, Button, EmptyState, ErrorPanel, MutationError, PageHeading, SkeletonRows } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 
@@ -35,6 +36,12 @@ function dayLabel(day: string | null, style: "short" | "long" = "short") {
   return date.toLocaleDateString(undefined, style === "long"
     ? { weekday: "long", day: "numeric", month: "long", year: "numeric" }
     : { weekday: "short", day: "numeric", month: "short" });
+}
+
+/** Words in formatted text (tags removed). */
+function wordCount(html: string) {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+  return text.trim().match(/\S+/g)?.length ?? 0;
 }
 
 function today() {
@@ -210,7 +217,7 @@ const SECTIONS: { key: "outline" | "study" | "illustrations" | "application"; la
   {
     key: "outline",
     label: "Outline",
-    hint: "Your main points and how the message flows, e.g.\n1. The vine: who Jesus is\n2. The pruning: why hard seasons come\n3. The fruit: what abiding produces",
+    hint: "Your main points and how the message flows. Use headings and lists to shape it.",
   },
   {
     key: "study",
@@ -316,7 +323,7 @@ function Editor({ initial }: { initial: Message }) {
     };
   }, []);
 
-  const words = SECTIONS.reduce((n, s) => n + (draft[s.key].trim().match(/\S+/g)?.length ?? 0), 0);
+  const words = SECTIONS.reduce((n, s) => n + wordCount(draft[s.key]), 0);
   const saveLabel =
     state === "saving" || state === "pending"
       ? "Saving…"
@@ -421,14 +428,13 @@ function Editor({ initial }: { initial: Message }) {
         ))}
       </div>
       {SECTIONS.filter((s) => s.key === section).map((s) => (
-        <textarea
+        <RichTextEditor
           key={s.key}
           className="editor-body"
-          aria-label={s.label}
-          maxLength={50000}
+          label={s.label}
           placeholder={s.hint}
           value={draft[s.key]}
-          onChange={(e) => edit(s.key, e.target.value)}
+          onChange={(html) => edit(s.key, html)}
         />
       ))}
 
@@ -538,17 +544,17 @@ function Pulpit() {
           )}
           {m.theme && <p className="pulpit-theme">{m.theme}</p>}
         </header>
-        {m.outline.trim() && <section className="pulpit-text">{m.outline}</section>}
+        {m.outline.trim() && <SafeHtml className="pulpit-text" html={m.outline} />}
         {m.application.trim() && (
           <section>
             <h2 className="serif">Application</h2>
-            <div className="pulpit-text">{m.application}</div>
+            <SafeHtml className="pulpit-text" html={m.application} />
           </section>
         )}
         {m.illustrations.trim() && (
           <section className="pulpit-secondary">
             <h2 className="serif">Illustrations</h2>
-            <div className="pulpit-text">{m.illustrations}</div>
+            <SafeHtml className="pulpit-text" html={m.illustrations} />
           </section>
         )}
         {!m.outline.trim() && !m.application.trim() && (

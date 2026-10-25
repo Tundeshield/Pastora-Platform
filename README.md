@@ -72,7 +72,14 @@ to it: **early access** is on (the default, all modules free), its **plan**
 (Starter / Church / Church Plus) includes it, or Pastora **granted** it free (Pastora
 Admin → Churches → People). The API enforces this (`moduleGate`), so a switched-off
 module is closed even to direct API calls. To make new code a module, add it to
-`DEFAULT_MODULES` as built in and guard its routes with `moduleGate("<id>")`.
+`DEFAULT_MODULES` as built in and guard its routes with `moduleGate("<id>")`; built-in
+modules are added automatically to catalogs that were seeded before they existed.
+
+Built-in modules today: **Department reports**, **Expenses & approvals**, **Message
+Prep** (each pastor's private sermon and study notes, with a pulpit view) and
+**Pastor's blog** (published posts appear at `/blog/<church-address>` for anyone to
+read). Formatted text in notes and posts is cleaned to a small safe subset of HTML on
+the server (`src/lib/rich-text.ts`) and again in the browser before it is shown.
 
 ## Local development
 

@@ -135,6 +135,11 @@ export function CarePortalPage() {
                   {church.data.emergencyNotice}
                 </div>
               )}
+              {church.data.blogEnabled && (
+                <a className="under-link portal-blog-link" href={`/blog/${church.data.slug}`}>
+                  Read the pastor's blog <ArrowRight size={14} />
+                </a>
+              )}
             </div>
             {receipt ? (
               <div className="receipt-success">

@@ -11,6 +11,7 @@ import { DashboardPage } from "@/pages/dashboard";
 import { ExpensesPage } from "@/pages/expenses";
 import { PrivacyPage, SupportPage, TermsPage } from "@/pages/legal";
 import { FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
+import { BlogPage, PostEditorPage, PublicBlogPage, PublicPostPage } from "@/pages/blog";
 import { MessageEditorPage, MessagesPage, PulpitPage } from "@/pages/messages";
 import { ModulesPage } from "@/pages/modules";
 import { OnboardingPage } from "@/pages/onboarding";
@@ -111,6 +112,16 @@ function Router() {
           <MessagesPage />
         </WorkspaceLayout>
       </Route>
+      <Route path="/app/blog/:id">
+        <WorkspaceLayout>
+          <PostEditorPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/blog">
+        <WorkspaceLayout>
+          <BlogPage />
+        </WorkspaceLayout>
+      </Route>
       <Route path="/app/modules">
         <WorkspaceLayout>
           <ModulesPage />
@@ -122,6 +133,8 @@ function Router() {
         </WorkspaceLayout>
       </Route>
       <Route path="/care/:slug" component={CarePortalPage} />
+      <Route path="/blog/:slug/:postId" component={PublicPostPage} />
+      <Route path="/blog/:slug" component={PublicBlogPage} />
       <Route path="/privacy" component={PrivacyPage} />
       <Route path="/terms" component={TermsPage} />
       <Route path="/support" component={SupportPage} />

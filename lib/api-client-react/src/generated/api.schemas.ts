@@ -260,6 +260,8 @@ export interface PublicChurch {
   categories: string[];
   appointmentEnabled: boolean;
   emergencyNotice: string;
+  /** The church has the Pastor's blog module switched on. */
+  blogEnabled: boolean;
 }
 
 export type PublicRequestInputType = typeof PublicRequestInputType[keyof typeof PublicRequestInputType];
@@ -988,6 +990,82 @@ export interface PlatformUser {
 
 export interface PlatformUserUpdate {
   disabled: boolean;
+}
+
+export type PostStatus = typeof PostStatus[keyof typeof PostStatus];
+
+
+export const PostStatus = {
+  draft: 'draft',
+  published: 'published',
+} as const;
+
+export interface PublicPostSummary {
+  id: string;
+  title: string;
+  /** @nullable */
+  scripture: string | null;
+  excerpt: string;
+  authorName: string;
+  /** @nullable */
+  publishedAt: string | null;
+}
+
+export type PostSummary = PublicPostSummary & {
+  status: PostStatus;
+  isMine: boolean;
+  wordCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Post = PostSummary & {
+  /** Formatted text (a safe subset of HTML). */
+  body: string;
+};
+
+export interface PostInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+}
+
+export interface PostUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title?: string;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  scripture?: string | null;
+  /** @maxLength 100000 */
+  body?: string;
+  status?: PostStatus;
+}
+
+export type PublicPost = PublicPostSummary & {
+  body: string;
+};
+
+export interface PublicBlogChurch {
+  name: string;
+  slug: string;
+  careEnabled: boolean;
+}
+
+export interface PublicBlog {
+  church: PublicBlogChurch;
+  posts: PublicPostSummary[];
+}
+
+export interface PublicPostPage {
+  church: PublicBlogChurch;
+  post: PublicPost;
 }
 
 export type MessageStatus = typeof MessageStatus[keyof typeof MessageStatus];
