@@ -11,6 +11,7 @@ import settingsPlatformRouter from "./settings-platform";
 import teamRouter from "./team";
 import platformRouter from "./platform";
 import modulesRouter from "./modules";
+import messagesRouter from "./messages";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(settingsPlatformRouter);
 router.use(teamRouter);
 router.use(platformRouter);
 router.use(modulesRouter);
+router.use(messagesRouter);
 
 export default router;

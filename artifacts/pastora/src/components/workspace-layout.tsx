@@ -7,6 +7,7 @@ import {
 } from "@workspace/api-client-react";
 import {
   Bell,
+  BookOpen,
   CalendarDays,
   ClipboardList,
   FileText,
@@ -56,6 +57,13 @@ export const navSections: { label: string; items: NavItem[] }[] = [
         roles: ["pastor", "staff"],
       },
       { href: "/app/tasks", label: "Tasks", icon: ClipboardList, roles: ["pastor", "staff", "finance", "admin"] },
+      {
+        href: "/app/messages",
+        label: "Message prep",
+        icon: BookOpen,
+        roles: ["pastor"],
+        module: "message-prep",
+      },
     ],
   },
   {
@@ -93,6 +101,7 @@ export function roleLabel(role: MemberRole | undefined): string {
 }
 
 export function pageTitle(path: string) {
+  if (path.startsWith("/app/messages/")) return "Message prep";
   return (
     (
       {
@@ -106,9 +115,15 @@ export function pageTitle(path: string) {
         "/app/team": "Team",
         "/app/settings": "Settings",
         "/app/modules": "Modules",
+        "/app/messages": "Message prep",
       } as Record<string, string>
     )[path] || "Workspace"
   );
+}
+
+/** A section stays highlighted on its sub-pages, e.g. a single message. */
+function isCurrent(loc: string, href: string) {
+  return loc === href || (href !== "/app" && loc.startsWith(`${href}/`));
 }
 
 export function WorkspaceLayout({ children }: { children: ReactNode }) {
@@ -186,8 +201,8 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
                   <Link
                     onClick={() => setMobile(false)}
                     href={item.href}
-                    className={`sidebar-link ${loc === item.href ? "active" : ""}`}
-                    aria-current={loc === item.href ? "page" : undefined}
+                    className={`sidebar-link ${isCurrent(loc, item.href) ? "active" : ""}`}
+                    aria-current={isCurrent(loc, item.href) ? "page" : undefined}
                     key={item.href}
                   >
                     <item.icon size={17} />

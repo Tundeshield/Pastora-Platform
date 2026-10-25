@@ -11,6 +11,7 @@ import { DashboardPage } from "@/pages/dashboard";
 import { ExpensesPage } from "@/pages/expenses";
 import { PrivacyPage, SupportPage, TermsPage } from "@/pages/legal";
 import { FeaturesPage, HomePage, NotFound, PricingPage } from "@/pages/marketing";
+import { MessageEditorPage, MessagesPage, PulpitPage } from "@/pages/messages";
 import { ModulesPage } from "@/pages/modules";
 import { OnboardingPage } from "@/pages/onboarding";
 import { QrPage } from "@/pages/qr-codes";
@@ -97,6 +98,17 @@ function Router() {
       <Route path="/app/team">
         <WorkspaceLayout>
           <TeamPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/messages/:id/pulpit" component={PulpitPage} />
+      <Route path="/app/messages/:id">
+        <WorkspaceLayout>
+          <MessageEditorPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/messages">
+        <WorkspaceLayout>
+          <MessagesPage />
         </WorkspaceLayout>
       </Route>
       <Route path="/app/modules">

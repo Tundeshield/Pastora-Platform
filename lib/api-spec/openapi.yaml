@@ -23,6 +23,7 @@ tags:
   - name: platform
   - name: team
   - name: modules
+  - name: messages
 paths:
   /healthz:
     get:
@@ -912,6 +913,99 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+  /messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: Your messages and study notes (Message Prep module; private to you)
+      responses:
+        "200":
+          description: Your messages, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MessageSummary"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Start a message or capture an idea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /messages/{messageId}:
+    get:
+      operationId: getMessage
+      tags: [messages]
+      summary: One of your messages
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      responses:
+        "200":
+          description: The message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Save changes to one of your messages
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageUpdate"
+      responses:
+        "200":
+          description: The saved message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete one of your messages
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /public/qr-codes/{qrCodeId}/visit:
     post:
       operationId: recordQrVisit
@@ -1004,6 +1098,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 components:
   parameters:
+    MessageId:
+      name: messageId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[A-Za-z0-9_-]{1,64}$"
     ModuleId:
       name: moduleId
       in: path
@@ -1953,6 +2054,102 @@ components:
         disabled:
           type: boolean
       required: [disabled]
+    MessageStatus:
+      type: string
+      enum: [idea, drafting, ready, preached]
+    MessageSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        series:
+          type: ["string", "null"]
+        scriptures:
+          type: ["string", "null"]
+        theme:
+          type: ["string", "null"]
+        preachDate:
+          type: ["string", "null"]
+          description: The day it will be (or was) preached, YYYY-MM-DD.
+        status:
+          $ref: "#/components/schemas/MessageStatus"
+        wordCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, title, series, scriptures, theme, preachDate, status, wordCount, createdAt, updatedAt]
+    Message:
+      allOf:
+        - $ref: "#/components/schemas/MessageSummary"
+        - type: object
+          properties:
+            outline:
+              type: string
+            study:
+              type: string
+            illustrations:
+              type: string
+            application:
+              type: string
+          required: [outline, study, illustrations, application]
+    MessageInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          $ref: "#/components/schemas/MessageStatus"
+        series:
+          type: ["string", "null"]
+          maxLength: 120
+        scriptures:
+          type: ["string", "null"]
+          maxLength: 300
+        preachDate:
+          type: ["string", "null"]
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+      required: [title]
+    MessageUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        status:
+          $ref: "#/components/schemas/MessageStatus"
+        series:
+          type: ["string", "null"]
+          maxLength: 120
+        scriptures:
+          type: ["string", "null"]
+          maxLength: 300
+        theme:
+          type: ["string", "null"]
+          maxLength: 500
+        preachDate:
+          type: ["string", "null"]
+          pattern: "^\\d{4}-\\d{2}-\\d{2}$"
+        outline:
+          type: string
+          maxLength: 50000
+        study:
+          type: string
+          maxLength: 50000
+        illustrations:
+          type: string
+          maxLength: 50000
+        application:
+          type: string
+          maxLength: 50000
     PlanTier:
       type: string
       enum: [starter, church, plus]

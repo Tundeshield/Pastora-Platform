@@ -1328,6 +1328,166 @@ export const UpdatePlatformWorkspaceAccessResponse = zod.object({
 
 
 /**
+ * @summary Your messages and study notes (Message Prep module; private to you)
+ */
+export const ListMessagesResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "series": zod.string().nullable(),
+  "scriptures": zod.string().nullable(),
+  "theme": zod.string().nullable(),
+  "preachDate": zod.string().nullable().describe('The day it will be (or was) preached, YYYY-MM-DD.'),
+  "status": zod.enum(['idea', 'drafting', 'ready', 'preached']),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListMessagesResponse = zod.array(ListMessagesResponseItem)
+
+
+/**
+ * @summary Start a message or capture an idea
+ */
+export const createMessageBodyTitleMax = 200;
+
+export const createMessageBodySeriesMax = 120;
+
+export const createMessageBodyScripturesMax = 300;
+
+export const createMessageBodyPreachDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+
+
+export const CreateMessageBody = zod.object({
+  "title": zod.string().min(1).max(createMessageBodyTitleMax),
+  "status": zod.enum(['idea', 'drafting', 'ready', 'preached']).optional(),
+  "series": zod.string().max(createMessageBodySeriesMax).nullish(),
+  "scriptures": zod.string().max(createMessageBodyScripturesMax).nullish(),
+  "preachDate": zod.string().regex(createMessageBodyPreachDateRegExp).nullish()
+})
+
+export const CreateMessageResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "series": zod.string().nullable(),
+  "scriptures": zod.string().nullable(),
+  "theme": zod.string().nullable(),
+  "preachDate": zod.string().nullable().describe('The day it will be (or was) preached, YYYY-MM-DD.'),
+  "status": zod.enum(['idea', 'drafting', 'ready', 'preached']),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "outline": zod.string(),
+  "study": zod.string(),
+  "illustrations": zod.string(),
+  "application": zod.string()
+}))
+
+
+/**
+ * @summary One of your messages
+ */
+export const getMessagePathMessageIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const GetMessageParams = zod.object({
+  "messageId": zod.coerce.string().regex(getMessagePathMessageIdRegExp)
+})
+
+export const GetMessageResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "series": zod.string().nullable(),
+  "scriptures": zod.string().nullable(),
+  "theme": zod.string().nullable(),
+  "preachDate": zod.string().nullable().describe('The day it will be (or was) preached, YYYY-MM-DD.'),
+  "status": zod.enum(['idea', 'drafting', 'ready', 'preached']),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "outline": zod.string(),
+  "study": zod.string(),
+  "illustrations": zod.string(),
+  "application": zod.string()
+}))
+
+
+/**
+ * @summary Save changes to one of your messages
+ */
+export const updateMessagePathMessageIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const UpdateMessageParams = zod.object({
+  "messageId": zod.coerce.string().regex(updateMessagePathMessageIdRegExp)
+})
+
+export const updateMessageBodyTitleMax = 200;
+
+export const updateMessageBodySeriesMax = 120;
+
+export const updateMessageBodyScripturesMax = 300;
+
+export const updateMessageBodyThemeMax = 500;
+
+export const updateMessageBodyPreachDateRegExp = new RegExp('^\\d{4}-\\d{2}-\\d{2}$');
+export const updateMessageBodyOutlineMax = 50000;
+
+export const updateMessageBodyStudyMax = 50000;
+
+export const updateMessageBodyIllustrationsMax = 50000;
+
+export const updateMessageBodyApplicationMax = 50000;
+
+
+
+export const UpdateMessageBody = zod.object({
+  "title": zod.string().min(1).max(updateMessageBodyTitleMax).optional(),
+  "status": zod.enum(['idea', 'drafting', 'ready', 'preached']).optional(),
+  "series": zod.string().max(updateMessageBodySeriesMax).nullish(),
+  "scriptures": zod.string().max(updateMessageBodyScripturesMax).nullish(),
+  "theme": zod.string().max(updateMessageBodyThemeMax).nullish(),
+  "preachDate": zod.string().regex(updateMessageBodyPreachDateRegExp).nullish(),
+  "outline": zod.string().max(updateMessageBodyOutlineMax).optional(),
+  "study": zod.string().max(updateMessageBodyStudyMax).optional(),
+  "illustrations": zod.string().max(updateMessageBodyIllustrationsMax).optional(),
+  "application": zod.string().max(updateMessageBodyApplicationMax).optional()
+})
+
+export const UpdateMessageResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "series": zod.string().nullable(),
+  "scriptures": zod.string().nullable(),
+  "theme": zod.string().nullable(),
+  "preachDate": zod.string().nullable().describe('The day it will be (or was) preached, YYYY-MM-DD.'),
+  "status": zod.enum(['idea', 'drafting', 'ready', 'preached']),
+  "wordCount": zod.number().int(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}).and(zod.object({
+  "outline": zod.string(),
+  "study": zod.string(),
+  "illustrations": zod.string(),
+  "application": zod.string()
+}))
+
+
+/**
+ * @summary Delete one of your messages
+ */
+export const deleteMessagePathMessageIdRegExp = new RegExp('^[A-Za-z0-9_-]{1,64}$');
+
+
+export const DeleteMessageParams = zod.object({
+  "messageId": zod.coerce.string().regex(deleteMessagePathMessageIdRegExp)
+})
+
+export const DeleteMessageResponse = zod.void()
+
+
+/**
  * @summary Count a visit from a scanned QR link (no personal data is stored)
  */
 export const RecordQrVisitParams = zod.object({

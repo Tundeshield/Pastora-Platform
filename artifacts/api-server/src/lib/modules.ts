@@ -73,16 +73,16 @@ export const DEFAULT_MODULES: ModuleRecord[] = [
   },
   {
     id: "message-prep",
-    name: "Message & Meeting Prep",
+    name: "Message Prep",
     description:
-      "Prepare sermons, teaching notes and meeting agendas, record meeting notes and decisions, and turn decisions into follow-ups. Private to each pastor unless shared.",
-    status: "coming_soon",
+      "Prepare Sunday messages and Bible studies: capture ideas through the week, build the outline, keep study notes and illustrations, and preach from a clean pulpit view. Private to each pastor.",
+    status: "available",
     plan: "church",
     roles: ["pastor"],
     priceNote: null,
-    builtin: false,
+    builtin: true,
     sortOrder: 30,
-    defaultEnabled: false,
+    defaultEnabled: true,
   },
   {
     id: "messaging",
@@ -202,7 +202,11 @@ export function moduleFrom(id: string, data: Record<string, unknown> | undefined
     // Only modules backed by product code are built in, whatever is stored.
     builtin: BUILTIN_IDS.has(id),
     sortOrder: typeof data?.sortOrder === "number" ? data.sortOrder : (fallback?.sortOrder ?? 1000),
-    defaultEnabled: typeof data?.defaultEnabled === "boolean" ? data.defaultEnabled : (fallback?.defaultEnabled ?? false),
+    // Built-in modules take their default from the product code (it knows what they do).
+    defaultEnabled:
+      fallback?.builtin || typeof data?.defaultEnabled !== "boolean"
+        ? (fallback?.defaultEnabled ?? false)
+        : data.defaultEnabled,
   };
 }
 

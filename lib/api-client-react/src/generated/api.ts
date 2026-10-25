@@ -40,6 +40,10 @@ import type {
   InvitationInput,
   ListRequestsParams,
   MemberUpdate,
+  Message,
+  MessageInput,
+  MessageSummary,
+  MessageUpdate,
   ModuleInput,
   ModuleSuggestionInput,
   ModuleUpdate,
@@ -4020,6 +4024,411 @@ export const useUpdatePlatformWorkspaceAccess = <TError = ErrorType<BadRequestRe
         TContext
       > => {
       return useMutation(getUpdatePlatformWorkspaceAccessMutationOptions(options));
+    }
+
+export const getListMessagesUrl = () => {
+
+
+
+
+  return `/api/messages`
+}
+
+/**
+ * @summary Your messages and study notes (Message Prep module; private to you)
+ */
+export const listMessages = async ( options?: Parameters<typeof customFetch>[1]): Promise<MessageSummary[]> => {
+
+  return customFetch<MessageSummary[]>(getListMessagesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListMessagesQueryKey = () => {
+    return [
+    `/api/messages`
+    ] as const;
+    }
+
+
+export const getListMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listMessages>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListMessagesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMessages>>> = ({ signal }) => listMessages({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listMessages>>>
+export type ListMessagesQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary Your messages and study notes (Message Prep module; private to you)
+ */
+
+export function useListMessages<TData = Awaited<ReturnType<typeof listMessages>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListMessagesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateMessageUrl = () => {
+
+
+
+
+  return `/api/messages`
+}
+
+/**
+ * @summary Start a message or capture an idea
+ */
+export const createMessage = async (messageInput: MessageInput, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Message>(getCreateMessageUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(messageInput)
+  }
+);}
+
+
+
+
+
+export const getCreateMessageMutationKey = () => ['createMessage'] as const;
+
+export const getCreateMessageMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,CreateMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,CreateMessageMutationVariables, TContext> => {
+
+const mutationKey = getCreateMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createMessage>>, CreateMessageMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createMessage(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateMessageMutationResult = NonNullable<Awaited<ReturnType<typeof createMessage>>>
+    export type CreateMessageMutationBody = BodyType<MessageInput>
+    export type CreateMessageMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+    export type CreateMessageMutationVariables = {data: BodyType<MessageInput>}
+
+    /**
+ * @summary Start a message or capture an idea
+ */
+export const useCreateMessage = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMessage>>, TError,CreateMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createMessage>>,
+        TError,
+        CreateMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateMessageMutationOptions(options));
+    }
+
+export const getGetMessageUrl = (messageId: string,) => {
+
+
+
+
+  return `/api/messages/${messageId}`
+}
+
+/**
+ * @summary One of your messages
+ */
+export const getMessage = async (messageId: string, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+  return customFetch<Message>(getGetMessageUrl(messageId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetMessageQueryKey = (messageId: string,) => {
+    return [
+    `/api/messages/${messageId}`
+    ] as const;
+    }
+
+
+export const getGetMessageQueryOptions = <TData = Awaited<ReturnType<typeof getMessage>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(messageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetMessageQueryKey(messageId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getMessage>>> = ({ signal }) => getMessage(messageId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: messageId !== null && messageId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetMessageQueryResult = NonNullable<Awaited<ReturnType<typeof getMessage>>>
+export type GetMessageQueryError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary One of your messages
+ */
+
+export function useGetMessage<TData = Awaited<ReturnType<typeof getMessage>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(
+ messageId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getMessage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetMessageQueryOptions(messageId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateMessageUrl = (messageId: string,) => {
+
+
+
+
+  return `/api/messages/${messageId}`
+}
+
+/**
+ * @summary Save changes to one of your messages
+ */
+export const updateMessage = async (messageId: string,
+    messageUpdate: MessageUpdate, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Message>(getUpdateMessageUrl(messageId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(messageUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMessageMutationKey = () => ['updateMessage'] as const;
+
+export const getUpdateMessageMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,UpdateMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,UpdateMessageMutationVariables, TContext> => {
+
+const mutationKey = getUpdateMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMessage>>, UpdateMessageMutationVariables> = (props) => {
+          const {messageId,data} = props ?? {};
+
+          return  updateMessage(messageId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMessageMutationResult = NonNullable<Awaited<ReturnType<typeof updateMessage>>>
+    export type UpdateMessageMutationBody = BodyType<MessageUpdate>
+    export type UpdateMessageMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdateMessageMutationVariables = {messageId: string;data: BodyType<MessageUpdate>}
+
+    /**
+ * @summary Save changes to one of your messages
+ */
+export const useUpdateMessage = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMessage>>, TError,UpdateMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMessage>>,
+        TError,
+        UpdateMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateMessageMutationOptions(options));
+    }
+
+export const getDeleteMessageUrl = (messageId: string,) => {
+
+
+
+
+  return `/api/messages/${messageId}`
+}
+
+/**
+ * @summary Delete one of your messages
+ */
+export const deleteMessage = async (messageId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getDeleteMessageUrl(messageId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteMessageMutationKey = () => ['deleteMessage'] as const;
+
+export const getDeleteMessageMutationOptions = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,DeleteMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,DeleteMessageMutationVariables, TContext> => {
+
+const mutationKey = getDeleteMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMessage>>, DeleteMessageMutationVariables> = (props) => {
+          const {messageId} = props ?? {};
+
+          return  deleteMessage(messageId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMessageMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMessage>>>
+
+    export type DeleteMessageMutationError = ErrorType<ForbiddenResponse | NotFoundResponse>
+    export type DeleteMessageMutationVariables = {messageId: string}
+
+    /**
+ * @summary Delete one of your messages
+ */
+export const useDeleteMessage = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMessage>>, TError,DeleteMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMessage>>,
+        TError,
+        DeleteMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteMessageMutationOptions(options));
     }
 
 export const getRecordQrVisitUrl = (qrCodeId: string,) => {

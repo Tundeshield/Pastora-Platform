@@ -845,13 +845,13 @@ describe("modules", () => {
   test("during early access, reports and expenses are on by default", async () => {
     const pastor = await ownerWithChurch();
     const session = await call("GET", "/session", pastor.token);
-    assert.deepEqual(session.body.modules.sort(), ["expenses", "reports"]);
+    assert.deepEqual(session.body.modules.sort(), ["expenses", "message-prep", "reports"]);
     const list = await call("GET", "/modules", pastor.token);
     assert.equal(list.status, 200);
     assert.equal(list.body.earlyAccess, true);
-    const prep = list.body.modules.find((m: Json) => m.id === "message-prep");
-    assert.equal(prep.status, "coming_soon");
-    assert.equal(prep.active, false);
+    const sms = list.body.modules.find((m: Json) => m.id === "messaging");
+    assert.equal(sms.status, "coming_soon");
+    assert.equal(sms.active, false);
   });
 
   test("pastors and admins switch modules; switched-off modules are closed on the server", async () => {
@@ -866,14 +866,14 @@ describe("modules", () => {
     assert.equal(off.body.active, false);
     assert.equal((await call("GET", "/reports", staff.token)).status, 403);
     assert.equal((await call("POST", "/reports", staff.token, report)).status, 403);
-    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules, ["expenses"]);
+    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules.sort(), ["expenses", "message-prep"]);
     assert.ok(db.all("notifications").some((n) => n.uid === pastor.uid && /turned off/.test(String(n.title))));
 
     await call("PATCH", "/modules/reports", pastor.token, { enabled: true });
     assert.equal((await call("POST", "/reports", staff.token, report)).status, 201);
     // Upcoming modules can't be switched on, but churches can say they'd use them.
-    assert.equal((await call("PATCH", "/modules/message-prep", pastor.token, { enabled: true })).status, 400);
-    const keen = await call("PATCH", "/modules/message-prep", pastor.token, { interested: true });
+    assert.equal((await call("PATCH", "/modules/messaging", pastor.token, { enabled: true })).status, 400);
+    const keen = await call("PATCH", "/modules/messaging", pastor.token, { interested: true });
     assert.equal(keen.body.interested, true);
   });
 
@@ -954,5 +954,59 @@ describe("modules", () => {
 
     const actions = (await call("GET", "/platform/audit", ops.token)).body.map((e: Json) => e.action);
     for (const action of ["module_created", "module_updated", "module_deleted"]) assert.ok(actions.includes(action), action);
+  });
+});
+
+describe("Message Prep", () => {
+  test("a pastor captures an idea, writes a message and sees only their own", async () => {
+    const pastor = await ownerWithChurch();
+    const idea = await call("POST", "/messages", pastor.token, { title: "The vine and the branches", status: "idea" });
+    assert.equal(idea.status, 201, JSON.stringify(idea.body));
+    assert.equal(idea.body.status, "idea");
+
+    const saved = await call("PATCH", `/messages/${idea.body.id}`, pastor.token, {
+      status: "drafting",
+      scriptures: "John 15:1-11",
+      series: "Abide",
+      preachDate: "2026-11-01",
+      theme: "Fruit comes from staying close to Jesus.",
+      outline: "1. The vine\n2. The pruning\n3. The fruit",
+      application: "Stay connected this week.",
+    });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.body.wordCount, 13);
+    assert.equal(saved.body.preachDate, "2026-11-01");
+    assert.equal((await call("GET", `/messages/${idea.body.id}`, pastor.token)).body.outline, "1. The vine\n2. The pruning\n3. The fruit");
+    assert.equal((await call("PATCH", `/messages/${idea.body.id}`, pastor.token, { preachDate: "next sunday" })).status, 400);
+
+    // Another pastor in the same church cannot see or touch it.
+    const colleague = await member(pastor.token, "pastor");
+    assert.equal((await call("GET", "/messages", colleague.token)).body.length, 0);
+    assert.equal((await call("GET", `/messages/${idea.body.id}`, colleague.token)).status, 404);
+    assert.equal((await call("PATCH", `/messages/${idea.body.id}`, colleague.token, { title: "Mine now" })).status, 404);
+    assert.equal((await call("DELETE", `/messages/${idea.body.id}`, colleague.token)).status, 404);
+
+    assert.equal((await call("GET", "/messages", pastor.token)).body.length, 1);
+    assert.equal((await call("DELETE", `/messages/${idea.body.id}`, pastor.token)).status, 204);
+    assert.equal((await call("GET", "/messages", pastor.token)).body.length, 0);
+  });
+
+  test("is for pastors only, and closed when the module is off", async () => {
+    const pastor = await ownerWithChurch();
+    for (const role of ["staff", "admin", "finance"]) {
+      const person = await member(pastor.token, role);
+      assert.equal((await call("GET", "/messages", person.token)).status, 403, role);
+      assert.equal((await call("POST", "/messages", person.token, { title: "x" })).status, 403, role);
+    }
+    await call("PATCH", "/modules/message-prep", pastor.token, { enabled: false });
+    assert.equal((await call("GET", "/messages", pastor.token)).status, 403);
+    // Pastora's admin tools never see message content.
+    await call("PATCH", "/modules/message-prep", pastor.token, { enabled: true });
+    await call("POST", "/messages", pastor.token, { title: "Hidden sermon title" });
+    const ops = user({ email: "ops2@pastora.test" });
+    auth.users.get(ops.uid)!.platformAdmin = true;
+    for (const path of ["/platform/workspaces", `/platform/workspaces/${pastor.church.id}`, "/platform/users", "/platform/modules"]) {
+      assert.ok(!JSON.stringify((await call("GET", path, ops.token)).body).includes("Hidden sermon title"), path);
+    }
   });
 });

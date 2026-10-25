@@ -990,6 +990,104 @@ export interface PlatformUserUpdate {
   disabled: boolean;
 }
 
+export type MessageStatus = typeof MessageStatus[keyof typeof MessageStatus];
+
+
+export const MessageStatus = {
+  idea: 'idea',
+  drafting: 'drafting',
+  ready: 'ready',
+  preached: 'preached',
+} as const;
+
+export interface MessageSummary {
+  id: string;
+  title: string;
+  /** @nullable */
+  series: string | null;
+  /** @nullable */
+  scriptures: string | null;
+  /** @nullable */
+  theme: string | null;
+  /**
+     * The day it will be (or was) preached, YYYY-MM-DD.
+     * @nullable
+     */
+  preachDate: string | null;
+  status: MessageStatus;
+  wordCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type Message = MessageSummary & {
+  outline: string;
+  study: string;
+  illustrations: string;
+  application: string;
+};
+
+export interface MessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title: string;
+  status?: MessageStatus;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  series?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  scriptures?: string | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  preachDate?: string | null;
+}
+
+export interface MessageUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  title?: string;
+  status?: MessageStatus;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  series?: string | null;
+  /**
+     * @maxLength 300
+     * @nullable
+     */
+  scriptures?: string | null;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  theme?: string | null;
+  /**
+     * @nullable
+     * @pattern ^\d{4}-\d{2}-\d{2}$
+     */
+  preachDate?: string | null;
+  /** @maxLength 50000 */
+  outline?: string;
+  /** @maxLength 50000 */
+  study?: string;
+  /** @maxLength 50000 */
+  illustrations?: string;
+  /** @maxLength 50000 */
+  application?: string;
+}
+
 /**
  * Lowest plan that includes the module; "addon" is sold or granted separately.
  */
