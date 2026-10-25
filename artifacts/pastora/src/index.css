@@ -659,3 +659,19 @@ body { font-size: calc(16px * var(--text-scale)); }
 .sidebar-nav { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; align-content:start; margin:0 -8px; padding:0 8px 12px; scrollbar-width:thin; scrollbar-color:hsl(var(--sidebar-border)) transparent; }
 .sidebar-nav::-webkit-scrollbar { width:6px; }
 .sidebar-nav::-webkit-scrollbar-thumb { background:hsl(var(--sidebar-border)); border-radius:6px; }
+
+/* Sidebar sections fold open and closed; a fade shows there's more to scroll. */
+.sidebar-section { display:grid; }
+.sidebar-toggle { display:flex; align-items:center; gap:6px; width:100%; border:0; background:transparent; text-align:left; cursor:pointer; padding:6px 10px; margin:0 0 4px; border-radius:6px; }
+.sidebar-toggle span { flex:1; }
+.sidebar-toggle small { min-width:18px; padding:1px 6px; border-radius:10px; background:hsl(var(--background)/.75); color:hsl(var(--muted-foreground)); font-size:calc(8px * var(--text-scale)); letter-spacing:0; text-align:center; }
+.sidebar-toggle svg { flex:none; transition:transform .2s ease; color:hsl(var(--muted-foreground)); }
+.sidebar-toggle svg.closed { transform:rotate(-90deg); }
+.sidebar-toggle:hover:not(:disabled) { background:hsl(var(--background)/.55); color:hsl(var(--foreground)); }
+.sidebar-toggle:disabled { cursor:default; }
+.sidebar-toggle:disabled svg { opacity:.35; }
+.sidebar-toggle:focus-visible { outline:2px solid hsl(var(--ring)); outline-offset:1px; }
+.sidebar-nav { gap:14px; }
+.sidebar-nav.more-below { -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 44px), transparent); mask-image:linear-gradient(to bottom, #000 calc(100% - 44px), transparent); }
+.sidebar-nav.more-above.more-below { -webkit-mask-image:linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 44px), transparent); mask-image:linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 44px), transparent); }
+.sidebar-nav.more-above:not(.more-below) { -webkit-mask-image:linear-gradient(to bottom, transparent, #000 28px); mask-image:linear-gradient(to bottom, transparent, #000 28px); }

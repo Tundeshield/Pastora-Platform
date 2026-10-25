@@ -9,6 +9,7 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
+  ChevronDown,
   ClipboardList,
   FileText,
   HeartHandshake,
@@ -25,7 +26,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 
 import { RequireWorkspace, useAuth, useSession } from "@/auth";
@@ -138,6 +139,111 @@ export function WorkspaceLayout({ children }: { children: ReactNode }) {
   );
 }
 
+const COLLAPSED_KEY = "pastora-sidebar-collapsed";
+
+function readCollapsed(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]");
+    return Array.isArray(value) ? value.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The menu: each section folds open or closed (remembered in this browser), the
+ * section holding the current page is always open, and a soft fade at the bottom
+ * shows when there is more to scroll to.
+ */
+function SidebarNav({
+  sections,
+  loc,
+  onNavigate,
+}: {
+  sections: { label: string; items: NavItem[] }[];
+  loc: string;
+  onNavigate: () => void;
+}) {
+  const [collapsed, setCollapsed] = useState<string[]>(readCollapsed);
+  const [more, setMore] = useState({ above: false, below: false });
+  const navRef = useRef<HTMLElement>(null);
+
+  const toggle = (label: string) =>
+    setCollapsed((current) => {
+      const next = current.includes(label) ? current.filter((l) => l !== label) : [...current, label];
+      try {
+        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next));
+      } catch {
+        // The menu still works; the choice just isn't remembered.
+      }
+      return next;
+    });
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const update = () =>
+      setMore({
+        above: nav.scrollTop > 2,
+        below: nav.scrollTop + nav.clientHeight < nav.scrollHeight - 2,
+      });
+    update();
+    nav.addEventListener("scroll", update, { passive: true });
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    for (const child of Array.from(nav.children)) observer.observe(child);
+    return () => {
+      nav.removeEventListener("scroll", update);
+      observer.disconnect();
+    };
+  }, [sections.length, collapsed]);
+
+  return (
+    <nav
+      ref={navRef}
+      className={`sidebar-nav ${more.above ? "more-above" : ""} ${more.below ? "more-below" : ""}`}
+      aria-label="Workspace"
+    >
+      {sections.map((section) => {
+        const holdsCurrent = section.items.some((item) => isCurrent(loc, item.href));
+        const open = holdsCurrent || !collapsed.includes(section.label);
+        const id = `nav-${section.label.toLowerCase().replace(/\W+/g, "-")}`;
+        return (
+          <div key={section.label} className="sidebar-section">
+            <button
+              type="button"
+              className="sidebar-label sidebar-toggle"
+              aria-expanded={open}
+              aria-controls={id}
+              disabled={holdsCurrent}
+              title={holdsCurrent ? "Contains the page you're on" : open ? "Collapse" : "Expand"}
+              onClick={() => toggle(section.label)}
+            >
+              <span>{section.label}</span>
+              {!open && <small>{section.items.length}</small>}
+              <ChevronDown size={14} className={open ? "" : "closed"} aria-hidden="true" />
+            </button>
+            <div id={id} hidden={!open}>
+              {section.items.map((item) => (
+                <Link
+                  onClick={onNavigate}
+                  href={item.href}
+                  className={`sidebar-link ${isCurrent(loc, item.href) ? "active" : ""}`}
+                  aria-current={isCurrent(loc, item.href) ? "page" : undefined}
+                  key={item.href}
+                >
+                  <item.icon size={17} />
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
 function WorkspaceShell({ children }: { children: ReactNode }) {
   const [loc, setLocation] = useLocation();
   const [mobile, setMobile] = useState(false);
@@ -191,32 +297,19 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
             <small>{roleLabel(role)}</small>
           </span>
         </div>
-        <nav className="sidebar-nav" aria-label="Workspace">
-          {navSections.map((section) => {
-            const items = section.items.filter(
-              (item) =>
-                (!role || item.roles.includes(role)) && (!item.module || activeModules.includes(item.module)),
-            );
-            if (!items.length) return null;
-            return (
-              <div key={section.label}>
-                <p className="sidebar-label">{section.label}</p>
-                {items.map((item) => (
-                  <Link
-                    onClick={() => setMobile(false)}
-                    href={item.href}
-                    className={`sidebar-link ${isCurrent(loc, item.href) ? "active" : ""}`}
-                    aria-current={isCurrent(loc, item.href) ? "page" : undefined}
-                    key={item.href}
-                  >
-                    <item.icon size={17} />
-                    <span>{item.label}</span>
-                  </Link>
-                ))}
-              </div>
-            );
-          })}
-        </nav>
+        <SidebarNav
+          sections={navSections
+            .map((section) => ({
+              ...section,
+              items: section.items.filter(
+                (item) =>
+                  (!role || item.roles.includes(role)) && (!item.module || activeModules.includes(item.module)),
+              ),
+            }))
+            .filter((section) => section.items.length > 0)}
+          loc={loc}
+          onNavigate={() => setMobile(false)}
+        />
         <div className="sidebar-bottom">
           {(role === "pastor" || role === "admin") && (
             <Link
