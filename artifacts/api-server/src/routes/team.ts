@@ -1,3 +1,4 @@
+import { emailInvitation } from "../lib/email";
 import { Router, type IRouter } from "express";
 import {
   CreateInvitationBody,
@@ -231,6 +232,13 @@ router.post("/team/invitations", firebaseAuth, async (req, res): Promise<void> =
     });
     await audit(context.churchId, user.uid, "invitation_created", ref.id, { role: parsed.data.role });
     await tellPastors(context.churchId, `invite_${ref.id}`, `${email} was invited as ${ROLE_NAMES[parsed.data.role]}.`);
+    await emailInvitation({
+      churchId: context.churchId,
+      to: email,
+      roleName: ROLE_NAMES[parsed.data.role],
+      inviterName: user.name || user.email || "Your pastor",
+      hasAccount: Boolean(existingUser),
+    }).catch((emailError) => req.log.warn({ emailError }, "Invitation email not sent"));
     const saved = await ref.get();
     res.status(201).json(
       CreateInvitationResponse.parse({

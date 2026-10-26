@@ -3,11 +3,15 @@ import {
   CreateWorkspaceBody,
   CreateWorkspaceResponse,
   GetDashboardResponse,
+  GetEmailPreferencesResponse,
+  SaveEmailPreferencesBody,
+  SaveEmailPreferencesResponse,
   GetSessionResponse,
   GetSetupStatusResponse,
   ListPlansResponse,
 } from "@workspace/api-zod";
 import type { DecodedIdToken } from "firebase-admin/auth";
+import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAuth } from "../middlewares/firebase-auth";
 import {
   authenticatedUser,
@@ -21,6 +25,7 @@ import {
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
 import { appearanceFrom, can, canSeeRequest, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
 import { activeModules } from "../lib/modules";
+import { emailConfigured, preferencesFrom } from "../lib/email";
 import {
   acceptPendingInvitation,
   createWorkspaceForUser,
@@ -37,8 +42,58 @@ router.get("/setup/status", (_req, res) => {
       firebaseConfigured: configured,
       publicPortalEnabled: configured,
       billingProviderConfigured: Boolean(process.env.PAYMENT_WEBHOOK_SECRET),
+      emailConfigured: emailConfigured(),
     }),
   );
+});
+
+async function emailPreferencesFor(uid: string, email: string | undefined) {
+  const { db } = getFirebaseServices();
+  const stored = await db.collection("emailPreferences").doc(uid).get();
+  return GetEmailPreferencesResponse.parse({
+    ...preferencesFrom(stored.data()),
+    email: email ?? null,
+    emailConfigured: emailConfigured(),
+  });
+}
+
+router.get("/me/email-preferences", firebaseAuth, async (req, res): Promise<void> => {
+  const user = authenticatedUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Sign in first." });
+    return;
+  }
+  try {
+    res.json(await emailPreferencesFor(user.uid, user.email));
+  } catch (error) {
+    if (failFirebaseSetup(res, error)) return;
+    res.status(400).json({ error: errorMessage(error, "Unable to load your email settings.") });
+  }
+});
+
+router.put("/me/email-preferences", firebaseAuth, async (req, res): Promise<void> => {
+  const user = authenticatedUser(req);
+  const parsed = SaveEmailPreferencesBody.safeParse(req.body);
+  if (!user) {
+    res.status(401).json({ error: "Sign in first." });
+    return;
+  }
+  if (!parsed.success) {
+    res.status(400).json({ error: "Choose on or off for each kind of email." });
+    return;
+  }
+  try {
+    const { db } = getFirebaseServices();
+    await db.collection("emailPreferences").doc(user.uid).set({
+      uid: user.uid,
+      ...parsed.data,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    res.json(SaveEmailPreferencesResponse.parse(await emailPreferencesFor(user.uid, user.email)));
+  } catch (error) {
+    if (failFirebaseSetup(res, error)) return;
+    res.status(400).json({ error: errorMessage(error, "Unable to save your email settings.") });
+  }
 });
 
 router.get("/plans", (_req, res) => {

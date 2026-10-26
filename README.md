@@ -39,6 +39,21 @@ storage.rules          Deny-all: uploads are not enabled yet
   whole care page) and can carry its own heading and line of text. The campaign is taken from the link on
   the server, and the QR page can download a printable poster.
 
+## Email
+
+Pastora emails people when something needs them, with a button into the app. Emails never contain
+pastoral content (no prayer text, counselling details or notes).
+
+- Team: new requests and bookings (to whoever handles them), tasks assigned or completed, reports to
+  review or reviewed, expenses to approve, answered, ready to pay or paid, team changes, invitations.
+- Visitors who give an email: a receipt for prayer/counselling/questions, and booking emails (held,
+  confirmed, declined, cancelled).
+- Each person chooses categories under **Your account** (click your name in the sidebar).
+
+Sending uses [Resend](https://resend.com). Set in Netlify: `RESEND_API_KEY`, `EMAIL_FROM` (e.g.
+`Pastora <notifications@your-domain>`; the domain must be verified in Resend), optional `EMAIL_REPLY_TO`
+and `PUBLIC_APP_URL`. Without them nothing is sent and the app works as before.
+
 ## Roles
 
 Pastora keeps roles few, and a role is only a starting point: on the Team page a

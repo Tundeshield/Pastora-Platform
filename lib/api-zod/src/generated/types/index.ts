@@ -28,6 +28,8 @@ export * from './churchSettingsTheme';
 export * from './dashboardSummary';
 export * from './departmentReport';
 export * from './departmentReportStatus';
+export * from './emailPreferences';
+export * from './emailPreferencesInput';
 export * from './expenseInput';
 export * from './expenseRequest';
 export * from './expenseRequestCurrency';

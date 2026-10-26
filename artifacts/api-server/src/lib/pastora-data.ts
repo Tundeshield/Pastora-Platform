@@ -1,3 +1,4 @@
+import { emailTeam } from "./email";
 import type { Request, Response } from "express";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import {
@@ -192,6 +193,15 @@ export function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+/** Emails never block or fail the action that triggered them. */
+async function emailQuietly(churchId: string, uids: string[], type: string, title: string, targetPath: string) {
+  try {
+    await emailTeam(churchId, uids, type, title, targetPath);
+  } catch {
+    // Email is a courtesy; the in-app notification is already saved.
+  }
+}
+
 export type NotificationType =
   | "pastoral_request"
   | "appointment"
@@ -220,6 +230,7 @@ export async function notifyChurchMembers(
     .where("active", "==", true)
     .get();
   const batch = db.batch();
+  const recipients: string[] = [];
   let writes = 0;
   for (const member of memberships.docs) {
     const data = member.data();
@@ -230,9 +241,11 @@ export async function notifyChurchMembers(
       { churchId, uid: data.uid, type, title, targetPath, read: false, createdAt: FieldValue.serverTimestamp() },
       { merge: true },
     );
+    recipients.push(data.uid);
     writes += 1;
   }
   if (writes > 0) await batch.commit();
+  await emailQuietly(churchId, recipients, type, title, targetPath);
 }
 
 export async function notifyChurchRoles(
@@ -250,11 +263,13 @@ export async function notifyChurchRoles(
     .where("active", "==", true)
     .get();
   const batch = db.batch();
+  const recipients: string[] = [];
   let writes = 0;
   for (const member of memberships.docs) {
     const data = member.data();
     const role = normalizeRole(data.role);
     if (!role || !roles.includes(role) || typeof data.uid !== "string") continue;
+    recipients.push(data.uid);
     const ref = db
       .collection("notifications")
       .doc(`${eventId}_${data.uid}`);
@@ -274,6 +289,7 @@ export async function notifyChurchRoles(
     writes += 1;
   }
   if (writes > 0) await batch.commit();
+  await emailQuietly(churchId, recipients, type, title, targetPath);
 }
 
 export async function notifyChurchUser(
@@ -300,4 +316,5 @@ export async function notifyChurchUser(
       },
       { merge: true },
     );
+  await emailQuietly(churchId, [uid], type, title, targetPath);
 }

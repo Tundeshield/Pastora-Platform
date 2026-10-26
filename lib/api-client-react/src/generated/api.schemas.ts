@@ -17,7 +17,25 @@ export interface SetupStatus {
   firebaseConfigured: boolean;
   publicPortalEnabled: boolean;
   billingProviderConfigured: boolean;
+  /** Pastora can send emails (an email provider is connected). */
+  emailConfigured: boolean;
 }
+
+export interface EmailPreferencesInput {
+  /** Prayer requests, counselling and enquiries (never their content). */
+  care: boolean;
+  appointments: boolean;
+  /** Tasks, reports and expenses. */
+  work: boolean;
+  /** Team and module changes. */
+  team: boolean;
+}
+
+export type EmailPreferences = EmailPreferencesInput & ({
+  /** @nullable */
+  email: string | null;
+  emailConfigured: boolean;
+});
 
 /**
  * Church roles. A role is a starting point: it sets a person's default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.

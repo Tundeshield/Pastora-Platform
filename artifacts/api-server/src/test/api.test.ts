@@ -16,6 +16,9 @@ process.env.PUBLIC_SUBMISSIONS_PER_MINUTE = "10000";
 const { FakeAuth, FakeFirestore } = await import("./fake-firebase");
 const { setFirebaseServicesForTesting } = await import("../lib/firebase-admin");
 const { default: app } = await import("../app");
+const { setEmailSenderForTesting } = await import("../lib/email");
+type SentEmail = { to: string; subject: string; html: string; text: string };
+let sent: SentEmail[] = [];
 
 let server: Server;
 let baseUrl = "";
@@ -33,6 +36,10 @@ beforeEach(() => {
   db = new FakeFirestore();
   auth = new FakeAuth();
   setFirebaseServicesForTesting({ app: {} as never, auth: auth as never, db: db as never });
+  sent = [];
+  setEmailSenderForTesting(async (email) => {
+    sent.push(email);
+  });
 });
 
 type Json = Record<string, any>;
@@ -646,6 +653,81 @@ describe("booking and QR links", () => {
     assert.equal(stored?.campaign, "Harvest Sunday", "the campaign comes from the link, not the browser");
     await call("PATCH", `/qr-codes/${created.body.id}`, owner.token, { active: false });
     assert.equal((await call("GET", `/public/churches/${owner.church.slug}/links/${created.body.id}`)).status, 404);
+  });
+});
+
+describe("emails", () => {
+  const to = (addr: string) => sent.filter((e) => e.to === addr);
+
+  test("a prayer request emails the pastor and the person, without repeating what they wrote", async () => {
+    const owner = await ownerWithChurch();
+    const r = await publicRequest(owner.church.slug, {
+      type: "prayer",
+      name: "Ola",
+      contact: "ola@example.test",
+      message: "Secret burden about my family",
+    });
+    assert.equal(r.status, 201);
+    assert.equal(to(owner.email).length, 1);
+    assert.equal(to("ola@example.test").length, 1);
+    for (const e of sent) {
+      assert.ok(!e.html.includes("Secret burden") && !e.text.includes("Secret burden"), "no pastoral content in email");
+    }
+    assert.match(to(owner.email)[0].text, /Open in Pastora: https:\/\/.+\/app\/requests/);
+  });
+
+  test("people choose which emails they get", async () => {
+    const owner = await ownerWithChurch();
+    const prefs = await call("GET", "/me/email-preferences", owner.token);
+    assert.equal(prefs.status, 200);
+    assert.equal(prefs.body.care, true);
+    assert.equal(prefs.body.emailConfigured, true);
+    const saved = await call("PUT", "/me/email-preferences", owner.token, { care: false, appointments: true, work: true, team: true });
+    assert.equal(saved.body.care, false);
+    await publicRequest(owner.church.slug, { type: "general", message: "Service times?" });
+    assert.equal(to(owner.email).length, 0);
+  });
+
+  test("bookings email the visitor, and again when the pastor answers", async () => {
+    const owner = await ownerWithChurch();
+    await call("PUT", "/availability", owner.token, {
+      bookingEnabled: true,
+      weekly: [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, start: "06:00", end: "22:00" })),
+      meetingMinutes: 30, bufferMinutes: 0, noticeHours: 0, horizonDays: 7,
+      autoConfirm: false, formats: ["phone"], location: null, timeOff: [],
+    });
+    const slot = (await call("GET", `/public/churches/${owner.church.slug}/slots`)).body.days[0].slots[0];
+    await publicRequest(owner.church.slug, { type: "appointment", name: "Tolu", contact: "tolu@example.test", message: "Wedding", preferredDate: slot });
+    assert.match(to("tolu@example.test")[0].subject, /held/);
+    const appt = (await call("GET", "/appointments", owner.token)).body[0];
+    await call("PATCH", `/appointments/${appt.id}`, owner.token, { status: "confirmed" });
+    assert.equal(to("tolu@example.test").length, 2);
+    assert.match(to("tolu@example.test")[1].subject, /booked/);
+    assert.ok(!to("tolu@example.test")[1].text.includes("Wedding"));
+  });
+
+  test("tasks, expenses and invitations reach the right people", async () => {
+    const owner = await ownerWithChurch();
+    const staff = await member(owner.token, "staff");
+    const finance = await member(owner.token, "finance");
+    const invited = sent.filter((e) => e.to === staff.email && /invited/.test(e.subject));
+    assert.equal(invited.length, 1, "the invitee gets an invitation email");
+    sent = [];
+    await call("POST", "/tasks", owner.token, { title: "Visit Mrs Ola", priority: "high", assignedTo: staff.uid });
+    assert.match(to(staff.email)[0].subject, /Visit Mrs Ola/);
+    const expense = await call("POST", "/expenses", staff.token, { description: "Chairs", purpose: "Youth hall", amount: 1000 });
+    assert.equal(to(owner.email).length, 1, "the pastor hears about a new expense");
+    await call("PATCH", `/expenses/${expense.body.id}`, owner.token, { status: "approved" });
+    assert.ok(to(staff.email).some((e) => /approved/.test(e.subject)));
+    assert.ok(to(finance.email).some((e) => /ready to be paid/.test(e.subject)));
+  });
+
+  test("nothing is sent and nothing breaks when email isn't connected", async () => {
+    setEmailSenderForTesting(null);
+    const owner = await ownerWithChurch();
+    assert.equal((await publicRequest(owner.church.slug, { type: "prayer", contact: "a@b.test", message: "x" })).status, 201);
+    assert.equal((await call("GET", "/setup/status")).body.emailConfigured, false);
+    assert.equal(sent.length, 0);
   });
 });
 

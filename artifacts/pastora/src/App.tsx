@@ -17,6 +17,7 @@ import { MessageEditorPage, MessagesPage, PulpitPage } from "@/pages/messages";
 import { ModulesPage } from "@/pages/modules";
 import { OnboardingPage } from "@/pages/onboarding";
 import { QrPage } from "@/pages/qr-codes";
+import { AccountPage } from "@/pages/account";
 import { ReportsPage } from "@/pages/reports";
 import { RequestsPage } from "@/pages/requests";
 import { SettingsPage } from "@/pages/settings";
@@ -157,6 +158,11 @@ function Router() {
       <Route path="/app/modules">
         <WorkspaceLayout>
           <ModulesPage />
+        </WorkspaceLayout>
+      </Route>
+      <Route path="/app/account">
+        <WorkspaceLayout>
+          <AccountPage />
         </WorkspaceLayout>
       </Route>
       <Route path="/app/settings">

@@ -15,7 +15,9 @@ import {
   errorMessage,
   failFirebaseSetup,
   listTenantDocuments,
+  notifyChurchMembers,
   notifyChurchRoles,
+  notifyChurchUser,
   recordWithId,
   tenantFor,
 } from "../lib/pastora-data";
@@ -235,6 +237,31 @@ router.patch("/expenses/:expenseId", firebaseAuth,
     }
     const record = { ref };
     const saved = await record.ref.get();
+    try {
+      const requester = saved.get("requesterId");
+      const what = String(saved.get("description") ?? "your expense");
+      const toRequester: Record<string, string> = {
+        approved: `Your expense “${what}” was approved.`,
+        rejected: `Your expense “${what}” was not approved.`,
+        clarification: `A pastor has a question about your expense “${what}”.`,
+        paid: `Your expense “${what}” has been paid.`,
+      };
+      if (typeof requester === "string" && toRequester[status]) {
+        await notifyChurchUser(context.churchId, `${ref.id}_${status}`, requester, "expense", toRequester[status], "/app/expenses");
+      }
+      if (status === "approved") {
+        await notifyChurchMembers(
+          context.churchId,
+          `${ref.id}_to_pay`,
+          "expense",
+          `An approved expense, “${what}”, is ready to be paid.`,
+          "/app/expenses",
+          (role, permissions) => role !== "pastor" && permissions.includes("payments"),
+        );
+      }
+    } catch (notificationError) {
+      req.log.warn({ notificationError }, "Expense updated without notifications");
+    }
     res.json(
       UpdateExpenseResponse.parse(recordWithId(saved.id, saved.data() ?? {})),
     );

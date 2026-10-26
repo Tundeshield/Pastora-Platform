@@ -281,6 +281,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /me/email-preferences:
+    get:
+      operationId: getEmailPreferences
+      tags: [settings]
+      summary: Which emails the signed-in person gets
+      responses:
+        "200":
+          description: Email preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: saveEmailPreferences
+      tags: [settings]
+      summary: Choose which emails to get
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailPreferencesInput"
+      responses:
+        "200":
+          description: Saved preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmailPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /availability:
     get:
       operationId: getAvailability
@@ -1436,7 +1469,35 @@ components:
           type: boolean
         billingProviderConfigured:
           type: boolean
-      required: [firebaseConfigured, publicPortalEnabled, billingProviderConfigured]
+        emailConfigured:
+          type: boolean
+          description: Pastora can send emails (an email provider is connected).
+      required: [firebaseConfigured, publicPortalEnabled, billingProviderConfigured, emailConfigured]
+    EmailPreferencesInput:
+      type: object
+      properties:
+        care:
+          type: boolean
+          description: Prayer requests, counselling and enquiries (never their content).
+        appointments:
+          type: boolean
+        work:
+          type: boolean
+          description: Tasks, reports and expenses.
+        team:
+          type: boolean
+          description: Team and module changes.
+      required: [care, appointments, work, team]
+    EmailPreferences:
+      allOf:
+        - $ref: "#/components/schemas/EmailPreferencesInput"
+        - type: object
+          properties:
+            email:
+              type: ["string", "null"]
+            emailConfigured:
+              type: boolean
+          required: [email, emailConfigured]
     UserSummary:
       type: object
       properties:

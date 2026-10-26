@@ -111,14 +111,14 @@ router.post("/tasks", firebaseAuth, async (req, res): Promise<void> => {
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
-    if (parsed.data.assignedTo) {
+    if (parsed.data.assignedTo && parsed.data.assignedTo !== user.uid) {
       try {
         await notifyChurchUser(
           context.churchId,
           ref.id,
           parsed.data.assignedTo,
           "task",
-          "A task was assigned to you.",
+          `New task for you: “${parsed.data.title.trim()}”`,
           "/app/tasks",
         );
       } catch (notificationError) {
@@ -184,6 +184,19 @@ router.patch("/tasks/:taskId", firebaseAuth, async (req, res): Promise<void> => 
       updatedAt: FieldValue.serverTimestamp(),
     });
     const saved = await record.ref.get();
+    try {
+      const title = String(saved.get("title") ?? "a task");
+      const newAssignee = parsed.data.assignedTo;
+      if (newAssignee && newAssignee !== record.data.assignedTo && newAssignee !== user.uid) {
+        await notifyChurchUser(context.churchId, `${saved.id}_to_${newAssignee}`, newAssignee, "task", `New task for you: “${title}”`, "/app/tasks");
+      }
+      const creator = record.data.createdBy;
+      if (parsed.data.status === "completed" && record.data.status !== "completed" && typeof creator === "string" && creator !== user.uid) {
+        await notifyChurchUser(context.churchId, `${saved.id}_completed`, creator, "task", `“${title}” is done.`, "/app/tasks");
+      }
+    } catch (notificationError) {
+      req.log.warn({ notificationError }, "Task updated without notification");
+    }
     res.json(
       UpdateTaskResponse.parse(recordWithId(saved.id, saved.data() ?? {})),
     );

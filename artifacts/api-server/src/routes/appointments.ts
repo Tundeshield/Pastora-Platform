@@ -24,6 +24,7 @@ import {
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { appointmentTimesOverlap, can } from "../lib/policies";
 import { availabilityFrom, cleanWeekly, validTimeZone } from "../lib/booking";
+import { emailBooking } from "../lib/email";
 
 const router: IRouter = Router();
 /** Pastors, and anyone a pastor gives the calendar to, keep the pastor's diary. */
@@ -214,6 +215,24 @@ router.patch(
         createdAt: FieldValue.serverTimestamp(),
       });
       const updated = await appointment.ref.get();
+      const before = appointment.data.status;
+      const after = updated.get("status");
+      if (
+        updated.get("source") === "public_portal" &&
+        before !== after &&
+        (after === "confirmed" || after === "declined" || after === "cancelled")
+      ) {
+        const stored = await getFirebaseServices().db.collection("availability").doc(context.churchId).get();
+        await emailBooking({
+          churchId: context.churchId,
+          contact: updated.get("contact"),
+          status: after,
+          startAt: new Date(timeOf(updated.get("startAt"))),
+          minutes: Number(updated.get("durationMinutes") ?? 45),
+          format: String(updated.get("format") ?? "in-person"),
+          location: (stored.get("location") as string | null) ?? null,
+        }).catch((emailError) => req.log.warn({ emailError }, "Booking update email not sent"));
+      }
       res.json(
         UpdateAppointmentResponse.parse(
           recordWithId(updated.id, updated.data() ?? {}),

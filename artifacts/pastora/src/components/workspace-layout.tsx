@@ -118,6 +118,7 @@ export function pageTitle(path: string) {
         "/app/modules": "Modules",
         "/app/messages": "Message prep",
         "/app/blog": "Blog",
+        "/app/account": "Your account",
       } as Record<string, string>
     )[path] || "Workspace"
   );
@@ -336,10 +337,10 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
           )}
           <div className="profile-row">
             <span className="profile-avatar">{userName.slice(0, 1).toUpperCase()}</span>
-            <span>
+            <Link href="/app/account" className="profile-link" title="Your account and email settings">
               <b>{userName}</b>
               <small>{session.data?.user.email}</small>
-            </span>
+            </Link>
             <button
               className="icon-button"
               onClick={() => void signOutNow()}
@@ -410,6 +411,9 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
                   </button>
                 ))
               )}
+              <Link href="/app/account" className="notice-settings" onClick={() => setShowNotices(false)}>
+                Email settings
+              </Link>
             </div>
           )}
         </header>

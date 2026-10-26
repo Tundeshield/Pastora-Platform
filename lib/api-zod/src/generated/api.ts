@@ -22,7 +22,8 @@ export const HealthCheckResponse = zod.object({
 export const GetSetupStatusResponse = zod.object({
   "firebaseConfigured": zod.boolean(),
   "publicPortalEnabled": zod.boolean(),
-  "billingProviderConfigured": zod.boolean()
+  "billingProviderConfigured": zod.boolean(),
+  "emailConfigured": zod.boolean().describe('Pastora can send emails (an email provider is connected).')
 })
 
 
@@ -393,6 +394,41 @@ export const CreateAppointmentResponse = zod.object({
   "source": zod.string().nullish().describe('public_portal when booked from the care page.'),
   "createdAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary Which emails the signed-in person gets
+ */
+export const GetEmailPreferencesResponse = zod.object({
+  "care": zod.boolean().describe('Prayer requests, counselling and enquiries (never their content).'),
+  "appointments": zod.boolean(),
+  "work": zod.boolean().describe('Tasks, reports and expenses.'),
+  "team": zod.boolean().describe('Team and module changes.')
+}).and(zod.object({
+  "email": zod.string().nullable(),
+  "emailConfigured": zod.boolean()
+}))
+
+
+/**
+ * @summary Choose which emails to get
+ */
+export const SaveEmailPreferencesBody = zod.object({
+  "care": zod.boolean().describe('Prayer requests, counselling and enquiries (never their content).'),
+  "appointments": zod.boolean(),
+  "work": zod.boolean().describe('Tasks, reports and expenses.'),
+  "team": zod.boolean().describe('Team and module changes.')
+})
+
+export const SaveEmailPreferencesResponse = zod.object({
+  "care": zod.boolean().describe('Prayer requests, counselling and enquiries (never their content).'),
+  "appointments": zod.boolean(),
+  "work": zod.boolean().describe('Tasks, reports and expenses.'),
+  "team": zod.boolean().describe('Team and module changes.')
+}).and(zod.object({
+  "email": zod.string().nullable(),
+  "emailConfigured": zod.boolean()
+}))
 
 
 /**

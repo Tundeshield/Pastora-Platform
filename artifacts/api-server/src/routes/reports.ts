@@ -16,6 +16,7 @@ import {
   failFirebaseSetup,
   listTenantDocuments,
   notifyChurchRoles,
+  notifyChurchUser,
   recordWithId,
   tenantDocument,
   tenantFor,
@@ -164,6 +165,24 @@ router.patch("/reports/:reportId", firebaseAuth,
       createdAt: FieldValue.serverTimestamp(),
     });
     const saved = await record.ref.get();
+    const author = saved.get("createdBy");
+    if (typeof author === "string" && author !== user.uid) {
+      try {
+        const dept = String(saved.get("department") ?? "Your");
+        await notifyChurchUser(
+          context.churchId,
+          `${saved.id}_${parsed.data.status}`,
+          author,
+          "report",
+          parsed.data.status === "reviewed"
+            ? `${dept} report was reviewed by a pastor.`
+            : `A pastor asked for a follow-up on the ${dept} report.`,
+          "/app/reports",
+        );
+      } catch (notificationError) {
+        req.log.warn({ notificationError }, "Report reviewed without notification");
+      }
+    }
     res.json(
       ReviewReportResponse.parse(recordWithId(saved.id, saved.data() ?? {})),
     );

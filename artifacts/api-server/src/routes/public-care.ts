@@ -15,6 +15,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { failFirebaseSetup, notifyChurchMembers } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isModuleActive } from "../lib/modules";
+import { emailBooking, emailVisitorReceipt } from "../lib/email";
 import { availabilityFrom, busyFrom, computeSlots, isOpenSlot, validTimeZone } from "../lib/booking";
 
 const router: IRouter = Router();
@@ -332,6 +333,16 @@ router.post(
         }
         eventId = appointmentRef.id;
         reference = appointmentRef.id.slice(0, 8).toUpperCase();
+        await emailBooking({
+          churchId: churchDoc.id,
+          contact: appointment.contact,
+          status: appointmentStatus,
+          startAt,
+          minutes: availability.meetingMinutes,
+          format,
+          location: availability.location,
+          reference,
+        }).catch((emailError) => req.log.warn({ emailError }, "Booking email not sent"));
         notificationType = "appointment";
         notificationTitle =
           appointmentStatus === "confirmed"
@@ -417,6 +428,11 @@ router.post(
         });
       } catch (notificationError) {
         req.log.warn({ notificationError }, "Pastoral request saved without notifications");
+      }
+      if (input.type !== "appointment" && !input.anonymous) {
+        await emailVisitorReceipt(churchDoc.id, input.contact, input.type, reference).catch((emailError) =>
+          req.log.warn({ emailError }, "Receipt email not sent"),
+        );
       }
       res.status(201).json(
         SubmitPublicRequestResponse.parse({ reference, received: true, appointmentStatus }),

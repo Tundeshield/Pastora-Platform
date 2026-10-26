@@ -10,4 +10,6 @@ export interface SetupStatus {
   firebaseConfigured: boolean;
   publicPortalEnabled: boolean;
   billingProviderConfigured: boolean;
+  /** Pastora can send emails (an email provider is connected). */
+  emailConfigured: boolean;
 }
