@@ -861,3 +861,8 @@ button.under-link { background:none; border:0; border-bottom:1px solid hsl(var(-
   .purpose-grid { grid-template-columns:1fr; }
   .qr-actions { max-width:none; justify-content:flex-start; }
 }
+.availability .settings-section { grid-template-columns:.65fr 1.35fr; }
+.week-range { flex-wrap:nowrap; }
+.week-range input[type="time"] { width:116px; }
+@media (max-width:1100px) { .availability .settings-section { grid-template-columns:1fr; gap:18px; } }
+@media (max-width:760px) { .week-range { flex-wrap:wrap; } .week-range input[type="time"] { width:104px; } }
