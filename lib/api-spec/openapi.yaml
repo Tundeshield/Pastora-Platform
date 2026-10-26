@@ -1380,7 +1380,12 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/MemberRole"
-      required: [uid, name, email, role]
+        permissions:
+          type: array
+          description: What this person can see and do (pastors have everything).
+          items:
+            $ref: "#/components/schemas/Permission"
+      required: [uid, name, email, role, permissions]
     Church:
       type: object
       properties:
@@ -2611,11 +2616,22 @@ components:
       required: [id, action, actorEmail, target, details, createdAt]
     MemberRole:
       type: string
-      enum: [pastor, staff, finance, admin]
+      enum: [pastor, staff, finance, admin, prayer_team]
       description: >-
-        Church roles. Pastor sees pastoral care; Staff runs the church office; Finance
-        handles expense payments; Admin manages the team and settings only and never
-        sees pastoral care, appointments, reports or expenses.
+        Church roles. A role is a starting point: it sets a person's default access,
+        which a pastor can adjust (see Permission). Pastors always have full access,
+        including counselling, private notes, Message Prep, the blog and approvals,
+        which are never given to other roles.
+    Permission:
+      type: string
+      enum: [enquiries, prayer, calendar, qr, reports, expenses, payments, team]
+      description: >-
+        One area a non-pastor can be given. enquiries = general enquiries in the care
+        inbox; prayer = prayer requests the person agreed to share with the prayer team
+        (never contact details); calendar = the pastor's appointments; qr = QR links;
+        reports = submit department reports; expenses = submit expenses; payments =
+        record payments on approved expenses; team = team, settings and modules.
+        Only pastors can give enquiries, prayer or calendar.
     TeamMember:
       type: object
       properties:
@@ -2629,13 +2645,21 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/MemberRole"
+        permissions:
+          type: array
+          description: What this person can see and do (pastors have everything).
+          items:
+            $ref: "#/components/schemas/Permission"
+        customAccess:
+          type: boolean
+          description: True when a pastor has adjusted this person's access from the role's defaults.
         department:
           type: ["string", "null"]
         active:
           type: boolean
         isCurrentUser:
           type: boolean
-      required: [id, uid, name, email, role, department, active, isCurrentUser]
+      required: [id, uid, name, email, role, permissions, customAccess, department, active, isCurrentUser]
     TeamInvitation:
       type: object
       properties:
@@ -2645,12 +2669,16 @@ components:
           type: string
         role:
           $ref: "#/components/schemas/MemberRole"
+        permissions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Permission"
         department:
           type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
-      required: [id, email, role, department, createdAt]
+      required: [id, email, role, permissions, department, createdAt]
     TeamOverview:
       type: object
       properties:
@@ -2672,6 +2700,11 @@ components:
           maxLength: 254
         role:
           $ref: "#/components/schemas/MemberRole"
+        permissions:
+          type: array
+          description: Leave out to use the role's defaults.
+          items:
+            $ref: "#/components/schemas/Permission"
         department:
           type: ["string", "null"]
           maxLength: 120
@@ -2681,6 +2714,13 @@ components:
       properties:
         role:
           $ref: "#/components/schemas/MemberRole"
+        permissions:
+          type: array
+          description: >-
+            New access. Changing the role without sending permissions resets access to
+            the new role's defaults.
+          items:
+            $ref: "#/components/schemas/Permission"
         department:
           type: ["string", "null"]
           maxLength: 120

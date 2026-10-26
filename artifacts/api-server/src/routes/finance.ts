@@ -14,18 +14,16 @@ import {
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  hasRole,
   listTenantDocuments,
   notifyChurchRoles,
   recordWithId,
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
-import { canApproveExpense, canRecordExpensePayment, expenseTransitionAllowed } from "../lib/policies";
+import { can, canApproveExpense, canRecordExpensePayment, expenseTransitionAllowed } from "../lib/policies";
 
 const router: IRouter = Router();
-const approvers = ["pastor"] as const;
-const submitters = ["pastor", "staff", "finance"] as const;
+/** Submitting needs "expenses"; recording payments needs "payments"; pastors approve. */
 
 router.get("/expenses", firebaseAuth,
   moduleGate("expenses"),
@@ -37,14 +35,14 @@ router.get("/expenses", firebaseAuth,
       res.status(409).json({ error: "Complete church onboarding before opening expenses." });
       return;
     }
-    if (!hasRole(context, [...submitters])) {
-      res.status(403).json({ error: "Your role cannot view financial requests." });
+    if (!can(context, "expenses") && !can(context, "payments")) {
+      res.status(403).json({ error: "You don't have access to expenses." });
       return;
     }
     const expenses = await listTenantDocuments("financialRequests", context.churchId);
     const visible = expenses.filter(
       (expense) =>
-        hasRole(context, [...approvers, "finance"]) ||
+        can(context, "payments") ||
         expense.requesterId === user.uid,
     );
     res.json(
@@ -85,8 +83,8 @@ router.post("/expenses", firebaseAuth,
       res.status(409).json({ error: "Complete church onboarding before submitting expenses." });
       return;
     }
-    if (!hasRole(context, [...submitters])) {
-      res.status(403).json({ error: "Your role cannot submit expense requests." });
+    if (!can(context, "expenses")) {
+      res.status(403).json({ error: "You don't have access to submit expenses." });
       return;
     }
     const { db } = getFirebaseServices();
@@ -177,7 +175,7 @@ router.patch("/expenses/:expenseId", firebaseAuth,
       if (status === "paid") {
         if (
           !canRecordExpensePayment({
-            role: context.role,
+            actor: context,
             actorUid: user.uid,
             requesterUid: current.requesterId,
             approverUid: current.approvedBy,

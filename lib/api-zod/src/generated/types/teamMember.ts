@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberRole } from './memberRole';
+import type { Permission } from './permission';
 
 export interface TeamMember {
   id: string;
@@ -13,6 +14,10 @@ export interface TeamMember {
   name: string;
   email: string;
   role: MemberRole;
+  /** What this person can see and do (pastors have everything). */
+  permissions: Permission[];
+  /** True when a pastor has adjusted this person's access from the role's defaults. */
+  customAccess: boolean;
   /** @nullable */
   department: string | null;
   active: boolean;

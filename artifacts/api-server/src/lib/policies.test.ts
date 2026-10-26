@@ -39,7 +39,7 @@ test("expense requester cannot approve their own request", () => {
 
 test("payment recording requires approved expense and separate finance actor", () => {
   const approvedByPastor = {
-    role: "finance" as const,
+    actor: { role: "finance" as const, permissions: ["expenses", "payments"] as const },
     actorUid: "finance-1",
     requesterUid: "staff-1",
     approverUid: "pastor-1",
@@ -57,6 +57,11 @@ test("payment recording requires approved expense and separate finance actor", (
   assert.equal(
     canRecordExpensePayment({ ...approvedByPastor, actorUid: "staff-1" }),
     false,
+  );
+  assert.equal(
+    canRecordExpensePayment({ ...approvedByPastor, actor: { role: "staff", permissions: ["expenses"] } }),
+    false,
+    "recording payments needs the payments access",
   );
 });
 
@@ -80,28 +85,43 @@ test("expense status machine blocks reversals and premature payment", async () =
   assert.equal(expenseTransitionAllowed(undefined, "approved"), false);
 });
 
-test("pastors and admins manage the team; only pastors control pastor access", async () => {
-  const { canManageMember, canInviteRole } = await import("./policies");
-  const base = {
-    actorRole: "admin" as const,
-    actorUid: "a",
-    targetUid: "s",
-    targetRole: "staff" as const,
-    churchHasPastor: true,
-  };
+test("pastors and team managers manage the team; only pastors control pastor access", async () => {
+  const { canManageMember, canInviteRole, permissionsFor } = await import("./policies");
+  const admin = { role: "admin" as const, permissions: permissionsFor("admin", undefined) };
+  const pastor = { role: "pastor" as const, permissions: permissionsFor("pastor", undefined) };
+  const staff = { role: "staff" as const, permissions: permissionsFor("staff", undefined) };
+  const base = { actor: admin, actorUid: "a", targetUid: "s", targetRole: "staff" as const, churchHasPastor: true };
   assert.equal(canManageMember(base), true);
-  assert.equal(canManageMember({ ...base, actorRole: "pastor" }), true);
-  assert.equal(canManageMember({ ...base, actorRole: "staff" }), false);
+  assert.equal(canManageMember({ ...base, actor: pastor }), true);
+  assert.equal(canManageMember({ ...base, actor: staff }), false);
+  assert.equal(canManageMember({ ...base, actor: { role: "staff", permissions: ["team"] } }), true, "team access manages the team");
   assert.equal(canManageMember({ ...base, targetUid: "a" }), false, "never yourself");
   assert.equal(canManageMember({ ...base, targetRole: "pastor" }), false, "admin cannot touch a pastor");
-  assert.equal(canManageMember({ ...base, actorRole: "pastor", targetRole: "pastor" }), true);
+  assert.equal(canManageMember({ ...base, actor: pastor, targetRole: "pastor" }), true);
   assert.equal(canManageMember({ ...base, newRole: "pastor" }), false, "admin cannot promote once a pastor exists");
   assert.equal(canManageMember({ ...base, newRole: "pastor", churchHasPastor: false }), true);
   assert.equal(canManageMember({ ...base, newRole: "finance" }), true);
-  assert.equal(canInviteRole("admin", "pastor", true), false);
-  assert.equal(canInviteRole("admin", "pastor", false), true);
-  assert.equal(canInviteRole("pastor", "pastor", true), true);
-  assert.equal(canInviteRole("staff", "staff", true), false);
+  assert.equal(canInviteRole(admin, "pastor", true), false);
+  assert.equal(canInviteRole(admin, "pastor", false), true);
+  assert.equal(canInviteRole(pastor, "pastor", true), true);
+  assert.equal(canInviteRole(staff, "staff", true), false);
+});
+
+test("roles are starting points; pastors always have everything; care access needs a pastor", async () => {
+  const { permissionsFor, forbiddenCareGrants, canSeeRequest, PERMISSIONS } = await import("./policies");
+  assert.deepEqual(permissionsFor("pastor", ["qr"]), [...PERMISSIONS]);
+  assert.deepEqual(permissionsFor("staff", undefined), ["enquiries", "calendar", "qr", "reports", "expenses"]);
+  assert.deepEqual(permissionsFor("staff", ["expenses", "nonsense"]), ["expenses"]);
+  assert.deepEqual(permissionsFor("prayer_team", undefined), ["prayer"]);
+  const admin = { role: "admin" as const, permissions: permissionsFor("admin", undefined) };
+  assert.deepEqual(forbiddenCareGrants(admin, true, [], ["prayer", "qr"]), ["prayer"]);
+  assert.deepEqual(forbiddenCareGrants(admin, true, ["prayer"], ["prayer"]), [], "keeping existing access is fine");
+  assert.deepEqual(forbiddenCareGrants(admin, false, [], ["enquiries"]), [], "before a pastor joins");
+  const team = { role: "prayer_team" as const, permissions: permissionsFor("prayer_team", undefined) };
+  assert.equal(canSeeRequest(team, { type: "prayer", shareWithPrayerTeam: true }), true);
+  assert.equal(canSeeRequest(team, { type: "prayer", shareWithPrayerTeam: false }), false);
+  assert.equal(canSeeRequest(team, { type: "counselling", shareWithPrayerTeam: true }), false);
+  assert.equal(canSeeRequest(team, { type: "general" }), false);
 });
 
 test("platform admins come only from a verified email on the server allow list or a claim", async () => {

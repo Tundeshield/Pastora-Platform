@@ -7,7 +7,7 @@
  */
 
 /**
- * Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.
+ * Church roles. A role is a starting point: it sets a person's default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.
  */
 export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
 
@@ -17,4 +17,5 @@ export const MemberRole = {
   staff: 'staff',
   finance: 'finance',
   admin: 'admin',
+  prayer_team: 'prayer_team',
 } as const;

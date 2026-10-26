@@ -19,7 +19,6 @@ import {
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  hasRole,
   listTenantDocuments,
   notifyChurchUser,
   recordWithId,
@@ -27,9 +26,9 @@ import {
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
+import { can } from "../lib/policies";
 
 const router: IRouter = Router();
-const managers = ["pastor"] as const;
 
 async function validAssignee(churchId: string, uid: string | null | undefined) {
   if (!uid) return true;
@@ -55,7 +54,7 @@ router.get("/tasks", firebaseAuth, async (req, res): Promise<void> => {
     const tasks = await listTenantDocuments("tasks", context.churchId);
     const visible = tasks.filter(
       (task) =>
-        hasRole(context, [...managers]) ||
+        (context.role === "pastor") ||
         task.assignedTo === user.uid ||
         task.createdBy === user.uid,
     );
@@ -89,8 +88,9 @@ router.post("/tasks", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating tasks." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff", "admin"])) {
-      res.status(403).json({ error: "Your role cannot create tasks." });
+    // Everyone keeps their own tasks; only pastors assign work to other people.
+    if (parsed.data.assignedTo && parsed.data.assignedTo !== user.uid && context.role !== "pastor") {
+      res.status(403).json({ error: "Only a pastor can assign tasks to other people." });
       return;
     }
     if (!(await validAssignee(context.churchId, parsed.data.assignedTo))) {
@@ -159,14 +159,14 @@ router.patch("/tasks/:taskId", firebaseAuth, async (req, res): Promise<void> => 
       return;
     }
     if (
-      !hasRole(context, [...managers]) &&
+      !(context.role === "pastor") &&
       record.data.assignedTo !== user.uid &&
       record.data.createdBy !== user.uid
     ) {
       res.status(403).json({ error: "Your role cannot update this task." });
       return;
     }
-    const isManagerOrCreator = hasRole(context, [...managers]) || record.data.createdBy === user.uid;
+    const isManagerOrCreator = (context.role === "pastor") || record.data.createdBy === user.uid;
     const changesBeyondStatus = Object.keys(parsed.data).some((key) => key !== "status");
     if (!isManagerOrCreator && changesBeyondStatus) {
       res.status(403).json({ error: "You can update the status of tasks assigned to you." });
@@ -200,7 +200,7 @@ router.get("/qr-codes", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening QR codes." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff", "admin"])) {
+    if (!can(context, "qr")) {
       res.status(403).json({ error: "Your role cannot manage QR codes." });
       return;
     }
@@ -235,7 +235,7 @@ router.post("/qr-codes", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating QR codes." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff", "admin"])) {
+    if (!can(context, "qr")) {
       res.status(403).json({ error: "Your role cannot create QR codes." });
       return;
     }
@@ -280,7 +280,7 @@ router.patch("/qr-codes/:qrCodeId", firebaseAuth, async (req, res): Promise<void
       res.status(409).json({ error: "Complete church onboarding before updating QR codes." });
       return;
     }
-    if (!hasRole(context, [...managers, "staff", "admin"])) {
+    if (!can(context, "qr")) {
       res.status(403).json({ error: "Your role cannot update QR codes." });
       return;
     }

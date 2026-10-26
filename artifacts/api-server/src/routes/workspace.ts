@@ -19,7 +19,7 @@ import {
   tenantForUser,
 } from "../lib/pastora-data";
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
-import { appearanceFrom, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
+import { appearanceFrom, can, canSeeRequest, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
 import { activeModules } from "../lib/modules";
 import {
   acceptPendingInvitation,
@@ -119,6 +119,7 @@ async function buildSession(user: DecodedIdToken) {
       email: user.email ?? "",
       // No church yet: the creator becomes a pastor unless they choose otherwise.
       role: context?.role ?? "pastor",
+      permissions: context?.permissions ?? [],
     },
     church: churchData && context ? churchSummary(context.churchId, churchData) : null,
     subscriptionStatus:
@@ -183,16 +184,18 @@ router.get("/dashboard", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening the dashboard." });
       return;
     }
-    if (!["pastor", "staff"].includes(context.role)) {
-      res.status(403).json({ error: "Your role does not have access to the overview." });
+    const user = authenticatedUser(req);
+    const pastor = canViewPastoralCare(context.role);
+    const calendar = can(context, "calendar");
+    if (!pastor && !calendar && !can(context, "enquiries") && !can(context, "prayer")) {
+      res.status(403).json({ error: "The overview isn't part of your access." });
       return;
     }
-    const pastor = canViewPastoralCare(context.role);
     const modules = await activeModules(context.churchId);
 
-    const [allRequests, appointments, tasks, reports, expenses] = await Promise.all([
+    const [allRequests, appointments, allTasks, reports, expenses] = await Promise.all([
       listTenantDocuments("pastoralRequests", context.churchId),
-      listTenantDocuments("appointments", context.churchId),
+      calendar ? listTenantDocuments("appointments", context.churchId) : Promise.resolve([]),
       listTenantDocuments("tasks", context.churchId),
       pastor && modules.includes("reports")
         ? listTenantDocuments("departmentReports", context.churchId)
@@ -201,8 +204,11 @@ router.get("/dashboard", firebaseAuth, async (req, res): Promise<void> => {
         ? listTenantDocuments("financialRequests", context.churchId)
         : Promise.resolve([]),
     ]);
-    // Staff only ever see general enquiries, including in the counts.
-    const requests = pastor ? allRequests : allRequests.filter((item) => item.type === "general");
+    // Counts only include what this person may see.
+    const requests = allRequests.filter((item) => canSeeRequest(context, item));
+    const tasks = pastor
+      ? allTasks
+      : allTasks.filter((item) => item.createdBy === user?.uid || item.assignedTo === user?.uid);
     const now = Date.now();
     const upcoming = appointments
       .filter(

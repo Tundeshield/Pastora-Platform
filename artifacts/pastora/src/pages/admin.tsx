@@ -47,7 +47,7 @@ import { roleLabel } from "@/components/workspace-layout";
 import { apiErrorMessage, firebaseAuth, sendPasswordResetEmail } from "@/firebase-auth";
 
 type Tab = "churches" | "accounts" | "modules" | "activity";
-const ROLE_OPTIONS: MemberRole[] = ["pastor", "staff", "finance", "admin"];
+const ROLE_OPTIONS: MemberRole[] = ["pastor", "staff", "finance", "prayer_team", "admin"];
 const TAB_LABELS: Record<Tab, string> = {
   churches: "Churches",
   accounts: "Accounts",

@@ -6,10 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberRole } from './memberRole';
+import type { Permission } from './permission';
 
 export interface UserSummary {
   uid: string;
   name: string;
   email: string;
   role: MemberRole;
+  /** What this person can see and do (pastors have everything). */
+  permissions: Permission[];
 }

@@ -1,5 +1,8 @@
 import type { Appointment } from "@workspace/api-client-react";
-import { getGetDashboardQueryKey, useGetDashboard } from "@workspace/api-client-react";
+import {
+  getGetDashboardQueryKey,
+  useGetDashboard,
+} from "@workspace/api-client-react";
 import {
   ArrowRight,
   CalendarDays,
@@ -14,35 +17,69 @@ import {
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 
+import { useAccess, type Access } from "@/access";
 import { useSession } from "@/auth";
 
-import { Badge, EmptyState, ErrorPanel, PageHeading, SkeletonRows, formatLabel } from "@/components/ui-kit";
+import {
+  Badge,
+  EmptyState,
+  ErrorPanel,
+  PageHeading,
+  SkeletonRows,
+  formatLabel,
+} from "@/components/ui-kit";
 
 function greeting(): string {
   const hour = new Date().getHours();
-  return hour < 12 ? "Good morning." : hour < 17 ? "Good afternoon." : "Good evening.";
+  return hour < 12
+    ? "Good morning."
+    : hour < 17
+      ? "Good afternoon."
+      : "Good evening.";
 }
 
 /** Pastoral counts, reviews and approvals are for pastors; staff see the office view. */
-const PASTOR_ONLY = new Set(["Prayer requests", "Counselling review", "Reports to review", "Expenses awaiting"]);
+/** Each card shows only to people whose access covers it. */
+const CARD_ACCESS: Record<string, (a: Access) => boolean> = {
+  "Prayer requests": (a) => a.can("prayer"),
+  "Counselling review": (a) => a.isPastor,
+  Appointments: (a) => a.can("calendar"),
+  "Follow-ups due": (a) => a.can("enquiries"),
+  "Reports to review": (a) => a.isPastor,
+  "Expenses awaiting": (a) => a.isPastor,
+};
 /** Cards that belong to a module are hidden when the church has it switched off. */
-const MODULE_OF: Record<string, string> = { "Reports to review": "reports", "Expenses awaiting": "expenses" };
+const MODULE_OF: Record<string, string> = {
+  "Reports to review": "reports",
+  "Expenses awaiting": "expenses",
+};
 
 export function DashboardPage() {
   const session = useSession();
-  const role = session.data?.user.role;
+  const access = useAccess();
   const [, setLocation] = useLocation();
-  const hasOverview = role === "pastor" || role === "staff";
-  // Finance and the workspace admin have no overview; send them to their main page.
+  const hasOverview =
+    access.can("enquiries") || access.can("calendar") || access.can("prayer");
+  // People without the overview start on the main page their access gives them.
   const modules = session.data?.modules ?? [];
+  const home =
+    (access.can("expenses") || access.can("payments")) &&
+    modules.includes("expenses")
+      ? "/app/expenses"
+      : access.can("team")
+        ? "/app/team"
+        : access.can("qr")
+          ? "/app/qr-codes"
+          : "/app/tasks";
   useEffect(() => {
-    if (role === "finance") {
-      setLocation(modules.includes("expenses") ? "/app/expenses" : "/app/tasks", { replace: true });
-    }
-    if (role === "admin") setLocation("/app/team", { replace: true });
-  }, [role, setLocation, modules]);
+    if (session.data && !hasOverview) setLocation(home, { replace: true });
+  }, [session.data, hasOverview, home, setLocation]);
   const dashboard = useGetDashboard({
-    query: { queryKey: getGetDashboardQueryKey(), retry: 1, enabled: hasOverview },
+    query: {
+      queryKey: getGetDashboardQueryKey(),
+      retry: 1,
+      enabled: hasOverview,
+    },
   });
   const summary = dashboard.data;
   const metrics = [
@@ -67,8 +104,20 @@ export function DashboardPage() {
       CalendarDays,
       "Upcoming conversations.",
     ],
-    ["Follow-ups due", summary?.followUpsDue, "/app/requests", Clock3, "A next step is due."],
-    ["Tasks overdue", summary?.overdueTasks, "/app/tasks", ClipboardList, "Work that may need attention."],
+    [
+      "Follow-ups due",
+      summary?.followUpsDue,
+      "/app/requests",
+      Clock3,
+      "A next step is due.",
+    ],
+    [
+      "Tasks overdue",
+      summary?.overdueTasks,
+      "/app/tasks",
+      ClipboardList,
+      "Work that may need attention.",
+    ],
     [
       "Reports to review",
       summary?.reportsAwaitingReview,
@@ -99,66 +148,80 @@ export function DashboardPage() {
       {dashboard.isLoading ? (
         <SkeletonRows />
       ) : dashboard.isError ? (
-        <ErrorPanel text="Your workspace overview is unavailable." retry={() => void dashboard.refetch()} />
+        <ErrorPanel
+          text="Your workspace overview is unavailable."
+          retry={() => void dashboard.refetch()}
+        />
       ) : summary ? (
         <>
           <div className="metrics-grid">
             {metrics
-              .filter(([label]) => role === "pastor" || !PASTOR_ONLY.has(label))
-              .filter(([label]) => !MODULE_OF[label] || modules.includes(MODULE_OF[label]))
+              .filter(
+                ([label]) => !CARD_ACCESS[label] || CARD_ACCESS[label](access),
+              )
+              .filter(
+                ([label]) =>
+                  !MODULE_OF[label] || modules.includes(MODULE_OF[label]),
+              )
               .map(([label, value, href, Icon, hint]) => (
-              <Link href={href} className="metric-card" key={label}>
-                <div className="metric-top">
-                  <span>{label}</span>
-                  <Icon size={17} />
-                </div>
-                <strong>{value ?? "—"}</strong>
-                <small>{hint}</small>
-              </Link>
-            ))}
+                <Link href={href} className="metric-card" key={label}>
+                  <div className="metric-top">
+                    <span>{label}</span>
+                    <Icon size={17} />
+                  </div>
+                  <strong>{value ?? "—"}</strong>
+                  <small>{hint}</small>
+                </Link>
+              ))}
           </div>
           <div className="dashboard-columns">
-            <section className="panel">
-              <div className="panel-heading">
-                <div>
-                  <p className="eyebrow">Coming up</p>
-                  <h2 className="serif">Next appointments</h2>
+            {access.can("calendar") && (
+              <section className="panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">Coming up</p>
+                    <h2 className="serif">Next appointments</h2>
+                  </div>
+                  <Link href="/app/appointments" className="under-link">
+                    View calendar <ArrowRight size={14} />
+                  </Link>
                 </div>
-                <Link href="/app/appointments" className="under-link">
-                  View calendar <ArrowRight size={14} />
-                </Link>
-              </div>
-              {summary.nextAppointments.length ? (
-                summary.nextAppointments.map((a) => <AppointmentRow key={a.id} item={a} />)
-              ) : (
-                <EmptyState
-                  title="Nothing on the calendar yet"
-                  description="Confirmed appointments will appear here."
-                />
-              )}
-            </section>
-            <section className="panel follow-panel">
-              <div className="panel-heading">
-                <div>
-                  <p className="eyebrow">Care, in confidence</p>
-                  <h2 className="serif">Follow-ups</h2>
+                {summary.nextAppointments.length ? (
+                  summary.nextAppointments.map((a) => (
+                    <AppointmentRow key={a.id} item={a} />
+                  ))
+                ) : (
+                  <EmptyState
+                    title="Nothing on the calendar yet"
+                    description="Confirmed appointments will appear here."
+                  />
+                )}
+              </section>
+            )}
+            {access.can("enquiries") && (
+              <section className="panel follow-panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">Care, in confidence</p>
+                    <h2 className="serif">Follow-ups</h2>
+                  </div>
+                  <Link href="/app/requests" className="under-link">
+                    Open inbox <ArrowRight size={14} />
+                  </Link>
                 </div>
-                <Link href="/app/requests" className="under-link">
-                  Open inbox <ArrowRight size={14} />
-                </Link>
-              </div>
-              {summary.urgentFollowUps.length ? (
-                <p className="private-note">
-                  <LockKeyhole size={16} /> Sensitive request details are only available in the restricted
-                  care inbox.
-                </p>
-              ) : (
-                <EmptyState
-                  title="No urgent follow-ups"
-                  description="Urgent care follow-ups will be surfaced here without sensitive content."
-                />
-              )}
-            </section>
+                {summary.urgentFollowUps.length ? (
+                  <p className="private-note">
+                    <LockKeyhole size={16} /> Sensitive request details are only
+                    available in the restricted care inbox.
+                  </p>
+                ) : (
+                  <EmptyState
+                    title="No urgent follow-ups"
+                    description="Urgent care follow-ups will be surfaced here without sensitive content."
+                  />
+                )}
+              </section>
+            )}
           </div>
         </>
       ) : (
@@ -175,14 +238,25 @@ export function AppointmentRow({ item }: { item: Appointment }) {
   return (
     <div className="data-row">
       <div className="date-tile">
-        <b>{new Date(item.startAt).toLocaleDateString(undefined, { day: "2-digit" })}</b>
-        <small>{new Date(item.startAt).toLocaleDateString(undefined, { month: "short" })}</small>
+        <b>
+          {new Date(item.startAt).toLocaleDateString(undefined, {
+            day: "2-digit",
+          })}
+        </b>
+        <small>
+          {new Date(item.startAt).toLocaleDateString(undefined, {
+            month: "short",
+          })}
+        </small>
       </div>
       <div className="row-main">
         <b>{item.requesterName}</b>
         <small>
-          {new Date(item.startAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} ·{" "}
-          {formatLabel(item.format)}
+          {new Date(item.startAt).toLocaleTimeString(undefined, {
+            hour: "numeric",
+            minute: "2-digit",
+          })}{" "}
+          · {formatLabel(item.format)}
         </small>
       </div>
       <Badge label={item.status} />

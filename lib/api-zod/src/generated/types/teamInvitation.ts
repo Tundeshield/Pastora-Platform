@@ -6,11 +6,13 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberRole } from './memberRole';
+import type { Permission } from './permission';
 
 export interface TeamInvitation {
   id: string;
   email: string;
   role: MemberRole;
+  permissions: Permission[];
   /** @nullable */
   department: string | null;
   createdAt: Date;

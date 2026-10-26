@@ -14,24 +14,18 @@ import {
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAuth } from "../middlewares/firebase-auth";
 import {
-  type ChurchRole,
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  hasRole,
   listTenantDocuments,
   recordWithId,
   tenantDocument,
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
-import { canViewPastoralCare } from "../lib/policies";
+import { canSeeRequest, canUpdateRequest, canViewPastoralCare } from "../lib/policies";
 
 const router: IRouter = Router();
-/** Pastors see every request; staff handle general enquiries only. */
-function canHandle(role: ChurchRole, type: unknown): boolean {
-  return canViewPastoralCare(role) || (role === "staff" && type === "general");
-}
 
 async function canAssignTo(churchId: string, uid: string): Promise<boolean> {
   const { db } = getFirebaseServices();
@@ -57,8 +51,8 @@ router.get("/requests", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening requests." });
       return;
     }
-    if (!["pastor", "staff"].includes(context.role)) {
-      res.status(403).json({ error: "Your role does not include the care inbox." });
+    if (context.role !== "pastor" && !context.permissions.includes("enquiries") && !context.permissions.includes("prayer")) {
+      res.status(403).json({ error: "You don't have access to the care inbox." });
       return;
     }
     const documents = await listTenantDocuments("pastoralRequests", context.churchId);
@@ -66,7 +60,7 @@ router.get("/requests", firebaseAuth, async (req, res): Promise<void> => {
       .filter((item) => {
         if (query.data.type && item.type !== query.data.type) return false;
         if (query.data.status && item.status !== query.data.status) return false;
-        return canHandle(context.role, item.type);
+        return canSeeRequest(context, item);
       })
       .sort((a, b) => {
         const createdA = a.createdAt?.toDate?.().getTime?.() ?? 0;
@@ -86,7 +80,10 @@ router.get("/requests", firebaseAuth, async (req, res): Promise<void> => {
           result.message = caseData.message ?? "";
         } else {
           result.name = item.name ?? null;
-          result.contact = item.contact ?? null;
+          // The prayer team sees what to pray for, never how to reach the person.
+          const prayerTeamView = item.type === "prayer" && context.role !== "pastor";
+          result.contact = prayerTeamView ? null : item.contact ?? null;
+          if (prayerTeamView) result.permissionToContact = false;
           result.category = item.category ?? null;
           result.message = item.message ?? "";
         }
@@ -113,7 +110,7 @@ router.post("/requests", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before creating a request." });
       return;
     }
-    if (!canHandle(context.role, parsed.data.type)) {
+    if (!canUpdateRequest(context, parsed.data)) {
       res.status(403).json({ error: "Your role cannot create this kind of care record." });
       return;
     }
@@ -193,8 +190,8 @@ router.patch("/requests/:requestId", firebaseAuth, async (req, res): Promise<voi
       res.status(409).json({ error: "Complete church onboarding before updating requests." });
       return;
     }
-    if (!hasRole(context, ["pastor", "staff"])) {
-      res.status(403).json({ error: "Your role cannot manage care requests." });
+    if (context.role !== "pastor" && !context.permissions.includes("enquiries")) {
+      res.status(403).json({ error: "You can read these requests but not change them." });
       return;
     }
     const record = await tenantDocument(
@@ -206,8 +203,8 @@ router.patch("/requests/:requestId", firebaseAuth, async (req, res): Promise<voi
       res.status(404).json({ error: "Request not found." });
       return;
     }
-    if (!canHandle(context.role, record.data.type)) {
-      // Same answer as a missing record, so staff cannot probe for private requests.
+    if (!canUpdateRequest(context, record.data)) {
+      // Same answer as a missing record, so nobody can probe for private requests.
       res.status(404).json({ error: "Request not found." });
       return;
     }

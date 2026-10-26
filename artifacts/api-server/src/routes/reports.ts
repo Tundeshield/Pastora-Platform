@@ -14,7 +14,6 @@ import {
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  hasRole,
   listTenantDocuments,
   notifyChurchRoles,
   recordWithId,
@@ -22,11 +21,10 @@ import {
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
+import { can } from "../lib/policies";
 
 const router: IRouter = Router();
-/** Staff submit reports for their department; pastors review them. */
-const leaders = ["pastor", "staff"] as const;
-const reviewers = ["pastor"] as const;
+/** People with "reports" submit for their department; pastors review them. */
 
 router.get("/reports", firebaseAuth,
   moduleGate("reports"),
@@ -38,14 +36,14 @@ router.get("/reports", firebaseAuth,
       res.status(409).json({ error: "Complete church onboarding before opening reports." });
       return;
     }
-    if (!hasRole(context, [...leaders])) {
+    if (!can(context, "reports")) {
       res.status(403).json({ error: "Your role cannot view department reports." });
       return;
     }
     const reports = await listTenantDocuments("departmentReports", context.churchId);
     const visible = reports.filter(
       (report) =>
-        hasRole(context, [...reviewers]) ||
+        context.role === "pastor" ||
         report.createdBy === user.uid ||
         report.department === context.membership.department,
     );
@@ -81,7 +79,7 @@ router.post("/reports", firebaseAuth,
       res.status(409).json({ error: "Complete church onboarding before submitting reports." });
       return;
     }
-    if (!hasRole(context, [...leaders])) {
+    if (!can(context, "reports")) {
       res.status(403).json({ error: "Your role cannot submit department reports." });
       return;
     }
@@ -138,7 +136,7 @@ router.patch("/reports/:reportId", firebaseAuth,
       res.status(409).json({ error: "Complete church onboarding before reviewing reports." });
       return;
     }
-    if (!hasRole(context, [...reviewers])) {
+    if (context.role !== "pastor") {
       res.status(403).json({ error: "Only a pastor can review department reports." });
       return;
     }

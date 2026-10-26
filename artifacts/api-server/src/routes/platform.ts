@@ -46,7 +46,7 @@ import {
   iso,
   membershipDocId,
   normalizeRole,
-  notifyChurchRoles,
+  notifyChurchMembers,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isPlatformAdmin } from "../lib/policies";
@@ -278,13 +278,13 @@ router.patch(
         `${email} in ${detail?.workspace.name ?? churchId}`,
         `${fromRole ?? "unknown"} → ${body.data.role}`,
       );
-      await notifyChurchRoles(
+      await notifyChurchMembers(
         churchId,
         `pastora_${ref.id}_${Date.now()}`,
         "team",
         `Pastora support changed ${email} to ${body.data.role}.`,
         "/app/team",
-        ["pastor", "admin"],
+        (role, permissions) => role === "pastor" || permissions.includes("team"),
       ).catch(() => undefined);
       res.json(UpdatePlatformMemberResponse.parse(detail));
     } catch (error) {

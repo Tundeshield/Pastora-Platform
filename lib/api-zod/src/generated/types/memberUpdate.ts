@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberRole } from './memberRole';
+import type { Permission } from './permission';
 
 export interface MemberUpdate {
   role?: MemberRole;
+  /** New access. Changing the role without sending permissions resets access to the new role's defaults. */
+  permissions?: Permission[];
   /**
      * @maxLength 120
      * @nullable

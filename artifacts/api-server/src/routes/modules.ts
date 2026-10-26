@@ -13,7 +13,7 @@ import {
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  notifyChurchRoles,
+  notifyChurchMembers,
   tenantFor,
   type TenantContext,
 } from "../lib/pastora-data";
@@ -39,7 +39,7 @@ async function managerContext(req: Request, res: Response): Promise<TenantContex
     res.status(409).json({ error: "Complete church onboarding first." });
     return null;
   }
-  if (!canManageTeam(context.role)) {
+  if (!canManageTeam(context)) {
     res.status(403).json({ error: "Only pastors and the workspace admin can manage modules." });
     return null;
   }
@@ -114,13 +114,13 @@ router.patch("/modules/:moduleId", firebaseAuth, async (req, res): Promise<void>
         tx.set(ref, { churchId: context.churchId, enabled, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
       });
       await audit(context.churchId, user.uid, body.data.enabled ? "module_enabled" : "module_disabled", moduleId);
-      await notifyChurchRoles(
+      await notifyChurchMembers(
         context.churchId,
         `module_${moduleId}_${Date.now()}`,
         "team",
         `${current.name} was turned ${body.data.enabled ? "on" : "off"}.`,
         "/app/modules",
-        ["pastor", "admin"],
+        (role, permissions) => role === "pastor" || permissions.includes("team"),
       ).catch(() => undefined);
     }
 

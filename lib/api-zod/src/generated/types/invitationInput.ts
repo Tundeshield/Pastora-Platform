@@ -6,11 +6,14 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberRole } from './memberRole';
+import type { Permission } from './permission';
 
 export interface InvitationInput {
   /** @maxLength 254 */
   email: string;
   role: MemberRole;
+  /** Leave out to use the role's defaults. */
+  permissions?: Permission[];
   /**
      * @maxLength 120
      * @nullable

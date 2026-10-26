@@ -10,6 +10,7 @@ import {
 import { Check, CircleHelp, Plus, Receipt, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
+import { useAccess } from "@/access";
 import { useSession } from "@/auth";
 import {
   Badge,
@@ -32,12 +33,13 @@ export function ExpensesPage() {
   const [form, setForm] = useState({ description: "", purpose: "", amount: "", department: "" });
   const session = useSession();
   const me = session.data?.user;
+  const access = useAccess();
   const canReview = (x: ExpenseRequest) =>
-    me?.role === "pastor" &&
-    x.requesterId !== me.uid &&
+    access.isPastor &&
+    x.requesterId !== me?.uid &&
     (x.status === "submitted" || x.status === "clarification");
   const canRecordPayment = (x: ExpenseRequest) =>
-    me?.role === "finance" && x.status === "approved" && x.requesterId !== me.uid && x.approvedBy !== me.uid;
+    access.can("payments") && x.status === "approved" && x.requesterId !== me?.uid && x.approvedBy !== me?.uid;
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: getListExpensesQueryKey() });
     void qc.invalidateQueries({ queryKey: getGetDashboardQueryKey() });
@@ -68,9 +70,11 @@ export function ExpensesPage() {
         title="Expenses"
         subtitle="Requests for spending, with a clear review path."
         action={
-          <Button onClick={() => setOpen(!open)}>
-            <Plus size={16} /> Submit expense
-          </Button>
+          access.can("expenses") ? (
+            <Button onClick={() => setOpen(!open)}>
+              <Plus size={16} /> Submit expense
+            </Button>
+          ) : undefined
         }
       />
       {open && (

@@ -12,12 +12,11 @@ import {
   authenticatedUser,
   errorMessage,
   failFirebaseSetup,
-  hasRole,
   recordWithId,
   tenantFor,
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
-import { appearanceFrom } from "../lib/policies";
+import { appearanceFrom, canManageTeam } from "../lib/policies";
 
 const router: IRouter = Router();
 
@@ -28,7 +27,7 @@ router.get("/settings", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before opening settings." });
       return;
     }
-    if (!hasRole(context, ["pastor", "admin"])) {
+    if (!canManageTeam(context)) {
       res.status(403).json({ error: "Only a pastor can view church settings." });
       return;
     }
@@ -81,7 +80,7 @@ router.patch("/settings", firebaseAuth, async (req, res): Promise<void> => {
       res.status(409).json({ error: "Complete church onboarding before updating settings." });
       return;
     }
-    if (!hasRole(context, ["pastor", "admin"])) {
+    if (!canManageTeam(context)) {
       res.status(403).json({ error: "Only a pastor can update church settings." });
       return;
     }

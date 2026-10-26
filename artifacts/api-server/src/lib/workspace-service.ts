@@ -265,6 +265,8 @@ async function acceptInvitationOnce(
       churchId,
       uid: user.uid,
       role,
+      // Only set when the inviter adjusted access; otherwise the role's defaults apply.
+      ...(Array.isArray(invite.get("permissions")) ? { permissions: invite.get("permissions") } : {}),
       department: invite.get("department") ?? null,
       active: true,
       invitedBy: invite.get("invitedBy") ?? null,

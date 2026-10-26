@@ -30,15 +30,22 @@ storage.rules          Deny-all: uploads are not enabled yet
 
 ## Roles
 
-Pastora keeps roles few. Pastoral care belongs to pastors; nobody else, including
-whoever set the workspace up, can read prayer or counselling requests.
+Pastora keeps roles few, and a role is only a starting point: on the Team page a
+pastor can tick exactly which areas each person gets (Access). Counselling, private
+notes, Message Prep, the blog and approving expenses always stay with pastors.
 
-| Role | Can do |
+| Role | Starts with |
 | --- | --- |
-| Pastor | Prayer and counselling requests, private notes, calendar, review reports, approve expenses, team, settings |
-| Staff | The church office: general enquiries, calendar, tasks, QR links, submit reports and expenses |
-| Finance | Record payments for approved expenses (never their own or ones they approved) |
-| Workspace admin | Set-up only: team, settings, QR links. No care, calendar, reports or expenses |
+| Pastor | Everything |
+| Staff | General enquiries, calendar, QR links, department reports, submit expenses |
+| Finance | Submit expenses, record payments (never their own or ones they approved) |
+| Prayer team | Prayer requests people chose to share with the prayer team, without contact details |
+| Workspace admin | Team, settings, modules and QR links |
+
+Areas: `enquiries`, `prayer`, `calendar`, `qr`, `reports`, `expenses`, `payments`,
+`team`. Access is stored on the membership and checked by the API on every request.
+Only a pastor can give the people's-requests areas (enquiries, prayer, calendar), and
+nobody can change their own access. Everyone keeps their own tasks.
 
 Whoever creates a workspace chooses "I'm the pastor" (Pastor) or "I'm setting this up
 for my pastor" (Workspace admin). Others join by invitation (Team page); the invitee

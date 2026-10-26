@@ -10,7 +10,7 @@ import {
   FirebaseSetupRequiredError,
   getFirebaseServices,
 } from "./firebase-admin";
-import { sameChurch } from "./policies";
+import { permissionsFor, sameChurch, type Permission } from "./policies";
 import { ModuleOffError } from "./modules";
 
 /**
@@ -21,9 +21,9 @@ import { ModuleOffError } from "./modules";
  * - admin:   sets the workspace up — team, settings, QR links — and never sees pastoral
  *            care, the calendar, reports or expenses
  */
-export type ChurchRole = "pastor" | "staff" | "finance" | "admin";
+export type ChurchRole = "pastor" | "staff" | "finance" | "admin" | "prayer_team";
 
-export const CHURCH_ROLES: readonly ChurchRole[] = ["pastor", "staff", "finance", "admin"];
+export const CHURCH_ROLES: readonly ChurchRole[] = ["pastor", "staff", "finance", "admin", "prayer_team"];
 
 /**
  * Maps roles stored by earlier versions. Owners and counsellors already had full
@@ -40,6 +40,8 @@ export function normalizeRole(role: unknown): ChurchRole | null {
 export type TenantContext = {
   churchId: string;
   role: ChurchRole;
+  /** What this person can see and do (pastors: everything). See policies.ts. */
+  permissions: Permission[];
   membership: DocumentData;
 };
 
@@ -88,7 +90,7 @@ export async function tenantForUser(
   const church = await db.collection("churches").doc(churchId).get();
   const suspended = church.get("status") === "suspended";
   if (suspended && !options.allowSuspended) throw new ChurchSuspendedError();
-  return { churchId, role, membership, suspended };
+  return { churchId, role, permissions: permissionsFor(role, membership.permissions), membership, suspended };
 }
 
 /** Memberships use a deterministic id so the same person can never be added to a church twice. */
@@ -198,6 +200,40 @@ export type NotificationType =
   | "report"
   | "expense"
   | "team";
+
+/**
+ * Notifies every active member for whom `include(role, permissions)` is true, e.g.
+ * pastors plus whoever has the "enquiries" permission.
+ */
+export async function notifyChurchMembers(
+  churchId: string,
+  eventId: string,
+  type: NotificationType,
+  title: string,
+  targetPath: string,
+  include: (role: ChurchRole, permissions: Permission[]) => boolean,
+): Promise<void> {
+  const { db } = getFirebaseServices();
+  const memberships = await db
+    .collection("churchMemberships")
+    .where("churchId", "==", churchId)
+    .where("active", "==", true)
+    .get();
+  const batch = db.batch();
+  let writes = 0;
+  for (const member of memberships.docs) {
+    const data = member.data();
+    const role = normalizeRole(data.role);
+    if (!role || typeof data.uid !== "string" || !include(role, permissionsFor(role, data.permissions))) continue;
+    batch.set(
+      db.collection("notifications").doc(`${eventId}_${data.uid}`),
+      { churchId, uid: data.uid, type, title, targetPath, read: false, createdAt: FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+    writes += 1;
+  }
+  if (writes > 0) await batch.commit();
+}
 
 export async function notifyChurchRoles(
   churchId: string,

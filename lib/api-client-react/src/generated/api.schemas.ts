@@ -20,7 +20,7 @@ export interface SetupStatus {
 }
 
 /**
- * Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.
+ * Church roles. A role is a starting point: it sets a person's default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.
  */
 export type MemberRole = typeof MemberRole[keyof typeof MemberRole];
 
@@ -30,6 +30,24 @@ export const MemberRole = {
   staff: 'staff',
   finance: 'finance',
   admin: 'admin',
+  prayer_team: 'prayer_team',
+} as const;
+
+/**
+ * One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor's appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.
+ */
+export type Permission = typeof Permission[keyof typeof Permission];
+
+
+export const Permission = {
+  enquiries: 'enquiries',
+  prayer: 'prayer',
+  calendar: 'calendar',
+  qr: 'qr',
+  reports: 'reports',
+  expenses: 'expenses',
+  payments: 'payments',
+  team: 'team',
 } as const;
 
 export interface UserSummary {
@@ -37,6 +55,8 @@ export interface UserSummary {
   name: string;
   email: string;
   role: MemberRole;
+  /** What this person can see and do (pastors have everything). */
+  permissions: Permission[];
 }
 
 export interface Church {
@@ -1331,6 +1351,10 @@ export interface TeamMember {
   name: string;
   email: string;
   role: MemberRole;
+  /** What this person can see and do (pastors have everything). */
+  permissions: Permission[];
+  /** True when a pastor has adjusted this person's access from the role's defaults. */
+  customAccess: boolean;
   /** @nullable */
   department: string | null;
   active: boolean;
@@ -1341,6 +1365,7 @@ export interface TeamInvitation {
   id: string;
   email: string;
   role: MemberRole;
+  permissions: Permission[];
   /** @nullable */
   department: string | null;
   createdAt: string;
@@ -1355,6 +1380,8 @@ export interface InvitationInput {
   /** @maxLength 254 */
   email: string;
   role: MemberRole;
+  /** Leave out to use the role's defaults. */
+  permissions?: Permission[];
   /**
      * @maxLength 120
      * @nullable
@@ -1364,6 +1391,8 @@ export interface InvitationInput {
 
 export interface MemberUpdate {
   role?: MemberRole;
+  /** New access. Changing the role without sending permissions resets access to the new role's defaults. */
+  permissions?: Permission[];
   /**
      * @maxLength 120
      * @nullable

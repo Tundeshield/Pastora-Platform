@@ -8,7 +8,7 @@ import {
   SubmitPublicRequestResponse,
 } from "@workspace/api-zod";
 import { FieldValue } from "firebase-admin/firestore";
-import { failFirebaseSetup, notifyChurchRoles } from "../lib/pastora-data";
+import { failFirebaseSetup, notifyChurchMembers } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isModuleActive } from "../lib/modules";
 
@@ -259,16 +259,14 @@ router.post(
         req.log.warn({ qrError }, "QR submission count not updated");
       }
       try {
-        await notifyChurchRoles(
-          churchDoc.id,
-          eventId,
-          notificationType,
-          notificationTitle,
-          targetPath,
-          // Staff handle general enquiries and the calendar; prayer and counselling
-          // requests reach pastors only.
-          input.type === "prayer" || input.type === "counselling" ? ["pastor"] : ["pastor", "staff"],
-        );
+        // Each request reaches pastors, plus whoever has access to that kind of request.
+        const sharedPrayer = input.type === "prayer" && input.shareWithPrayerTeam === true;
+        await notifyChurchMembers(churchDoc.id, eventId, notificationType, notificationTitle, targetPath, (role, permissions) => {
+          if (role === "pastor") return true;
+          if (input.type === "general") return permissions.includes("enquiries");
+          if (input.type === "appointment") return permissions.includes("calendar");
+          return sharedPrayer && permissions.includes("prayer");
+        });
       } catch (notificationError) {
         req.log.warn({ notificationError }, "Pastoral request saved without notifications");
       }

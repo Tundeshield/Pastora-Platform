@@ -31,16 +31,18 @@ import { Link, useLocation } from "wouter";
 
 import { RequireWorkspace, useAuth, useSession } from "@/auth";
 import { Brand } from "@/components/ui-kit";
+import { accessFrom, type Access } from "@/access";
 import { applyAppearance } from "@/theme";
 
-/** `module` hides the item unless that module is switched on for the church. */
-type NavItem = { href: string; label: string; icon: LucideIcon; roles: MemberRole[]; module?: string };
-
 /**
- * Navigation mirrors the API's role checks so people only see pages they can use.
- * Pastors: everything. Staff: the church office. Finance: expenses. Admin: set-up only
- * (team, settings, QR links) and never pastoral care, the calendar, reports or expenses.
+ * `show` mirrors the API's access checks so people only see pages they can use;
+ * `module` hides the item unless that module is switched on for the church.
  */
+type NavItem = { href: string; label: string; icon: LucideIcon; show: (a: Access) => boolean; module?: string };
+
+const anyone = () => true;
+const pastors = (a: Access) => a.isPastor;
+
 export const navSections: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
@@ -49,45 +51,39 @@ export const navSections: { label: string; items: NavItem[] }[] = [
         href: "/app",
         label: "Overview",
         icon: LayoutDashboard,
-        roles: ["pastor", "staff"],
+        show: (a) => a.can("enquiries") || a.can("calendar") || a.can("prayer"),
       },
-      { href: "/app/requests", label: "Care inbox", icon: HeartHandshake, roles: ["pastor", "staff"] },
       {
-        href: "/app/appointments",
-        label: "Appointments",
-        icon: CalendarDays,
-        roles: ["pastor", "staff"],
+        href: "/app/requests",
+        label: "Care inbox",
+        icon: HeartHandshake,
+        show: (a) => a.can("enquiries") || a.can("prayer"),
       },
-      { href: "/app/tasks", label: "Tasks", icon: ClipboardList, roles: ["pastor", "staff", "finance", "admin"] },
-      {
-        href: "/app/messages",
-        label: "Message prep",
-        icon: BookOpen,
-        roles: ["pastor"],
-        module: "message-prep",
-      },
-      { href: "/app/blog", label: "Blog", icon: PenLine, roles: ["pastor"], module: "blog" },
+      { href: "/app/appointments", label: "Appointments", icon: CalendarDays, show: (a) => a.can("calendar") },
+      { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone },
+      { href: "/app/messages", label: "Message prep", icon: BookOpen, show: pastors, module: "message-prep" },
+      { href: "/app/blog", label: "Blog", icon: PenLine, show: pastors, module: "blog" },
     ],
   },
   {
     label: "Church operations",
     items: [
-      { href: "/app/qr-codes", label: "QR links", icon: QrCode, roles: ["pastor", "staff", "admin"] },
+      { href: "/app/qr-codes", label: "QR links", icon: QrCode, show: (a) => a.can("qr") },
       {
         href: "/app/reports",
         label: "Department reports",
         icon: FileText,
-        roles: ["pastor", "staff"],
+        show: (a) => a.can("reports"),
         module: "reports",
       },
       {
         href: "/app/expenses",
         label: "Expenses",
         icon: Receipt,
-        roles: ["pastor", "staff", "finance"],
+        show: (a) => a.can("expenses") || a.can("payments"),
         module: "expenses",
       },
-      { href: "/app/team", label: "Team", icon: Users, roles: ["pastor", "admin"] },
+      { href: "/app/team", label: "Team", icon: Users, show: (a) => a.can("team") },
     ],
   },
 ];
@@ -97,6 +93,7 @@ const ROLE_LABELS: Record<MemberRole, string> = {
   staff: "Staff",
   finance: "Finance",
   admin: "Workspace admin",
+  prayer_team: "Prayer team",
 };
 
 export function roleLabel(role: MemberRole | undefined): string {
@@ -251,6 +248,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
   const { signOutUser } = useAuth();
   const session = useSession();
   const role = session.data?.user.role;
+  const access = accessFrom(role, session.data?.user.permissions);
   const activeModules = session.data?.modules ?? [];
   const notifications = useListNotifications({
     query: { queryKey: getListNotificationsQueryKey(), retry: 1, enabled: !!session.data?.church },
@@ -302,8 +300,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
             .map((section) => ({
               ...section,
               items: section.items.filter(
-                (item) =>
-                  (!role || item.roles.includes(role)) && (!item.module || activeModules.includes(item.module)),
+                (item) => (!role || item.show(access)) && (!item.module || activeModules.includes(item.module)),
               ),
             }))
             .filter((section) => section.items.length > 0)}
@@ -311,7 +308,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
           onNavigate={() => setMobile(false)}
         />
         <div className="sidebar-bottom">
-          {(role === "pastor" || role === "admin") && (
+          {access.can("team") && (
             <Link
               href="/app/modules"
               onClick={() => setMobile(false)}
@@ -321,7 +318,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
               <span>Modules</span>
             </Link>
           )}
-          {(role === "pastor" || role === "admin") && (
+          {access.can("team") && (
             <Link
               href="/app/settings"
               onClick={() => setMobile(false)}

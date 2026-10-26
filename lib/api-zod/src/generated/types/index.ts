@@ -62,6 +62,7 @@ export * from './palette';
 export * from './pastoralRequest';
 export * from './pastoralRequestStatus';
 export * from './pastoralRequestType';
+export * from './permission';
 export * from './plan';
 export * from './planLimits';
 export * from './planTier';

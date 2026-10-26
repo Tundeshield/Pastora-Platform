@@ -34,7 +34,8 @@ export const GetSessionResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')).describe('What this person can see and do (pastors have everything).')
 }),
   "church": zod.union([zod.object({
   "id": zod.string(),
@@ -84,7 +85,8 @@ export const CreateWorkspaceResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')).describe('What this person can see and do (pastors have everything).')
 }),
   "church": zod.union([zod.object({
   "id": zod.string(),
@@ -928,7 +930,7 @@ export const GetPlatformWorkspaceResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
   "active": zod.boolean(),
   "disabled": zod.boolean()
 })),
@@ -981,7 +983,7 @@ export const UpdatePlatformMemberParams = zod.object({
 })
 
 export const UpdatePlatformMemberBody = zod.object({
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')
 })
 
 export const UpdatePlatformMemberResponse = zod.object({
@@ -999,7 +1001,7 @@ export const UpdatePlatformMemberResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
   "active": zod.boolean(),
   "disabled": zod.boolean()
 })),
@@ -1021,7 +1023,7 @@ export const ListPlatformUsersResponseItem = zod.object({
   "lastSignInAt": zod.coerce.date().nullable(),
   "churchId": zod.string().nullable(),
   "churchName": zod.string().nullable(),
-  "role": zod.union([zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),zod.null()]),
+  "role": zod.union([zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),zod.null()]),
   "platformAdmin": zod.boolean()
 })
 export const ListPlatformUsersResponse = zod.array(ListPlatformUsersResponseItem)
@@ -1051,7 +1053,7 @@ export const UpdatePlatformUserResponse = zod.object({
   "lastSignInAt": zod.coerce.date().nullable(),
   "churchId": zod.string().nullable(),
   "churchName": zod.string().nullable(),
-  "role": zod.union([zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),zod.null()]),
+  "role": zod.union([zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),zod.null()]),
   "platformAdmin": zod.boolean()
 })
 
@@ -1082,7 +1084,7 @@ export const ListChurchModulesResponse = zod.object({
   "description": zod.string(),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).describe('Roles that use the module once switched on.'),
   "priceNote": zod.string().nullable(),
   "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
   "sortOrder": zod.number().int()
@@ -1132,7 +1134,7 @@ export const UpdateChurchModuleResponse = zod.object({
   "description": zod.string(),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).describe('Roles that use the module once switched on.'),
   "priceNote": zod.string().nullable(),
   "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
   "sortOrder": zod.number().int()
@@ -1156,7 +1158,7 @@ export const ListPlatformModulesResponse = zod.object({
   "description": zod.string(),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).describe('Roles that use the module once switched on.'),
   "priceNote": zod.string().nullable(),
   "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
   "sortOrder": zod.number().int()
@@ -1195,7 +1197,7 @@ export const CreatePlatformModuleBody = zod.object({
   "description": zod.string().min(createPlatformModuleBodyDescriptionMin).max(createPlatformModuleBodyDescriptionMax),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).optional(),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).optional(),
   "priceNote": zod.string().max(createPlatformModuleBodyPriceNoteMax).nullish(),
   "sortOrder": zod.number().int().optional()
 })
@@ -1206,7 +1208,7 @@ export const CreatePlatformModuleResponse = zod.object({
   "description": zod.string(),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).describe('Roles that use the module once switched on.'),
   "priceNote": zod.string().nullable(),
   "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
   "sortOrder": zod.number().int()
@@ -1242,7 +1244,7 @@ export const UpdatePlatformModuleBody = zod.object({
   "description": zod.string().min(updatePlatformModuleBodyDescriptionMin).max(updatePlatformModuleBodyDescriptionMax).optional(),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']).optional(),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).optional().describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).optional(),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).optional(),
   "priceNote": zod.string().max(updatePlatformModuleBodyPriceNoteMax).nullish(),
   "sortOrder": zod.number().int().optional()
 })
@@ -1253,7 +1255,7 @@ export const UpdatePlatformModuleResponse = zod.object({
   "description": zod.string(),
   "status": zod.enum(['available', 'beta', 'coming_soon', 'retired']),
   "plan": zod.enum(['starter', 'church', 'plus', 'addon']).describe('Lowest plan that includes the module; "addon" is sold or granted separately.'),
-  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.')).describe('Roles that use the module once switched on.'),
+  "roles": zod.array(zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.')).describe('Roles that use the module once switched on.'),
   "priceNote": zod.string().nullable(),
   "builtin": zod.boolean().describe('Backed by product code; built-in modules can be retired but not deleted.'),
   "sortOrder": zod.number().int()
@@ -1319,7 +1321,7 @@ export const UpdatePlatformWorkspaceAccessResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
   "active": zod.boolean(),
   "disabled": zod.boolean()
 })),
@@ -1700,7 +1702,9 @@ export const GetTeamResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')).describe('What this person can see and do (pastors have everything).'),
+  "customAccess": zod.boolean().describe('True when a pastor has adjusted this person\'s access from the role\'s defaults.'),
   "department": zod.string().nullable(),
   "active": zod.boolean(),
   "isCurrentUser": zod.boolean()
@@ -1708,7 +1712,8 @@ export const GetTeamResponse = zod.object({
   "invitations": zod.array(zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')),
   "department": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 }))
@@ -1726,14 +1731,16 @@ export const createInvitationBodyDepartmentMax = 120;
 
 export const CreateInvitationBody = zod.object({
   "email": zod.string().email().max(createInvitationBodyEmailMax),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')).optional().describe('Leave out to use the role\'s defaults.'),
   "department": zod.string().max(createInvitationBodyDepartmentMax).nullish()
 })
 
 export const CreateInvitationResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')),
   "department": zod.string().nullable(),
   "createdAt": zod.coerce.date()
 })
@@ -1761,7 +1768,8 @@ export const updateMemberBodyDepartmentMax = 120;
 
 
 export const UpdateMemberBody = zod.object({
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).optional().describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).optional().describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')).optional().describe('New access. Changing the role without sending permissions resets access to the new role\'s defaults.'),
   "department": zod.string().max(updateMemberBodyDepartmentMax).nullish(),
   "active": zod.boolean().optional()
 })
@@ -1771,7 +1779,9 @@ export const UpdateMemberResponse = zod.object({
   "uid": zod.string(),
   "name": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['pastor', 'staff', 'finance', 'admin']).describe('Church roles. Pastor sees pastoral care; Staff runs the church office; Finance handles expense payments; Admin manages the team and settings only and never sees pastoral care, appointments, reports or expenses.'),
+  "role": zod.enum(['pastor', 'staff', 'finance', 'admin', 'prayer_team']).describe('Church roles. A role is a starting point: it sets a person\'s default access, which a pastor can adjust (see Permission). Pastors always have full access, including counselling, private notes, Message Prep, the blog and approvals, which are never given to other roles.'),
+  "permissions": zod.array(zod.enum(['enquiries', 'prayer', 'calendar', 'qr', 'reports', 'expenses', 'payments', 'team']).describe('One area a non-pastor can be given. enquiries = general enquiries in the care inbox; prayer = prayer requests the person agreed to share with the prayer team (never contact details); calendar = the pastor\'s appointments; qr = QR links; reports = submit department reports; expenses = submit expenses; payments = record payments on approved expenses; team = team, settings and modules. Only pastors can give enquiries, prayer or calendar.')).describe('What this person can see and do (pastors have everything).'),
+  "customAccess": zod.boolean().describe('True when a pastor has adjusted this person\'s access from the role\'s defaults.'),
   "department": zod.string().nullable(),
   "active": zod.boolean(),
   "isCurrentUser": zod.boolean()

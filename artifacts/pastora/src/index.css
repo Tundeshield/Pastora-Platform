@@ -675,3 +675,41 @@ body { font-size: calc(16px * var(--text-scale)); }
 .sidebar-nav.more-below { -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 44px), transparent); mask-image:linear-gradient(to bottom, #000 calc(100% - 44px), transparent); }
 .sidebar-nav.more-above.more-below { -webkit-mask-image:linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 44px), transparent); mask-image:linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 44px), transparent); }
 .sidebar-nav.more-above:not(.more-below) { -webkit-mask-image:linear-gradient(to bottom, transparent, #000 28px); mask-image:linear-gradient(to bottom, transparent, #000 28px); }
+
+/* Team: people and their access */
+.member-list { display:grid; background:hsl(var(--card)); border:1px solid hsl(var(--card-border)); border-radius:9px; overflow:hidden; margin-bottom:8px; }
+.member-row { border-top:1px solid hsl(var(--border)); }
+.member-row:first-child { border-top:0; }
+.member-row.inactive .member-id { opacity:.6; }
+.member-main { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 18px; padding:15px 17px; }
+.member-id { display:grid; gap:4px; min-width:0; flex:1 1 280px; }
+.member-id b { color:hsl(var(--foreground)); font-size:calc(12px * var(--text-scale)); }
+.member-id small { color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); overflow-wrap:anywhere; }
+.access-summary { color:hsl(var(--primary)); font-size:calc(10px * var(--text-scale)); line-height:1.5; }
+.access-summary em { color:hsl(var(--muted-foreground)); font-style:normal; }
+.member-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.member-actions select { min-height:40px; border:1px solid hsl(var(--input)); border-radius:7px; background:hsl(var(--background)); color:hsl(var(--foreground)); padding:6px 30px 6px 10px; font-size:calc(11px * var(--text-scale)); }
+.member-role { color:hsl(var(--muted-foreground)); font-size:calc(11px * var(--text-scale)); padding:0 6px; }
+.member-actions svg.flip { transform:rotate(180deg); }
+.member-access { padding:4px 17px 17px; border-top:1px dashed hsl(var(--border)); background:hsl(var(--background)/.5); }
+.member-access .form-actions { flex-wrap:wrap; margin-top:12px; }
+.access-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:4px 22px; }
+.access-list fieldset { margin:0; padding:12px 0 0; border:0; min-width:0; display:grid; gap:4px; align-content:start; }
+.access-list legend { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:0; margin-bottom:6px; color:hsl(var(--muted-foreground)); font-size:calc(9px * var(--text-scale)); font-weight:700; letter-spacing:.1em; text-transform:uppercase; }
+.access-list legend small { display:inline-flex; align-items:center; gap:4px; letter-spacing:0; text-transform:none; font-weight:500; color:hsl(var(--muted-foreground)/.85); }
+.access-item { display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border-radius:7px; cursor:pointer; }
+.access-item:hover { background:hsl(var(--secondary)/.5); }
+.access-item input { margin-top:3px; accent-color:hsl(var(--primary)); flex:none; }
+.access-item span { display:grid; gap:2px; }
+.access-item b { color:hsl(var(--foreground)); font-size:calc(11px * var(--text-scale)); font-weight:600; }
+.access-item small { color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); line-height:1.5; }
+.access-item.locked { cursor:not-allowed; opacity:.55; }
+.access-note { grid-column:1/-1; margin:10px 0 0; color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); line-height:1.6; }
+.invite-form { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.invite-form .invite-help, .invite-form .invite-access, .invite-form .form-actions, .invite-form .inline-error { grid-column:1/-1; }
+.invite-access { display:grid; gap:4px; padding-top:6px; border-top:1px solid hsl(var(--border)); }
+.invite-access>b { color:hsl(var(--foreground)); font-size:calc(11px * var(--text-scale)); margin-top:8px; }
+@media (max-width:760px) {
+  .invite-form { grid-template-columns:1fr; }
+  .member-actions { width:100%; }
+}
