@@ -281,6 +281,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /availability:
+    get:
+      operationId: getAvailability
+      tags: [appointments]
+      summary: When the pastor can be booked (weekly hours, meeting length, time off)
+      responses:
+        "200":
+          description: Availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Availability"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: saveAvailability
+      tags: [appointments]
+      summary: Save when the pastor can be booked
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvailabilityInput"
+      responses:
+        "200":
+          description: Saved availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Availability"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /appointments/{appointmentId}:
     patch:
       operationId: updateAppointment
@@ -1133,6 +1168,39 @@ paths:
                 $ref: "#/components/schemas/PublicPostPage"
         "404":
           $ref: "#/components/responses/NotFound"
+  /public/churches/{slug}/slots:
+    get:
+      operationId: getPublicSlots
+      tags: [public-care]
+      summary: Open times people can book with the pastor (no sign-in needed)
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+      responses:
+        "200":
+          description: Bookable times
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicSlots"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /public/churches/{slug}/links/{qrCodeId}:
+    get:
+      operationId: getPublicLink
+      tags: [public-care]
+      summary: What a QR link opens, with its own heading and message
+      parameters:
+        - $ref: "#/components/parameters/Slug"
+        - $ref: "#/components/parameters/QrCodeId"
+      responses:
+        "200":
+          description: The link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicLink"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /public/qr-codes/{qrCodeId}/visit:
     post:
       operationId: recordQrVisit
@@ -1521,7 +1589,11 @@ components:
         blogEnabled:
           type: boolean
           description: The church has the Pastor's blog module switched on.
-      required: [name, slug, logoUrl, welcomeMessage, categories, appointmentEnabled, emergencyNotice, blogEnabled]
+        bookingMode:
+          type: string
+          enum: [slots, request, off]
+          description: slots = pick an open time; request = suggest a time for the church to confirm; off = no booking.
+      required: [name, slug, logoUrl, welcomeMessage, categories, appointmentEnabled, emergencyNotice, blogEnabled, bookingMode]
     PublicRequestInput:
       type: object
       properties:
@@ -1570,6 +1642,10 @@ components:
           type: string
         received:
           type: boolean
+        appointmentStatus:
+          type: ["string", "null"]
+          enum: [requested, confirmed, null]
+          description: For bookings, whether the time is confirmed straight away.
       required: [reference, received]
     PastoralRequest:
       type: object
@@ -1690,6 +1766,14 @@ components:
         status:
           type: string
           enum: [requested, confirmed, declined, completed, cancelled]
+        contact:
+          type: ["string", "null"]
+        topic:
+          type: ["string", "null"]
+          description: What the person would like to talk about.
+        source:
+          type: ["string", "null"]
+          description: public_portal when booked from the care page.
         createdAt:
           type: string
           format: date-time
@@ -1717,6 +1801,9 @@ components:
         status:
           type: string
           enum: [requested, confirmed]
+        topic:
+          type: ["string", "null"]
+          maxLength: 2000
       required: [requesterName, startAt, durationMinutes, format, status]
     AppointmentUpdate:
       type: object
@@ -1731,6 +1818,136 @@ components:
         status:
           type: string
           enum: [requested, confirmed, declined, completed, cancelled]
+    WeeklyHours:
+      type: object
+      properties:
+        day:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: 0 = Sunday … 6 = Saturday
+        start:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        end:
+          type: string
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+      required: [day, start, end]
+    TimeOff:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        label:
+          type: ["string", "null"]
+          maxLength: 120
+      required: [startAt, endAt]
+    AvailabilityInput:
+      type: object
+      properties:
+        bookingEnabled:
+          type: boolean
+        weekly:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/WeeklyHours"
+        meetingMinutes:
+          type: integer
+          minimum: 15
+          maximum: 180
+        bufferMinutes:
+          type: integer
+          minimum: 0
+          maximum: 120
+        noticeHours:
+          type: integer
+          minimum: 0
+          maximum: 336
+        horizonDays:
+          type: integer
+          minimum: 1
+          maximum: 90
+        autoConfirm:
+          type: boolean
+        formats:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            enum: [in-person, phone, video]
+        location:
+          type: ["string", "null"]
+          maxLength: 200
+        timeOff:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/TimeOff"
+      required: [bookingEnabled, weekly, meetingMinutes, bufferMinutes, noticeHours, horizonDays, autoConfirm, formats, location, timeOff]
+    Availability:
+      allOf:
+        - $ref: "#/components/schemas/AvailabilityInput"
+        - type: object
+          properties:
+            timeZone:
+              type: string
+            configured:
+              type: boolean
+              description: False until someone saves weekly hours.
+          required: [timeZone, configured]
+    PublicSlotDay:
+      type: object
+      properties:
+        date:
+          type: string
+          description: YYYY-MM-DD in the church's time zone
+        slots:
+          type: array
+          items:
+            type: string
+            format: date-time
+      required: [date, slots]
+    PublicSlots:
+      type: object
+      properties:
+        timeZone:
+          type: string
+        meetingMinutes:
+          type: integer
+        formats:
+          type: array
+          items:
+            type: string
+            enum: [in-person, phone, video]
+        location:
+          type: ["string", "null"]
+        autoConfirm:
+          type: boolean
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/PublicSlotDay"
+      required: [timeZone, meetingMinutes, formats, location, autoConfirm, days]
+    PublicLink:
+      type: object
+      properties:
+        id:
+          type: string
+        destination:
+          type: string
+          enum: [care, prayer, counselling, appointments, general, welcome]
+        headline:
+          type: ["string", "null"]
+        message:
+          type: ["string", "null"]
+        campaign:
+          type: ["string", "null"]
+      required: [id, destination, headline, message, campaign]
     Task:
       type: object
       properties:
@@ -1804,8 +2021,12 @@ components:
           type: string
         destination:
           type: string
-          enum: [care, prayer, counselling, appointments, general]
+          enum: [care, prayer, counselling, appointments, general, welcome]
         campaign:
+          type: ["string", "null"]
+        headline:
+          type: ["string", "null"]
+        message:
           type: ["string", "null"]
         active:
           type: boolean
@@ -1826,10 +2047,16 @@ components:
           maxLength: 120
         destination:
           type: string
-          enum: [care, prayer, counselling, appointments, general]
+          enum: [care, prayer, counselling, appointments, general, welcome]
         campaign:
           type: ["string", "null"]
           maxLength: 120
+        headline:
+          type: ["string", "null"]
+          maxLength: 120
+        message:
+          type: ["string", "null"]
+          maxLength: 600
       required: [name, destination]
     QrCodeUpdate:
       type: object
@@ -1840,10 +2067,16 @@ components:
           maxLength: 120
         destination:
           type: string
-          enum: [care, prayer, counselling, appointments, general]
+          enum: [care, prayer, counselling, appointments, general, welcome]
         campaign:
           type: ["string", "null"]
           maxLength: 120
+        headline:
+          type: ["string", "null"]
+          maxLength: 120
+        message:
+          type: ["string", "null"]
+          maxLength: 600
         active:
           type: boolean
     DepartmentReport:

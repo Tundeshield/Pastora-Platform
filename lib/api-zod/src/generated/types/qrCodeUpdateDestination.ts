@@ -15,4 +15,5 @@ export const QrCodeUpdateDestination = {
   counselling: 'counselling',
   appointments: 'appointments',
   general: 'general',
+  welcome: 'welcome',
 } as const;

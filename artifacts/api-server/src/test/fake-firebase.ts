@@ -96,12 +96,12 @@ export class FakeQuery {
   constructor(
     public db: FakeFirestore,
     public collectionName: string,
-    private filters: Array<[string, unknown]> = [],
+    private filters: Array<[string, unknown, string?]> = [],
     private max = Infinity,
   ) {}
   where(field: string, op: string, value: unknown) {
-    if (op !== "==") throw new Error(`Fake Firestore only supports == (got ${op})`);
-    return new FakeQuery(this.db, this.collectionName, [...this.filters, [field, value]], this.max);
+    if (op !== "==" && op !== "in") throw new Error(`Fake Firestore only supports == and in (got ${op})`);
+    return new FakeQuery(this.db, this.collectionName, [...this.filters, [field, value, op]], this.max);
   }
   limit(n: number) {
     return new FakeQuery(this.db, this.collectionName, this.filters, n);
@@ -111,7 +111,10 @@ export class FakeQuery {
     for (const [path, value] of this.db.store) {
       const [collection, id] = path.split("/");
       if (collection !== this.collectionName) continue;
-      if (this.filters.every(([field, expected]) => value[field] === expected)) {
+      const matches = this.filters.every(([field, expected, op]) =>
+        op === "in" ? (expected as unknown[]).includes(value[field]) : value[field] === expected,
+      );
+      if (matches) {
         docs.push(new FakeDocSnapshot(new FakeDocRef(this.db, collection, id), value));
       }
       if (docs.length >= this.max) break;

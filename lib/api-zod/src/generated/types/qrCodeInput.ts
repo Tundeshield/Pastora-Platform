@@ -19,4 +19,14 @@ export interface QrCodeInput {
      * @nullable
      */
   campaign?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  headline?: string | null;
+  /**
+     * @maxLength 600
+     * @nullable
+     */
+  message?: string | null;
 }

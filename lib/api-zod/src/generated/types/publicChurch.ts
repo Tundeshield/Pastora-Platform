@@ -5,6 +5,7 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicChurchBookingMode } from './publicChurchBookingMode';
 
 export interface PublicChurch {
   name: string;
@@ -17,4 +18,6 @@ export interface PublicChurch {
   emergencyNotice: string;
   /** The church has the Pastor's blog module switched on. */
   blogEnabled: boolean;
+  /** slots = pick an open time; request = suggest a time for the church to confirm; off = no booking. */
+  bookingMode: PublicChurchBookingMode;
 }

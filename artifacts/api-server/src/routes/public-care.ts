@@ -3,6 +3,10 @@ import rateLimit from "express-rate-limit";
 import {
   GetPublicChurchParams,
   GetPublicChurchResponse,
+  GetPublicLinkParams,
+  GetPublicLinkResponse,
+  GetPublicSlotsParams,
+  GetPublicSlotsResponse,
   SubmitPublicRequestBody,
   SubmitPublicRequestParams,
   SubmitPublicRequestResponse,
@@ -11,6 +15,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { failFirebaseSetup, notifyChurchMembers } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isModuleActive } from "../lib/modules";
+import { availabilityFrom, busyFrom, computeSlots, isOpenSlot, validTimeZone } from "../lib/booking";
 
 const router: IRouter = Router();
 
@@ -54,6 +59,110 @@ router.post("/public/qr-codes/:qrCodeId/visit", qrVisitLimit, async (req, res): 
   res.sendStatus(204);
 });
 
+/** The church behind a public slug, with its settings, or null if its page is off. */
+async function publicChurch(slug: string) {
+  const { db } = getFirebaseServices();
+  const result = await db
+    .collection("churches")
+    .where("slug", "==", slug)
+    .where("status", "==", "active")
+    .limit(1)
+    .get();
+  if (result.empty) return null;
+  const church = result.docs[0];
+  const settings = (await db.collection("churchSettings").doc(church.id).get()).data() ?? {};
+  if (settings.publicPortalEnabled === false) return null;
+  return { church, settings };
+}
+
+async function bookingState(churchId: string, settings: Record<string, unknown>) {
+  const { db } = getFirebaseServices();
+  const [stored, church, held] = await Promise.all([
+    db.collection("availability").doc(churchId).get(),
+    db.collection("churches").doc(churchId).get(),
+    db
+      .collection("appointments")
+      .where("churchId", "==", churchId)
+      .where("status", "in", ["confirmed", "requested"])
+      .get(),
+  ]);
+  return {
+    availability: availabilityFrom(stored.data(), settings),
+    timeZone: validTimeZone(church.get("timeZone")),
+    busy: busyFrom(held.docs.map((d) => ({ id: d.id, ...d.data() }))),
+  };
+}
+
+const slotLookupLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: { error: "Too many requests." },
+});
+
+router.get("/public/churches/:slug/slots", slotLookupLimit, async (req, res): Promise<void> => {
+  const params = GetPublicSlotsParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    const found = await publicChurch(params.data.slug);
+    if (!found || found.settings.appointmentEnabled === false) {
+      res.status(404).json({ error: "Booking is not available." });
+      return;
+    }
+    const { availability, timeZone, busy } = await bookingState(found.church.id, found.settings);
+    if (!availability.configured) {
+      res.status(404).json({ error: "Booking is not available." });
+      return;
+    }
+    res.json(
+      GetPublicSlotsResponse.parse({
+        timeZone,
+        meetingMinutes: availability.meetingMinutes,
+        formats: availability.formats,
+        location: availability.location,
+        autoConfirm: availability.autoConfirm,
+        days: computeSlots(availability, timeZone, busy),
+      }),
+    );
+  } catch (error) {
+    if (failFirebaseSetup(res, error)) return;
+    req.log.error({ error }, "Unable to load booking slots");
+    res.status(500).json({ error: "Unable to load open times." });
+  }
+});
+
+router.get("/public/churches/:slug/links/:qrCodeId", qrVisitLimit, async (req, res): Promise<void> => {
+  const params = GetPublicLinkParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "This link is not available." });
+    return;
+  }
+  try {
+    const found = await publicChurch(params.data.slug);
+    const qr = found ? await activeQrCode(params.data.qrCodeId, found.church.id) : null;
+    if (!qr) {
+      res.status(404).json({ error: "This link is not available." });
+      return;
+    }
+    res.json(
+      GetPublicLinkResponse.parse({
+        id: qr.id,
+        destination: qr.get("destination"),
+        headline: qr.get("headline") ?? null,
+        message: qr.get("message") ?? null,
+        campaign: qr.get("campaign") ?? null,
+      }),
+    );
+  } catch (error) {
+    if (failFirebaseSetup(res, error)) return;
+    res.status(404).json({ error: "This link is not available." });
+  }
+});
+
 router.get("/public/churches/:slug", async (req, res): Promise<void> => {
   const params = GetPublicChurchParams.safeParse(req.params);
   if (!params.success) {
@@ -82,6 +191,13 @@ router.get("/public/churches/:slug", async (req, res): Promise<void> => {
       res.status(404).json({ error: "This pastoral care page is not available." });
       return;
     }
+    const stored = await db.collection("availability").doc(churchDoc.id).get();
+    const bookingMode =
+      settings.appointmentEnabled === false
+        ? "off"
+        : availabilityFrom(stored.data(), settings).configured
+          ? "slots"
+          : "request";
 
     res.json(
       GetPublicChurchResponse.parse({
@@ -95,6 +211,7 @@ router.get("/public/churches/:slug", async (req, res): Promise<void> => {
           settings.emergencyNotice ??
           "Pastora is not an emergency response service or a replacement for professional healthcare.",
         blogEnabled: await isModuleActive(churchDoc.id, "blog"),
+        bookingMode,
       }),
     );
   } catch (error) {
@@ -160,7 +277,10 @@ router.post(
         return;
       }
 
+      const qr = await activeQrCode(input.qrCodeId, churchDoc.id).catch(() => null);
+      const campaign = (qr?.get("campaign") as string | null | undefined) ?? input.campaign ?? null;
       let reference: string;
+      let appointmentStatus: "requested" | "confirmed" | null = null;
       let eventId: string;
       let notificationType: "appointment" | "pastoral_request";
       let notificationTitle: string;
@@ -171,25 +291,52 @@ router.post(
           return;
         }
         const appointmentRef = db.collection("appointments").doc();
-        await appointmentRef.set({
+        const startAt =
+          input.preferredDate instanceof Date ? input.preferredDate : new Date(String(input.preferredDate));
+        const { availability, timeZone } = await bookingState(churchDoc.id, settings);
+        const formats = availability.formats;
+        const format =
+          input.preferredFormat && (!availability.configured || formats.includes(input.preferredFormat))
+            ? input.preferredFormat
+            : formats[0] ?? "in-person";
+        appointmentStatus = availability.configured && availability.autoConfirm ? "confirmed" : "requested";
+        const appointment = {
           churchId: churchDoc.id,
           requesterName: input.anonymous ? "Guest" : input.name?.trim() || "Guest",
           contact: input.contact?.trim() || null,
-          startAt:
-            input.preferredDate instanceof Date
-              ? input.preferredDate
-              : new Date(String(input.preferredDate)),
-          durationMinutes: Number(settings.appointmentDurationMinutes) || 45,
-          format: input.preferredFormat ?? "in-person",
-          status: "requested",
+          topic: input.message.trim() || null,
+          startAt,
+          durationMinutes: availability.meetingMinutes,
+          format,
+          status: appointmentStatus,
           createdAt: FieldValue.serverTimestamp(),
           source: "public_portal",
-          qrCodeId: input.qrCodeId ?? null,
-        });
+          campaign,
+          qrCodeId: qr?.id ?? null,
+        };
+        if (availability.configured) {
+          // The time must still be open when we save it, so two people can't take the same slot.
+          await db.runTransaction(async (transaction) => {
+            const held = await transaction.get(
+              db
+                .collection("appointments")
+                .where("churchId", "==", churchDoc.id)
+                .where("status", "in", ["confirmed", "requested"]),
+            );
+            const busy = busyFrom(held.docs.map((d) => ({ id: d.id, ...d.data() })));
+            if (!isOpenSlot(startAt, availability, timeZone, busy)) throw new Error("SLOT_TAKEN");
+            transaction.set(appointmentRef, appointment);
+          });
+        } else {
+          await appointmentRef.set(appointment);
+        }
         eventId = appointmentRef.id;
         reference = appointmentRef.id.slice(0, 8).toUpperCase();
         notificationType = "appointment";
-        notificationTitle = "A new appointment request needs review.";
+        notificationTitle =
+          appointmentStatus === "confirmed"
+            ? `${appointment.requesterName} booked a conversation.`
+            : "A new appointment request needs review.";
         targetPath = "/app/appointments";
       } else {
         const requestRef = db.collection("pastoralRequests").doc();
@@ -210,8 +357,8 @@ router.post(
           shareWithPrayerTeam:
             input.type === "prayer" && input.shareWithPrayerTeam,
           isConfidential: input.type === "counselling",
-          campaign: input.campaign ?? null,
-          qrCodeId: input.qrCodeId ?? null,
+          campaign,
+          qrCodeId: qr?.id ?? null,
           source: "public_portal",
         };
         if (input.type === "counselling") {
@@ -249,11 +396,12 @@ router.post(
         notificationTitle =
           input.type === "counselling"
             ? "A confidential care request needs review."
-            : "A new pastoral care request needs review.";
+            : input.type === "general" && input.category === "First-time guest"
+              ? "A first-time guest filled in a welcome card."
+              : "A new pastoral care request needs review.";
         targetPath = "/app/requests";
       }
       try {
-        const qr = await activeQrCode(input.qrCodeId, churchDoc.id);
         if (qr) await qr.ref.update({ submissions: FieldValue.increment(1) });
       } catch (qrError) {
         req.log.warn({ qrError }, "QR submission count not updated");
@@ -271,9 +419,13 @@ router.post(
         req.log.warn({ notificationError }, "Pastoral request saved without notifications");
       }
       res.status(201).json(
-        SubmitPublicRequestResponse.parse({ reference, received: true }),
+        SubmitPublicRequestResponse.parse({ reference, received: true, appointmentStatus }),
       );
     } catch (error) {
+      if (error instanceof Error && error.message === "SLOT_TAKEN") {
+        res.status(409).json({ error: "Sorry, that time was just taken or is no longer open. Please choose another." });
+        return;
+      }
       if (failFirebaseSetup(res, error)) return;
       req.log.error({ error }, "Unable to save public care submission");
       res.status(500).json({

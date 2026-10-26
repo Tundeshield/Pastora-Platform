@@ -5,8 +5,14 @@
  * Pastora church workspaces, public pastoral care and administration API
  * OpenAPI spec version: 0.1.0
  */
+import type { PublicRequestReceiptAppointmentStatus } from './publicRequestReceiptAppointmentStatus';
 
 export interface PublicRequestReceipt {
   reference: string;
   received: boolean;
+  /**
+     * For bookings, whether the time is confirmed straight away.
+     * @nullable
+     */
+  appointmentStatus?: PublicRequestReceiptAppointmentStatus;
 }

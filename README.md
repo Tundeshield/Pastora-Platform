@@ -28,6 +28,17 @@ storage.rules          Deny-all: uploads are not enabled yet
 - Every tenant document carries `churchId`; every route scopes reads and writes to the
   caller's church. See [docs/SECURITY.md](docs/SECURITY.md).
 
+## Booking and QR links
+
+- **Booking (Appointments → Availability):** weekly hours in the church's time zone, meeting length, a
+  break between meetings, minimum notice, how far ahead, ways to meet and time off. The care page shows
+  only open slots (`GET /api/public/churches/:slug/slots`); a booking is re-checked inside a transaction
+  so two people can't take the same time. Bookings confirm straight away unless the pastor turns that off.
+  Until hours are set, the care page falls back to "suggest a time".
+- **QR links:** each link has a purpose (welcome card, prayer, booking, confidential help, questions or the
+  whole care page) and can carry its own heading and line of text. The campaign is taken from the link on
+  the server, and the QR page can download a printable poster.
+
 ## Roles
 
 Pastora keeps roles few, and a role is only a starting point: on the Team page a

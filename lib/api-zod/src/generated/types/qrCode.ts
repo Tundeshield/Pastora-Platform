@@ -13,6 +13,10 @@ export interface QrCode {
   destination: QrCodeDestination;
   /** @nullable */
   campaign: string | null;
+  /** @nullable */
+  headline?: string | null;
+  /** @nullable */
+  message?: string | null;
   active: boolean;
   visits: number;
   submissions: number;

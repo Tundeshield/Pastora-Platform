@@ -15,5 +15,17 @@ export interface Appointment {
   durationMinutes: number;
   format: AppointmentFormat;
   status: AppointmentStatus;
+  /** @nullable */
+  contact?: string | null;
+  /**
+     * What the person would like to talk about.
+     * @nullable
+     */
+  topic?: string | null;
+  /**
+     * public_portal when booked from the care page.
+     * @nullable
+     */
+  source?: string | null;
   createdAt: Date;
 }

@@ -24,6 +24,8 @@ import type {
   Appointment,
   AppointmentInput,
   AppointmentUpdate,
+  Availability,
+  AvailabilityInput,
   BadRequestResponse,
   ChurchModule,
   ChurchModuleUpdate,
@@ -68,9 +70,11 @@ import type {
   PostUpdate,
   PublicBlog,
   PublicChurch,
+  PublicLink,
   PublicPostPage,
   PublicRequestInput,
   PublicRequestReceipt,
+  PublicSlots,
   QrCode,
   QrCodeInput,
   QrCodeUpdate,
@@ -1196,6 +1200,171 @@ export const useCreateAppointment = <TError = ErrorType<ApiError>,
         TContext
       > => {
       return useMutation(getCreateAppointmentMutationOptions(options));
+    }
+
+export const getGetAvailabilityUrl = () => {
+
+
+
+
+  return `/api/availability`
+}
+
+/**
+ * @summary When the pastor can be booked (weekly hours, meeting length, time off)
+ */
+export const getAvailability = async ( options?: Parameters<typeof customFetch>[1]): Promise<Availability> => {
+
+  return customFetch<Availability>(getGetAvailabilityUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetAvailabilityQueryKey = () => {
+    return [
+    `/api/availability`
+    ] as const;
+    }
+
+
+export const getGetAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof getAvailability>>, TError = ErrorType<ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAvailabilityQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAvailability>>> = ({ signal }) => getAvailability({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getAvailability>>>
+export type GetAvailabilityQueryError = ErrorType<ForbiddenResponse>
+
+
+/**
+ * @summary When the pastor can be booked (weekly hours, meeting length, time off)
+ */
+
+export function useGetAvailability<TData = Awaited<ReturnType<typeof getAvailability>>, TError = ErrorType<ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetAvailabilityQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSaveAvailabilityUrl = () => {
+
+
+
+
+  return `/api/availability`
+}
+
+/**
+ * @summary Save when the pastor can be booked
+ */
+export const saveAvailability = async (availabilityInput: AvailabilityInput, options?: Parameters<typeof customFetch>[1]): Promise<Availability> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<Availability>(getSaveAvailabilityUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(availabilityInput)
+  }
+);}
+
+
+
+
+
+export const getSaveAvailabilityMutationKey = () => ['saveAvailability'] as const;
+
+export const getSaveAvailabilityMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAvailability>>, TError,SaveAvailabilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveAvailability>>, TError,SaveAvailabilityMutationVariables, TContext> => {
+
+const mutationKey = getSaveAvailabilityMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveAvailability>>, SaveAvailabilityMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveAvailability(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveAvailabilityMutationResult = NonNullable<Awaited<ReturnType<typeof saveAvailability>>>
+    export type SaveAvailabilityMutationBody = BodyType<AvailabilityInput>
+    export type SaveAvailabilityMutationError = ErrorType<BadRequestResponse | ForbiddenResponse>
+    export type SaveAvailabilityMutationVariables = {data: BodyType<AvailabilityInput>}
+
+    /**
+ * @summary Save when the pastor can be booked
+ */
+export const useSaveAvailability = <TError = ErrorType<BadRequestResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveAvailability>>, TError,SaveAvailabilityMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveAvailability>>,
+        TError,
+        SaveAvailabilityMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveAvailabilityMutationOptions(options));
     }
 
 export const getUpdateAppointmentUrl = (appointmentId: string,) => {
@@ -4989,6 +5158,165 @@ export function useGetPublicPost<TData = Awaited<ReturnType<typeof getPublicPost
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetPublicPostQueryOptions(slug,postId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPublicSlotsUrl = (slug: string,) => {
+
+
+
+
+  return `/api/public/churches/${slug}/slots`
+}
+
+/**
+ * @summary Open times people can book with the pastor (no sign-in needed)
+ */
+export const getPublicSlots = async (slug: string, options?: Parameters<typeof customFetch>[1]): Promise<PublicSlots> => {
+
+  return customFetch<PublicSlots>(getGetPublicSlotsUrl(slug),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicSlotsQueryKey = (slug: string,) => {
+    return [
+    `/api/public/churches/${slug}/slots`
+    ] as const;
+    }
+
+
+export const getGetPublicSlotsQueryOptions = <TData = Awaited<ReturnType<typeof getPublicSlots>>, TError = ErrorType<NotFoundResponse>>(slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicSlots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicSlotsQueryKey(slug);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicSlots>>> = ({ signal }) => getPublicSlots(slug, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicSlots>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicSlotsQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicSlots>>>
+export type GetPublicSlotsQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary Open times people can book with the pastor (no sign-in needed)
+ */
+
+export function useGetPublicSlots<TData = Awaited<ReturnType<typeof getPublicSlots>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicSlots>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicSlotsQueryOptions(slug,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetPublicLinkUrl = (slug: string,
+    qrCodeId: string,) => {
+
+
+
+
+  return `/api/public/churches/${slug}/links/${qrCodeId}`
+}
+
+/**
+ * @summary What a QR link opens, with its own heading and message
+ */
+export const getPublicLink = async (slug: string,
+    qrCodeId: string, options?: Parameters<typeof customFetch>[1]): Promise<PublicLink> => {
+
+  return customFetch<PublicLink>(getGetPublicLinkUrl(slug,qrCodeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPublicLinkQueryKey = (slug: string,
+    qrCodeId: string,) => {
+    return [
+    `/api/public/churches/${slug}/links/${qrCodeId}`
+    ] as const;
+    }
+
+
+export const getGetPublicLinkQueryOptions = <TData = Awaited<ReturnType<typeof getPublicLink>>, TError = ErrorType<NotFoundResponse>>(slug: string,
+    qrCodeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicLink>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPublicLinkQueryKey(slug,qrCodeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicLink>>> = ({ signal }) => getPublicLink(slug,qrCodeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: slug !== null && slug !== undefined && qrCodeId !== null && qrCodeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPublicLink>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPublicLinkQueryResult = NonNullable<Awaited<ReturnType<typeof getPublicLink>>>
+export type GetPublicLinkQueryError = ErrorType<NotFoundResponse>
+
+
+/**
+ * @summary What a QR link opens, with its own heading and message
+ */
+
+export function useGetPublicLink<TData = Awaited<ReturnType<typeof getPublicLink>>, TError = ErrorType<NotFoundResponse>>(
+ slug: string,
+    qrCodeId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPublicLink>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPublicLinkQueryOptions(slug,qrCodeId,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

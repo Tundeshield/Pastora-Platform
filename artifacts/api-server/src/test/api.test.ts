@@ -540,6 +540,115 @@ describe("appointments", () => {
   });
 });
 
+describe("booking and QR links", () => {
+  /** Opens every day 06:00–22:00 church time so tests don't depend on today's weekday. */
+  const everyDay = [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, start: "06:00", end: "22:00" }));
+  const availability = (overrides: Json = {}) => ({
+    bookingEnabled: true,
+    weekly: everyDay,
+    meetingMinutes: 30,
+    bufferMinutes: 0,
+    noticeHours: 0,
+    horizonDays: 7,
+    autoConfirm: true,
+    formats: ["phone", "video"],
+    location: null,
+    timeOff: [],
+    ...overrides,
+  });
+
+  test("without hours set, the care page asks for a preferred time; with hours, people pick a slot", async () => {
+    const owner = await ownerWithChurch();
+    const slug = owner.church.slug;
+    assert.equal((await call("GET", `/public/churches/${slug}`)).body.bookingMode, "request");
+    assert.equal((await call("GET", `/public/churches/${slug}/slots`)).status, 404);
+    const saved = await call("PUT", "/availability", owner.token, availability());
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+    assert.equal(saved.body.configured, true);
+    assert.equal(saved.body.timeZone, "Africa/Lagos");
+    assert.equal((await call("GET", `/public/churches/${slug}`)).body.bookingMode, "slots");
+    const slots = await call("GET", `/public/churches/${slug}/slots`);
+    assert.equal(slots.status, 200);
+    assert.deepEqual(slots.body.formats, ["phone", "video"]);
+    const open = slots.body.days.flatMap((d: Json) => d.slots) as string[];
+    assert.ok(open.length > 10);
+
+    const booked = await publicRequest(slug, {
+      type: "appointment",
+      name: "Tolu",
+      contact: "0800",
+      message: "Wedding plans",
+      preferredDate: open[1],
+      preferredFormat: "in-person",
+    });
+    assert.equal(booked.status, 201, JSON.stringify(booked.body));
+    assert.equal(booked.body.appointmentStatus, "confirmed");
+    const list = await call("GET", "/appointments", owner.token);
+    assert.equal(list.body[0].topic, "Wedding plans");
+    assert.equal(list.body[0].contact, "0800");
+    assert.equal(list.body[0].format, "phone", "a format the pastor doesn't offer falls back to one they do");
+    assert.equal(list.body[0].durationMinutes, 30);
+
+    const again = await publicRequest(slug, { type: "appointment", message: "Me too", preferredDate: open[1] });
+    assert.equal(again.status, 409, "the same slot can't be booked twice");
+    const after = await call("GET", `/public/churches/${slug}/slots`);
+    assert.ok(!after.body.days.flatMap((d: Json) => d.slots).includes(open[1]));
+    const offGrid = new Date(new Date(open[2]).getTime() + 7 * 60_000).toISOString();
+    assert.equal((await publicRequest(slug, { type: "appointment", message: "x", preferredDate: offGrid })).status, 409);
+  });
+
+  test("bookings wait for confirmation when auto-confirm is off; switching booking off closes it", async () => {
+    const owner = await ownerWithChurch();
+    const slug = owner.church.slug;
+    await call("PUT", "/availability", owner.token, availability({ autoConfirm: false }));
+    const open = (await call("GET", `/public/churches/${slug}/slots`)).body.days[0].slots as string[];
+    const booked = await publicRequest(slug, { type: "appointment", message: "Chat", preferredDate: open[0] });
+    assert.equal(booked.body.appointmentStatus, "requested");
+    await call("PUT", "/availability", owner.token, availability({ bookingEnabled: false }));
+    assert.equal((await call("GET", `/public/churches/${slug}`)).body.bookingMode, "off");
+    assert.equal((await call("GET", `/public/churches/${slug}/slots`)).status, 404);
+  });
+
+  test("only people with the calendar can see or change availability", async () => {
+    const owner = await ownerWithChurch();
+    const finance = await member(owner.token, "finance");
+    assert.equal((await call("GET", "/availability", finance.token)).status, 403);
+    assert.equal((await call("PUT", "/availability", finance.token, availability())).status, 403);
+    const bad = await call("PUT", "/availability", owner.token, availability({ weekly: [{ day: 1, start: "12:00", end: "09:00" }] }));
+    assert.equal(bad.status, 400);
+  });
+
+  test("a QR link opens its own page with its own words, and tags what people send", async () => {
+    const owner = await ownerWithChurch();
+    const other = await ownerWithChurch("Other Church");
+    const created = await call("POST", "/qr-codes", owner.token, {
+      name: "Guest card",
+      destination: "welcome",
+      campaign: "Harvest Sunday",
+      headline: "Welcome to Grace!",
+      message: "We'd love to know you.",
+    });
+    assert.equal(created.status, 201);
+    const link = await call("GET", `/public/churches/${owner.church.slug}/links/${created.body.id}`);
+    assert.equal(link.status, 200);
+    assert.equal(link.body.destination, "welcome");
+    assert.equal(link.body.headline, "Welcome to Grace!");
+    assert.equal((await call("GET", `/public/churches/${other.church.slug}/links/${created.body.id}`)).status, 404);
+    const sent = await publicRequest(owner.church.slug, {
+      type: "general",
+      category: "First-time guest",
+      message: "New here",
+      qrCodeId: created.body.id,
+      campaign: "spoofed",
+    });
+    assert.equal(sent.status, 201);
+    const stored = [...db.store.values()].find((v) => v.message === "New here");
+    assert.equal(stored?.campaign, "Harvest Sunday", "the campaign comes from the link, not the browser");
+    await call("PATCH", `/qr-codes/${created.body.id}`, owner.token, { active: false });
+    assert.equal((await call("GET", `/public/churches/${owner.church.slug}/links/${created.body.id}`)).status, 404);
+  });
+});
+
 describe("expenses", () => {
   test("full approval and payment workflow with separation of duties", async () => {
     const owner = await ownerWithChurch();

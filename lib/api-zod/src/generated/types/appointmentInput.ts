@@ -27,4 +27,9 @@ export interface AppointmentInput {
   durationMinutes: number;
   format: AppointmentInputFormat;
   status: AppointmentInputStatus;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  topic?: string | null;
 }

@@ -212,6 +212,18 @@ export interface Appointment {
   durationMinutes: number;
   format: AppointmentFormat;
   status: AppointmentStatus;
+  /** @nullable */
+  contact?: string | null;
+  /**
+     * What the person would like to talk about.
+     * @nullable
+     */
+  topic?: string | null;
+  /**
+     * public_portal when booked from the care page.
+     * @nullable
+     */
+  source?: string | null;
   createdAt: string;
 }
 
@@ -271,6 +283,18 @@ export interface DashboardSummary {
   urgentFollowUps: PastoralRequest[];
 }
 
+/**
+ * slots = pick an open time; request = suggest a time for the church to confirm; off = no booking.
+ */
+export type PublicChurchBookingMode = typeof PublicChurchBookingMode[keyof typeof PublicChurchBookingMode];
+
+
+export const PublicChurchBookingMode = {
+  slots: 'slots',
+  request: 'request',
+  off: 'off',
+} as const;
+
 export interface PublicChurch {
   name: string;
   slug: string;
@@ -282,6 +306,8 @@ export interface PublicChurch {
   emergencyNotice: string;
   /** The church has the Pastor's blog module switched on. */
   blogEnabled: boolean;
+  /** slots = pick an open time; request = suggest a time for the church to confirm; off = no booking. */
+  bookingMode: PublicChurchBookingMode;
 }
 
 export type PublicRequestInputType = typeof PublicRequestInputType[keyof typeof PublicRequestInputType];
@@ -352,9 +378,26 @@ export interface PublicRequestInput {
   qrCodeId?: string | null;
 }
 
+/**
+ * For bookings, whether the time is confirmed straight away.
+ * @nullable
+ */
+export type PublicRequestReceiptAppointmentStatus = typeof PublicRequestReceiptAppointmentStatus[keyof typeof PublicRequestReceiptAppointmentStatus] | null;
+
+
+export const PublicRequestReceiptAppointmentStatus = {
+  requested: 'requested',
+  confirmed: 'confirmed',
+} as const;
+
 export interface PublicRequestReceipt {
   reference: string;
   received: boolean;
+  /**
+     * For bookings, whether the time is confirmed straight away.
+     * @nullable
+     */
+  appointmentStatus?: PublicRequestReceiptAppointmentStatus;
 }
 
 export type InternalRequestInputType = typeof InternalRequestInputType[keyof typeof InternalRequestInputType];
@@ -454,6 +497,11 @@ export interface AppointmentInput {
   durationMinutes: number;
   format: AppointmentInputFormat;
   status: AppointmentInputStatus;
+  /**
+     * @maxLength 2000
+     * @nullable
+     */
+  topic?: string | null;
 }
 
 export type AppointmentUpdateStatus = typeof AppointmentUpdateStatus[keyof typeof AppointmentUpdateStatus];
@@ -477,6 +525,128 @@ export interface AppointmentUpdate {
      */
   durationMinutes?: number | null;
   status?: AppointmentUpdateStatus;
+}
+
+export interface WeeklyHours {
+  /**
+     * 0 = Sunday … 6 = Saturday
+     * @minimum 0
+     * @maximum 6
+     */
+  day: number;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  start: string;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  end: string;
+}
+
+export interface TimeOff {
+  startAt: string;
+  endAt: string;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  label?: string | null;
+}
+
+export type AvailabilityInputFormatsItem = typeof AvailabilityInputFormatsItem[keyof typeof AvailabilityInputFormatsItem];
+
+
+export const AvailabilityInputFormatsItem = {
+  'in-person': 'in-person',
+  phone: 'phone',
+  video: 'video',
+} as const;
+
+export interface AvailabilityInput {
+  bookingEnabled: boolean;
+  /** @maxItems 50 */
+  weekly: WeeklyHours[];
+  /**
+     * @minimum 15
+     * @maximum 180
+     */
+  meetingMinutes: number;
+  /**
+     * @minimum 0
+     * @maximum 120
+     */
+  bufferMinutes: number;
+  /**
+     * @minimum 0
+     * @maximum 336
+     */
+  noticeHours: number;
+  /**
+     * @minimum 1
+     * @maximum 90
+     */
+  horizonDays: number;
+  autoConfirm: boolean;
+  /** @minItems 1 */
+  formats: AvailabilityInputFormatsItem[];
+  /**
+     * @maxLength 200
+     * @nullable
+     */
+  location: string | null;
+  /** @maxItems 100 */
+  timeOff: TimeOff[];
+}
+
+export type Availability = AvailabilityInput & {
+  timeZone: string;
+  /** False until someone saves weekly hours. */
+  configured: boolean;
+};
+
+export interface PublicSlotDay {
+  /** YYYY-MM-DD in the church's time zone */
+  date: string;
+  slots: string[];
+}
+
+export type PublicSlotsFormatsItem = typeof PublicSlotsFormatsItem[keyof typeof PublicSlotsFormatsItem];
+
+
+export const PublicSlotsFormatsItem = {
+  'in-person': 'in-person',
+  phone: 'phone',
+  video: 'video',
+} as const;
+
+export interface PublicSlots {
+  timeZone: string;
+  meetingMinutes: number;
+  formats: PublicSlotsFormatsItem[];
+  /** @nullable */
+  location: string | null;
+  autoConfirm: boolean;
+  days: PublicSlotDay[];
+}
+
+export type PublicLinkDestination = typeof PublicLinkDestination[keyof typeof PublicLinkDestination];
+
+
+export const PublicLinkDestination = {
+  care: 'care',
+  prayer: 'prayer',
+  counselling: 'counselling',
+  appointments: 'appointments',
+  general: 'general',
+  welcome: 'welcome',
+} as const;
+
+export interface PublicLink {
+  id: string;
+  destination: PublicLinkDestination;
+  /** @nullable */
+  headline: string | null;
+  /** @nullable */
+  message: string | null;
+  /** @nullable */
+  campaign: string | null;
 }
 
 export type TaskPriority = typeof TaskPriority[keyof typeof TaskPriority];
@@ -586,6 +756,7 @@ export const QrCodeDestination = {
   counselling: 'counselling',
   appointments: 'appointments',
   general: 'general',
+  welcome: 'welcome',
 } as const;
 
 export interface QrCode {
@@ -594,6 +765,10 @@ export interface QrCode {
   destination: QrCodeDestination;
   /** @nullable */
   campaign: string | null;
+  /** @nullable */
+  headline?: string | null;
+  /** @nullable */
+  message?: string | null;
   active: boolean;
   visits: number;
   submissions: number;
@@ -609,6 +784,7 @@ export const QrCodeInputDestination = {
   counselling: 'counselling',
   appointments: 'appointments',
   general: 'general',
+  welcome: 'welcome',
 } as const;
 
 export interface QrCodeInput {
@@ -623,6 +799,16 @@ export interface QrCodeInput {
      * @nullable
      */
   campaign?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  headline?: string | null;
+  /**
+     * @maxLength 600
+     * @nullable
+     */
+  message?: string | null;
 }
 
 export type QrCodeUpdateDestination = typeof QrCodeUpdateDestination[keyof typeof QrCodeUpdateDestination];
@@ -634,6 +820,7 @@ export const QrCodeUpdateDestination = {
   counselling: 'counselling',
   appointments: 'appointments',
   general: 'general',
+  welcome: 'welcome',
 } as const;
 
 export interface QrCodeUpdate {
@@ -648,6 +835,16 @@ export interface QrCodeUpdate {
      * @nullable
      */
   campaign?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  headline?: string | null;
+  /**
+     * @maxLength 600
+     * @nullable
+     */
+  message?: string | null;
   active?: boolean;
 }
 

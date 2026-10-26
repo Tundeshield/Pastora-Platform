@@ -19,5 +19,15 @@ export interface QrCodeUpdate {
      * @nullable
      */
   campaign?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  headline?: string | null;
+  /**
+     * @maxLength 600
+     * @nullable
+     */
+  message?: string | null;
   active?: boolean;
 }

@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetSessionQueryKey,
@@ -255,11 +256,9 @@ export function SettingsPage() {
               value={local.publicPortalEnabled}
               onChange={(v) => setLocal({ ...local, publicPortalEnabled: v })}
             />
-            <Toggle
-              label="Allow appointment requests"
-              value={local.appointmentEnabled}
-              onChange={(v) => setLocal({ ...local, appointmentEnabled: v })}
-            />
+            <p className="settings-note">
+              Booking hours and online appointments are set in <Link href="/app/appointments">Appointments → Availability</Link>.
+            </p>
             <Button
               onClick={() =>
                 save({
@@ -267,7 +266,6 @@ export function SettingsPage() {
                   emergencyNotice: local.emergencyNotice,
                   categories: local.categories,
                   publicPortalEnabled: local.publicPortalEnabled,
-                  appointmentEnabled: local.appointmentEnabled,
                 })
               }
             >
@@ -349,20 +347,10 @@ export function SettingsPage() {
                 onChange={(e) => setLocal({ ...local, retentionDays: Number(e.target.value) })}
               />
             </Field>
-            <Field label="Default appointment length (minutes)">
-              <input
-                type="number"
-                min="15"
-                max="240"
-                value={local.appointmentDurationMinutes}
-                onChange={(e) => setLocal({ ...local, appointmentDurationMinutes: Number(e.target.value) })}
-              />
-            </Field>
             <Button
               onClick={() =>
                 save({
                   retentionDays: local.retentionDays,
-                  appointmentDurationMinutes: local.appointmentDurationMinutes,
                 })
               }
             >

@@ -126,6 +126,9 @@ export const GetDashboardResponse = zod.object({
   "durationMinutes": zod.number().int(),
   "format": zod.enum(['in-person', 'phone', 'video']),
   "status": zod.enum(['requested', 'confirmed', 'declined', 'completed', 'cancelled']),
+  "contact": zod.string().nullish(),
+  "topic": zod.string().nullish().describe('What the person would like to talk about.'),
+  "source": zod.string().nullish().describe('public_portal when booked from the care page.'),
   "createdAt": zod.coerce.date()
 })),
   "urgentFollowUps": zod.array(zod.object({
@@ -166,7 +169,8 @@ export const GetPublicChurchResponse = zod.object({
   "categories": zod.array(zod.string()),
   "appointmentEnabled": zod.boolean(),
   "emergencyNotice": zod.string(),
-  "blogEnabled": zod.boolean().describe('The church has the Pastor\'s blog module switched on.')
+  "blogEnabled": zod.boolean().describe('The church has the Pastor\'s blog module switched on.'),
+  "bookingMode": zod.enum(['slots', 'request', 'off']).describe('slots = pick an open time; request = suggest a time for the church to confirm; off = no booking.')
 })
 
 
@@ -215,7 +219,8 @@ export const SubmitPublicRequestBody = zod.object({
 
 export const SubmitPublicRequestResponse = zod.object({
   "reference": zod.string(),
-  "received": zod.boolean()
+  "received": zod.boolean(),
+  "appointmentStatus": zod.union([zod.literal('requested'),zod.literal('confirmed'),zod.literal(null)]).nullish().describe('For bookings, whether the time is confirmed straight away.')
 })
 
 
@@ -344,6 +349,9 @@ export const ListAppointmentsResponseItem = zod.object({
   "durationMinutes": zod.number().int(),
   "format": zod.enum(['in-person', 'phone', 'video']),
   "status": zod.enum(['requested', 'confirmed', 'declined', 'completed', 'cancelled']),
+  "contact": zod.string().nullish(),
+  "topic": zod.string().nullish().describe('What the person would like to talk about.'),
+  "source": zod.string().nullish().describe('public_portal when booked from the care page.'),
   "createdAt": zod.coerce.date()
 })
 export const ListAppointmentsResponse = zod.array(ListAppointmentsResponseItem)
@@ -359,6 +367,8 @@ export const createAppointmentBodyContactMax = 200;
 export const createAppointmentBodyDurationMinutesMin = 15;
 export const createAppointmentBodyDurationMinutesMax = 240;
 
+export const createAppointmentBodyTopicMax = 2000;
+
 
 
 export const CreateAppointmentBody = zod.object({
@@ -367,7 +377,8 @@ export const CreateAppointmentBody = zod.object({
   "startAt": zod.coerce.date(),
   "durationMinutes": zod.number().int().min(createAppointmentBodyDurationMinutesMin).max(createAppointmentBodyDurationMinutesMax),
   "format": zod.enum(['in-person', 'phone', 'video']),
-  "status": zod.enum(['requested', 'confirmed'])
+  "status": zod.enum(['requested', 'confirmed']),
+  "topic": zod.string().max(createAppointmentBodyTopicMax).nullish()
 })
 
 export const CreateAppointmentResponse = zod.object({
@@ -377,8 +388,169 @@ export const CreateAppointmentResponse = zod.object({
   "durationMinutes": zod.number().int(),
   "format": zod.enum(['in-person', 'phone', 'video']),
   "status": zod.enum(['requested', 'confirmed', 'declined', 'completed', 'cancelled']),
+  "contact": zod.string().nullish(),
+  "topic": zod.string().nullish().describe('What the person would like to talk about.'),
+  "source": zod.string().nullish().describe('public_portal when booked from the care page.'),
   "createdAt": zod.coerce.date()
 })
+
+
+/**
+ * @summary When the pastor can be booked (weekly hours, meeting length, time off)
+ */
+export const getAvailabilityResponseOneWeeklyItemDayMin = 0;
+export const getAvailabilityResponseOneWeeklyItemDayMax = 6;
+
+export const getAvailabilityResponseOneWeeklyItemStartRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAvailabilityResponseOneWeeklyItemEndRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const getAvailabilityResponseOneWeeklyMax = 50;
+
+export const getAvailabilityResponseOneMeetingMinutesMin = 15;
+export const getAvailabilityResponseOneMeetingMinutesMax = 180;
+
+export const getAvailabilityResponseOneBufferMinutesMin = 0;
+export const getAvailabilityResponseOneBufferMinutesMax = 120;
+
+export const getAvailabilityResponseOneNoticeHoursMin = 0;
+export const getAvailabilityResponseOneNoticeHoursMax = 336;
+
+export const getAvailabilityResponseOneHorizonDaysMax = 90;
+
+
+export const getAvailabilityResponseOneLocationMax = 200;
+
+export const getAvailabilityResponseOneTimeOffItemLabelMax = 120;
+
+export const getAvailabilityResponseOneTimeOffMax = 100;
+
+
+
+export const GetAvailabilityResponse = zod.object({
+  "bookingEnabled": zod.boolean(),
+  "weekly": zod.array(zod.object({
+  "day": zod.number().int().min(getAvailabilityResponseOneWeeklyItemDayMin).max(getAvailabilityResponseOneWeeklyItemDayMax).describe('0 = Sunday … 6 = Saturday'),
+  "start": zod.string().regex(getAvailabilityResponseOneWeeklyItemStartRegExp),
+  "end": zod.string().regex(getAvailabilityResponseOneWeeklyItemEndRegExp)
+})).max(getAvailabilityResponseOneWeeklyMax),
+  "meetingMinutes": zod.number().int().min(getAvailabilityResponseOneMeetingMinutesMin).max(getAvailabilityResponseOneMeetingMinutesMax),
+  "bufferMinutes": zod.number().int().min(getAvailabilityResponseOneBufferMinutesMin).max(getAvailabilityResponseOneBufferMinutesMax),
+  "noticeHours": zod.number().int().min(getAvailabilityResponseOneNoticeHoursMin).max(getAvailabilityResponseOneNoticeHoursMax),
+  "horizonDays": zod.number().int().min(1).max(getAvailabilityResponseOneHorizonDaysMax),
+  "autoConfirm": zod.boolean(),
+  "formats": zod.array(zod.enum(['in-person', 'phone', 'video'])).min(1),
+  "location": zod.string().max(getAvailabilityResponseOneLocationMax).nullable(),
+  "timeOff": zod.array(zod.object({
+  "startAt": zod.coerce.date(),
+  "endAt": zod.coerce.date(),
+  "label": zod.string().max(getAvailabilityResponseOneTimeOffItemLabelMax).nullish()
+})).max(getAvailabilityResponseOneTimeOffMax)
+}).and(zod.object({
+  "timeZone": zod.string(),
+  "configured": zod.boolean().describe('False until someone saves weekly hours.')
+}))
+
+
+/**
+ * @summary Save when the pastor can be booked
+ */
+export const saveAvailabilityBodyWeeklyItemDayMin = 0;
+export const saveAvailabilityBodyWeeklyItemDayMax = 6;
+
+export const saveAvailabilityBodyWeeklyItemStartRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const saveAvailabilityBodyWeeklyItemEndRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const saveAvailabilityBodyWeeklyMax = 50;
+
+export const saveAvailabilityBodyMeetingMinutesMin = 15;
+export const saveAvailabilityBodyMeetingMinutesMax = 180;
+
+export const saveAvailabilityBodyBufferMinutesMin = 0;
+export const saveAvailabilityBodyBufferMinutesMax = 120;
+
+export const saveAvailabilityBodyNoticeHoursMin = 0;
+export const saveAvailabilityBodyNoticeHoursMax = 336;
+
+export const saveAvailabilityBodyHorizonDaysMax = 90;
+
+
+export const saveAvailabilityBodyLocationMax = 200;
+
+export const saveAvailabilityBodyTimeOffItemLabelMax = 120;
+
+export const saveAvailabilityBodyTimeOffMax = 100;
+
+
+
+export const SaveAvailabilityBody = zod.object({
+  "bookingEnabled": zod.boolean(),
+  "weekly": zod.array(zod.object({
+  "day": zod.number().int().min(saveAvailabilityBodyWeeklyItemDayMin).max(saveAvailabilityBodyWeeklyItemDayMax).describe('0 = Sunday … 6 = Saturday'),
+  "start": zod.string().regex(saveAvailabilityBodyWeeklyItemStartRegExp),
+  "end": zod.string().regex(saveAvailabilityBodyWeeklyItemEndRegExp)
+})).max(saveAvailabilityBodyWeeklyMax),
+  "meetingMinutes": zod.number().int().min(saveAvailabilityBodyMeetingMinutesMin).max(saveAvailabilityBodyMeetingMinutesMax),
+  "bufferMinutes": zod.number().int().min(saveAvailabilityBodyBufferMinutesMin).max(saveAvailabilityBodyBufferMinutesMax),
+  "noticeHours": zod.number().int().min(saveAvailabilityBodyNoticeHoursMin).max(saveAvailabilityBodyNoticeHoursMax),
+  "horizonDays": zod.number().int().min(1).max(saveAvailabilityBodyHorizonDaysMax),
+  "autoConfirm": zod.boolean(),
+  "formats": zod.array(zod.enum(['in-person', 'phone', 'video'])).min(1),
+  "location": zod.string().max(saveAvailabilityBodyLocationMax).nullable(),
+  "timeOff": zod.array(zod.object({
+  "startAt": zod.coerce.date(),
+  "endAt": zod.coerce.date(),
+  "label": zod.string().max(saveAvailabilityBodyTimeOffItemLabelMax).nullish()
+})).max(saveAvailabilityBodyTimeOffMax)
+})
+
+export const saveAvailabilityResponseOneWeeklyItemDayMin = 0;
+export const saveAvailabilityResponseOneWeeklyItemDayMax = 6;
+
+export const saveAvailabilityResponseOneWeeklyItemStartRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const saveAvailabilityResponseOneWeeklyItemEndRegExp = new RegExp('^([01][0-9]|2[0-3]):[0-5][0-9]$');
+export const saveAvailabilityResponseOneWeeklyMax = 50;
+
+export const saveAvailabilityResponseOneMeetingMinutesMin = 15;
+export const saveAvailabilityResponseOneMeetingMinutesMax = 180;
+
+export const saveAvailabilityResponseOneBufferMinutesMin = 0;
+export const saveAvailabilityResponseOneBufferMinutesMax = 120;
+
+export const saveAvailabilityResponseOneNoticeHoursMin = 0;
+export const saveAvailabilityResponseOneNoticeHoursMax = 336;
+
+export const saveAvailabilityResponseOneHorizonDaysMax = 90;
+
+
+export const saveAvailabilityResponseOneLocationMax = 200;
+
+export const saveAvailabilityResponseOneTimeOffItemLabelMax = 120;
+
+export const saveAvailabilityResponseOneTimeOffMax = 100;
+
+
+
+export const SaveAvailabilityResponse = zod.object({
+  "bookingEnabled": zod.boolean(),
+  "weekly": zod.array(zod.object({
+  "day": zod.number().int().min(saveAvailabilityResponseOneWeeklyItemDayMin).max(saveAvailabilityResponseOneWeeklyItemDayMax).describe('0 = Sunday … 6 = Saturday'),
+  "start": zod.string().regex(saveAvailabilityResponseOneWeeklyItemStartRegExp),
+  "end": zod.string().regex(saveAvailabilityResponseOneWeeklyItemEndRegExp)
+})).max(saveAvailabilityResponseOneWeeklyMax),
+  "meetingMinutes": zod.number().int().min(saveAvailabilityResponseOneMeetingMinutesMin).max(saveAvailabilityResponseOneMeetingMinutesMax),
+  "bufferMinutes": zod.number().int().min(saveAvailabilityResponseOneBufferMinutesMin).max(saveAvailabilityResponseOneBufferMinutesMax),
+  "noticeHours": zod.number().int().min(saveAvailabilityResponseOneNoticeHoursMin).max(saveAvailabilityResponseOneNoticeHoursMax),
+  "horizonDays": zod.number().int().min(1).max(saveAvailabilityResponseOneHorizonDaysMax),
+  "autoConfirm": zod.boolean(),
+  "formats": zod.array(zod.enum(['in-person', 'phone', 'video'])).min(1),
+  "location": zod.string().max(saveAvailabilityResponseOneLocationMax).nullable(),
+  "timeOff": zod.array(zod.object({
+  "startAt": zod.coerce.date(),
+  "endAt": zod.coerce.date(),
+  "label": zod.string().max(saveAvailabilityResponseOneTimeOffItemLabelMax).nullish()
+})).max(saveAvailabilityResponseOneTimeOffMax)
+}).and(zod.object({
+  "timeZone": zod.string(),
+  "configured": zod.boolean().describe('False until someone saves weekly hours.')
+}))
 
 
 /**
@@ -406,6 +578,9 @@ export const UpdateAppointmentResponse = zod.object({
   "durationMinutes": zod.number().int(),
   "format": zod.enum(['in-person', 'phone', 'video']),
   "status": zod.enum(['requested', 'confirmed', 'declined', 'completed', 'cancelled']),
+  "contact": zod.string().nullish(),
+  "topic": zod.string().nullish().describe('What the person would like to talk about.'),
+  "source": zod.string().nullish().describe('public_portal when booked from the care page.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -495,8 +670,10 @@ export const UpdateTaskResponse = zod.object({
 export const ListQrCodesResponseItem = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general']),
+  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general', 'welcome']),
   "campaign": zod.string().nullable(),
+  "headline": zod.string().nullish(),
+  "message": zod.string().nullish(),
   "active": zod.boolean(),
   "visits": zod.number().int(),
   "submissions": zod.number().int(),
@@ -512,19 +689,27 @@ export const createQrCodeBodyNameMax = 120;
 
 export const createQrCodeBodyCampaignMax = 120;
 
+export const createQrCodeBodyHeadlineMax = 120;
+
+export const createQrCodeBodyMessageMax = 600;
+
 
 
 export const CreateQrCodeBody = zod.object({
   "name": zod.string().min(1).max(createQrCodeBodyNameMax),
-  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general']),
-  "campaign": zod.string().max(createQrCodeBodyCampaignMax).nullish()
+  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general', 'welcome']),
+  "campaign": zod.string().max(createQrCodeBodyCampaignMax).nullish(),
+  "headline": zod.string().max(createQrCodeBodyHeadlineMax).nullish(),
+  "message": zod.string().max(createQrCodeBodyMessageMax).nullish()
 })
 
 export const CreateQrCodeResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general']),
+  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general', 'welcome']),
   "campaign": zod.string().nullable(),
+  "headline": zod.string().nullish(),
+  "message": zod.string().nullish(),
   "active": zod.boolean(),
   "visits": zod.number().int(),
   "submissions": zod.number().int(),
@@ -543,20 +728,28 @@ export const updateQrCodeBodyNameMax = 120;
 
 export const updateQrCodeBodyCampaignMax = 120;
 
+export const updateQrCodeBodyHeadlineMax = 120;
+
+export const updateQrCodeBodyMessageMax = 600;
+
 
 
 export const UpdateQrCodeBody = zod.object({
   "name": zod.string().min(1).max(updateQrCodeBodyNameMax).optional(),
-  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general']).optional(),
+  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general', 'welcome']).optional(),
   "campaign": zod.string().max(updateQrCodeBodyCampaignMax).nullish(),
+  "headline": zod.string().max(updateQrCodeBodyHeadlineMax).nullish(),
+  "message": zod.string().max(updateQrCodeBodyMessageMax).nullish(),
   "active": zod.boolean().optional()
 })
 
 export const UpdateQrCodeResponse = zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general']),
+  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general', 'welcome']),
   "campaign": zod.string().nullable(),
+  "headline": zod.string().nullish(),
+  "message": zod.string().nullish(),
   "active": zod.boolean(),
   "visits": zod.number().int(),
   "submissions": zod.number().int(),
@@ -1680,6 +1873,51 @@ export const GetPublicPostResponse = zod.object({
 }).and(zod.object({
   "body": zod.string()
 }))
+})
+
+
+/**
+ * @summary Open times people can book with the pastor (no sign-in needed)
+ */
+export const getPublicSlotsPathSlugMin = 2;
+
+
+
+export const GetPublicSlotsParams = zod.object({
+  "slug": zod.coerce.string().min(getPublicSlotsPathSlugMin)
+})
+
+export const GetPublicSlotsResponse = zod.object({
+  "timeZone": zod.string(),
+  "meetingMinutes": zod.number().int(),
+  "formats": zod.array(zod.enum(['in-person', 'phone', 'video'])),
+  "location": zod.string().nullable(),
+  "autoConfirm": zod.boolean(),
+  "days": zod.array(zod.object({
+  "date": zod.string().describe('YYYY-MM-DD in the church\'s time zone'),
+  "slots": zod.array(zod.coerce.date())
+}))
+})
+
+
+/**
+ * @summary What a QR link opens, with its own heading and message
+ */
+export const getPublicLinkPathSlugMin = 2;
+
+
+
+export const GetPublicLinkParams = zod.object({
+  "slug": zod.coerce.string().min(getPublicLinkPathSlugMin),
+  "qrCodeId": zod.coerce.string()
+})
+
+export const GetPublicLinkResponse = zod.object({
+  "id": zod.string(),
+  "destination": zod.enum(['care', 'prayer', 'counselling', 'appointments', 'general', 'welcome']),
+  "headline": zod.string().nullable(),
+  "message": zod.string().nullable(),
+  "campaign": zod.string().nullable()
 })
 
 
