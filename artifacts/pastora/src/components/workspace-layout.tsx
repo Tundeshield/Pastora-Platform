@@ -9,7 +9,6 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
-  ChevronDown,
   ClipboardList,
   FileText,
   HeartHandshake,
@@ -43,49 +42,31 @@ type NavItem = { href: string; label: string; icon: LucideIcon; show: (a: Access
 const anyone = () => true;
 const pastors = (a: Access) => a.isPastor;
 
-export const navSections: { label: string; items: NavItem[] }[] = [
+/**
+ * One short list in everyday words, most-used first. No groups to open or close:
+ * pastors told us the menu felt like too much. Admin things sit at the bottom.
+ */
+export const navItems: NavItem[] = [
   {
-    label: "Workspace",
-    items: [
-      {
-        href: "/app",
-        label: "Overview",
-        icon: LayoutDashboard,
-        show: (a) => a.can("enquiries") || a.can("calendar") || a.can("prayer"),
-      },
-      {
-        href: "/app/requests",
-        label: "Care inbox",
-        icon: HeartHandshake,
-        show: (a) => a.can("enquiries") || a.can("prayer"),
-      },
-      { href: "/app/appointments", label: "Appointments", icon: CalendarDays, show: (a) => a.can("calendar") },
-      { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone },
-      { href: "/app/messages", label: "Message prep", icon: BookOpen, show: pastors, module: "message-prep" },
-      { href: "/app/blog", label: "Blog", icon: PenLine, show: pastors, module: "blog" },
-    ],
+    href: "/app",
+    label: "Home",
+    icon: LayoutDashboard,
+    show: (a) => a.can("enquiries") || a.can("calendar") || a.can("prayer"),
   },
+  { href: "/app/requests", label: "Care inbox", icon: HeartHandshake, show: (a) => a.can("enquiries") || a.can("prayer") },
+  { href: "/app/appointments", label: "Appointments", icon: CalendarDays, show: (a) => a.can("calendar") },
+  { href: "/app/messages", label: "Sermons", icon: BookOpen, show: pastors, module: "message-prep" },
+  { href: "/app/blog", label: "Blog", icon: PenLine, show: pastors, module: "blog" },
   {
-    label: "Church operations",
-    items: [
-      { href: "/app/qr-codes", label: "QR links", icon: QrCode, show: (a) => a.can("qr") },
-      {
-        href: "/app/reports",
-        label: "Department reports",
-        icon: FileText,
-        show: (a) => a.can("reports"),
-        module: "reports",
-      },
-      {
-        href: "/app/expenses",
-        label: "Expenses",
-        icon: Receipt,
-        show: (a) => a.can("expenses") || a.can("payments"),
-        module: "expenses",
-      },
-      { href: "/app/team", label: "Team", icon: Users, show: (a) => a.can("team") },
-    ],
+    href: "/app/expenses",
+    label: "Expenses",
+    icon: Receipt,
+    show: (a) => a.can("expenses") || a.can("payments"),
+    module: "expenses",
   },
+  { href: "/app/qr-codes", label: "QR codes", icon: QrCode, show: (a) => a.can("qr") },
+  { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone },
+  { href: "/app/reports", label: "Reports", icon: FileText, show: (a) => a.can("reports"), module: "reports" },
 ];
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -101,22 +82,22 @@ export function roleLabel(role: MemberRole | undefined): string {
 }
 
 export function pageTitle(path: string) {
-  if (path.startsWith("/app/messages/")) return "Message prep";
+  if (path.startsWith("/app/messages/")) return "Sermons";
   if (path.startsWith("/app/blog/")) return "Blog";
   return (
     (
       {
-        "/app": "Overview",
+        "/app": "Home",
         "/app/requests": "Care inbox",
         "/app/appointments": "Appointments",
         "/app/tasks": "Tasks",
-        "/app/qr-codes": "QR links",
-        "/app/reports": "Department reports",
+        "/app/qr-codes": "QR codes",
+        "/app/reports": "Reports",
         "/app/expenses": "Expenses",
         "/app/team": "Team",
         "/app/settings": "Settings",
         "/app/modules": "Modules",
-        "/app/messages": "Message prep",
+        "/app/messages": "Sermons",
         "/app/blog": "Blog",
         "/app/account": "Your account",
       } as Record<string, string>
@@ -137,45 +118,10 @@ export function WorkspaceLayout({ children }: { children: ReactNode }) {
   );
 }
 
-const COLLAPSED_KEY = "pastora-sidebar-collapsed";
-
-function readCollapsed(): string[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]");
-    return Array.isArray(value) ? value.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * The menu: each section folds open or closed (remembered in this browser), the
- * section holding the current page is always open, and a soft fade at the bottom
- * shows when there is more to scroll to.
- */
-function SidebarNav({
-  sections,
-  loc,
-  onNavigate,
-}: {
-  sections: { label: string; items: NavItem[] }[];
-  loc: string;
-  onNavigate: () => void;
-}) {
-  const [collapsed, setCollapsed] = useState<string[]>(readCollapsed);
+/** The menu, with a soft fade at the bottom when there is more to scroll to. */
+function SidebarNav({ items, loc, onNavigate }: { items: NavItem[]; loc: string; onNavigate: () => void }) {
   const [more, setMore] = useState({ above: false, below: false });
   const navRef = useRef<HTMLElement>(null);
-
-  const toggle = (label: string) =>
-    setCollapsed((current) => {
-      const next = current.includes(label) ? current.filter((l) => l !== label) : [...current, label];
-      try {
-        localStorage.setItem(COLLAPSED_KEY, JSON.stringify(next));
-      } catch {
-        // The menu still works; the choice just isn't remembered.
-      }
-      return next;
-    });
 
   useEffect(() => {
     const nav = navRef.current;
@@ -189,55 +135,30 @@ function SidebarNav({
     nav.addEventListener("scroll", update, { passive: true });
     const observer = new ResizeObserver(update);
     observer.observe(nav);
-    for (const child of Array.from(nav.children)) observer.observe(child);
     return () => {
       nav.removeEventListener("scroll", update);
       observer.disconnect();
     };
-  }, [sections.length, collapsed]);
+  }, [items.length]);
 
   return (
     <nav
       ref={navRef}
-      className={`sidebar-nav ${more.above ? "more-above" : ""} ${more.below ? "more-below" : ""}`}
+      className={`sidebar-nav simple ${more.above ? "more-above" : ""} ${more.below ? "more-below" : ""}`}
       aria-label="Workspace"
     >
-      {sections.map((section) => {
-        const holdsCurrent = section.items.some((item) => isCurrent(loc, item.href));
-        const open = holdsCurrent || !collapsed.includes(section.label);
-        const id = `nav-${section.label.toLowerCase().replace(/\W+/g, "-")}`;
-        return (
-          <div key={section.label} className="sidebar-section">
-            <button
-              type="button"
-              className="sidebar-label sidebar-toggle"
-              aria-expanded={open}
-              aria-controls={id}
-              disabled={holdsCurrent}
-              title={holdsCurrent ? "Contains the page you're on" : open ? "Collapse" : "Expand"}
-              onClick={() => toggle(section.label)}
-            >
-              <span>{section.label}</span>
-              {!open && <small>{section.items.length}</small>}
-              <ChevronDown size={14} className={open ? "" : "closed"} aria-hidden="true" />
-            </button>
-            <div id={id} hidden={!open}>
-              {section.items.map((item) => (
-                <Link
-                  onClick={onNavigate}
-                  href={item.href}
-                  className={`sidebar-link ${isCurrent(loc, item.href) ? "active" : ""}`}
-                  aria-current={isCurrent(loc, item.href) ? "page" : undefined}
-                  key={item.href}
-                >
-                  <item.icon size={17} />
-                  <span>{item.label}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      {items.map((item) => (
+        <Link
+          onClick={onNavigate}
+          href={item.href}
+          className={`sidebar-link ${isCurrent(loc, item.href) ? "active" : ""}`}
+          aria-current={isCurrent(loc, item.href) ? "page" : undefined}
+          key={item.href}
+        >
+          <item.icon size={18} />
+          <span>{item.label}</span>
+        </Link>
+      ))}
     </nav>
   );
 }
@@ -297,19 +218,24 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
           </span>
         </div>
         <SidebarNav
-          sections={navSections
-            .map((section) => ({
-              ...section,
-              items: section.items.filter(
-                (item) => (!role || item.show(access)) && (!item.module || activeModules.includes(item.module)),
-              ),
-            }))
-            .filter((section) => section.items.length > 0)}
+          items={navItems.filter(
+            (item) => (!role || item.show(access)) && (!item.module || activeModules.includes(item.module)),
+          )}
           loc={loc}
           onNavigate={() => setMobile(false)}
         />
         <div className="sidebar-bottom">
           {access.can("team") && (
+            <Link
+              href="/app/team"
+              onClick={() => setMobile(false)}
+              className={`sidebar-link ${loc === "/app/team" ? "active" : ""}`}
+            >
+              <Users size={17} />
+              <span>Team</span>
+            </Link>
+          )}
+          {access.can("team") && session.data?.modulesVisible && (
             <Link
               href="/app/modules"
               onClick={() => setMobile(false)}

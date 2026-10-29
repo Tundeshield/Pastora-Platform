@@ -286,16 +286,25 @@ export async function loadCatalog(): Promise<ModuleRecord[]> {
     .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
 }
 
-export async function getPlatformSettings(): Promise<{ earlyAccess: boolean }> {
+export type PlatformSettings = { earlyAccess: boolean; modulesVisible: boolean };
+
+/**
+ * While the Modules page is hidden (the default), every church gets these and
+ * nothing else, plus any module Pastora Admin grants it. Keeps the menu short.
+ */
+export const CORE_MODULES = ["expenses", "message-prep", "blog"];
+
+export async function getPlatformSettings(): Promise<PlatformSettings> {
   await ensureCatalog();
   const snap = await settingsRef().get();
-  return { earlyAccess: snap.get("earlyAccess") !== false };
+  return { earlyAccess: snap.get("earlyAccess") !== false, modulesVisible: snap.get("modulesVisible") === true };
 }
 
-export async function setEarlyAccess(earlyAccess: boolean): Promise<{ earlyAccess: boolean }> {
+export async function updatePlatformSettings(patch: Partial<PlatformSettings>): Promise<PlatformSettings> {
   await ensureCatalog();
-  await settingsRef().set({ earlyAccess }, { merge: true });
-  return { earlyAccess };
+  const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => typeof v === "boolean"));
+  if (Object.keys(clean).length) await settingsRef().set(clean, { merge: true });
+  return getPlatformSettings();
 }
 
 export type ChurchAccess = {
@@ -323,13 +332,20 @@ export async function churchAccess(churchId: string, withInterest = false): Prom
   };
 }
 
-export function moduleState(module: ModuleRecord, access: ChurchAccess, earlyAccess: boolean) {
+export function moduleState(
+  module: ModuleRecord,
+  access: ChurchAccess,
+  earlyAccess: boolean,
+  modulesVisible = true,
+) {
   const usable = module.status === "available" || module.status === "beta";
   const granted = access.grants.includes(module.id);
   const planIncludes =
     module.plan !== "addon" && TIERS.indexOf(access.plan) >= TIERS.indexOf(module.plan as PlanTier);
-  const entitled = earlyAccess || granted || planIncludes;
-  const enabled = access.enabled[module.id] ?? module.defaultEnabled;
+  // With the Modules page hidden, churches can't switch anything, so the core set
+  // plus Pastora Admin's grants decide what is on.
+  const entitled = modulesVisible ? earlyAccess || granted || planIncludes : CORE_MODULES.includes(module.id) || granted;
+  const enabled = modulesVisible ? (access.enabled[module.id] ?? module.defaultEnabled) : true;
   return {
     entitled,
     granted,
@@ -346,7 +362,9 @@ export async function activeModules(churchId: string): Promise<string[]> {
     getPlatformSettings(),
     churchAccess(churchId),
   ]);
-  return catalog.filter((m) => moduleState(m, access, settings.earlyAccess).active).map((m) => m.id);
+  return catalog
+    .filter((m) => moduleState(m, access, settings.earlyAccess, settings.modulesVisible).active)
+    .map((m) => m.id);
 }
 
 export async function isModuleActive(churchId: string, moduleId: string): Promise<boolean> {

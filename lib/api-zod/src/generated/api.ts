@@ -54,7 +54,8 @@ export const GetSessionResponse = zod.object({
   "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.'),
   "churchSuspended": zod.boolean().describe('True when Pastora has paused this church\'s workspace.'),
   "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).'),
-  "modules": zod.array(zod.string()).describe('Ids of modules switched on and available to this church.')
+  "modules": zod.array(zod.string()).describe('Ids of modules switched on and available to this church.'),
+  "modulesVisible": zod.boolean().describe('Whether churches can open the Modules page (a Pastora Admin feature flag).')
 })
 
 
@@ -105,7 +106,8 @@ export const CreateWorkspaceResponse = zod.object({
   "invitationPending": zod.boolean().describe('True when an invitation is waiting for this email but the email is not yet verified.'),
   "churchSuspended": zod.boolean().describe('True when Pastora has paused this church\'s workspace.'),
   "platformAdmin": zod.boolean().describe('True for Pastora\'s own administrators (server-side allow list).'),
-  "modules": zod.array(zod.string()).describe('Ids of modules switched on and available to this church.')
+  "modules": zod.array(zod.string()).describe('Ids of modules switched on and available to this church.'),
+  "modulesVisible": zod.boolean().describe('Whether churches can open the Modules page (a Pastora Admin feature flag).')
 })
 
 
@@ -1381,6 +1383,7 @@ export const UpdateChurchModuleResponse = zod.object({
  */
 export const ListPlatformModulesResponse = zod.object({
   "earlyAccess": zod.boolean(),
+  "modulesVisible": zod.boolean(),
   "modules": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
@@ -1512,11 +1515,13 @@ export const DeletePlatformModuleResponse = zod.void()
  * @summary Platform-wide switches such as early access (Pastora administrators only)
  */
 export const UpdatePlatformSettingsBody = zod.object({
-  "earlyAccess": zod.boolean()
+  "earlyAccess": zod.boolean().optional(),
+  "modulesVisible": zod.boolean().optional()
 })
 
 export const UpdatePlatformSettingsResponse = zod.object({
-  "earlyAccess": zod.boolean().describe('While true, every church can use every available module without a plan.')
+  "earlyAccess": zod.boolean().describe('While true, every church can use every available module without a plan.'),
+  "modulesVisible": zod.boolean().describe('Feature flag. False keeps the Modules page hidden; churches get the core features plus any you grant them.')
 })
 
 

@@ -28,4 +28,6 @@ export interface Session {
   platformAdmin: boolean;
   /** Ids of modules switched on and available to this church. */
   modules: string[];
+  /** Whether churches can open the Modules page (a Pastora Admin feature flag). */
+  modulesVisible: boolean;
 }

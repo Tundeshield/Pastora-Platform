@@ -1565,7 +1565,10 @@ components:
           description: Ids of modules switched on and available to this church.
           items:
             type: string
-      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending, churchSuspended, platformAdmin, modules]
+        modulesVisible:
+          type: boolean
+          description: Whether churches can open the Modules page (a Pastora Admin feature flag).
+      required: [user, church, subscriptionStatus, theme, fontFamily, fontSize, emailVerified, invitationPending, churchSuspended, platformAdmin, modules, modulesVisible]
     WorkspaceInput:
       type: object
       properties:
@@ -2808,6 +2811,8 @@ components:
       properties:
         earlyAccess:
           type: boolean
+        modulesVisible:
+          type: boolean
         modules:
           type: array
           items:
@@ -2816,7 +2821,7 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ModuleSuggestion"
-      required: [earlyAccess, modules, suggestions]
+      required: [earlyAccess, modulesVisible, modules, suggestions]
     ModuleInput:
       type: object
       properties:
@@ -2875,13 +2880,17 @@ components:
         earlyAccess:
           type: boolean
           description: While true, every church can use every available module without a plan.
-      required: [earlyAccess]
+        modulesVisible:
+          type: boolean
+          description: Feature flag. False keeps the Modules page hidden; churches get the core features plus any you grant them.
+      required: [earlyAccess, modulesVisible]
     PlatformSettingsUpdate:
       type: object
       properties:
         earlyAccess:
           type: boolean
-      required: [earlyAccess]
+        modulesVisible:
+          type: boolean
     WorkspaceAccessUpdate:
       type: object
       properties:

@@ -9,4 +9,6 @@
 export interface PlatformSettings {
   /** While true, every church can use every available module without a plan. */
   earlyAccess: boolean;
+  /** Feature flag. False keeps the Modules page hidden; churches get the core features plus any you grant them. */
+  modulesVisible: boolean;
 }

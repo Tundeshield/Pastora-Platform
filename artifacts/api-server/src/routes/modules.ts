@@ -43,6 +43,11 @@ async function managerContext(req: Request, res: Response): Promise<TenantContex
     res.status(403).json({ error: "Only pastors and the workspace admin can manage modules." });
     return null;
   }
+  // Hidden behind a Pastora Admin feature flag while we keep the app simple.
+  if (!(await getPlatformSettings()).modulesVisible) {
+    res.status(404).json({ error: "Modules aren't available yet." });
+    return null;
+  }
   return context;
 }
 
@@ -60,10 +65,11 @@ async function churchModules(churchId: string) {
   return {
     plan: access.plan,
     earlyAccess: settings.earlyAccess,
+    modulesVisible: settings.modulesVisible,
     // Retired modules disappear for churches; their data stays.
     modules: catalog
       .filter((m) => m.status !== "retired")
-      .map((m) => ({ ...publicModule(m), ...moduleState(m, access, settings.earlyAccess) })),
+      .map((m) => ({ ...publicModule(m), ...moduleState(m, access, settings.earlyAccess, settings.modulesVisible) })),
   };
 }
 

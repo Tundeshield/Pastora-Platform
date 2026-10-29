@@ -36,6 +36,8 @@ beforeEach(() => {
   db = new FakeFirestore();
   auth = new FakeAuth();
   setFirebaseServicesForTesting({ app: {} as never, auth: auth as never, db: db as never });
+  // Most suites exercise the full module system; "a simple menu" turns the flag off.
+  void db.collection("platformConfig").doc("settings").set({ modulesVisible: true }, { merge: true });
   sent = [];
   setEmailSenderForTesting(async (email) => {
     sent.push(email);
@@ -728,6 +730,34 @@ describe("emails", () => {
     assert.equal((await publicRequest(owner.church.slug, { type: "prayer", contact: "a@b.test", message: "x" })).status, 201);
     assert.equal((await call("GET", "/setup/status")).body.emailConfigured, false);
     assert.equal(sent.length, 0);
+  });
+});
+
+describe("a simple menu (Modules hidden)", () => {
+  const hide = () => db.collection("platformConfig").doc("settings").set({ modulesVisible: false }, { merge: true });
+
+  test("churches get the core features only, and can't open the Modules page", async () => {
+    const owner = await ownerWithChurch();
+    await hide();
+    const session = await call("GET", "/session", owner.token);
+    assert.equal(session.body.modulesVisible, false);
+    assert.deepEqual([...session.body.modules].sort(), ["blog", "expenses", "message-prep"]);
+    assert.equal((await call("GET", "/modules", owner.token)).status, 404);
+    assert.equal((await call("POST", "/reports", owner.token, { department: "Choir", period: "Oct", activities: "x" })).status, 403);
+  });
+
+  test("Pastora Admin can switch the Modules page on, or give one church an extra module", async () => {
+    const owner = await ownerWithChurch();
+    await hide();
+    const admin = user({ email: "tundeshield@gmail.com" });
+    process.env.PLATFORM_ADMIN_EMAILS = "tundeshield@gmail.com";
+    const granted = await call("PATCH", `/platform/workspaces/${owner.church.id}/access`, admin.token, { grants: ["reports"] });
+    assert.equal(granted.status, 200, JSON.stringify(granted.body));
+    assert.ok((await call("GET", "/session", owner.token)).body.modules.includes("reports"));
+    const shown = await call("PATCH", "/platform/settings", admin.token, { modulesVisible: true });
+    assert.equal(shown.body.modulesVisible, true);
+    assert.equal((await call("GET", "/modules", owner.token)).status, 200);
+    delete process.env.PLATFORM_ADMIN_EMAILS;
   });
 });
 

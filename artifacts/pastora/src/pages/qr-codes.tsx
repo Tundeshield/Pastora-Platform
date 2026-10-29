@@ -351,11 +351,11 @@ export function QrPage() {
     <>
       <PageHeading
         eyebrow="A simple way in"
-        title="QR links"
+        title="QR codes"
         subtitle="Each link opens a page made for one purpose — a welcome card, prayer, booking time with you — with your own words on it."
         action={
           <Button onClick={() => (open ? reset() : setOpen(true))}>
-            <Plus size={16} /> New QR link
+            <Plus size={16} /> New QR code
           </Button>
         }
       />
@@ -437,7 +437,7 @@ export function QrPage() {
       {q.isLoading ? (
         <SkeletonRows />
       ) : q.isError ? (
-        <ErrorPanel text={apiErrorMessage(q.error, "QR links are unavailable.")} retry={() => void q.refetch()} />
+        <ErrorPanel text={apiErrorMessage(q.error, "QR codes are unavailable.")} retry={() => void q.refetch()} />
       ) : q.data?.length ? (
         <div className="qr-list">
           {q.data.map((item) => (
@@ -457,7 +457,7 @@ export function QrPage() {
       ) : (
         !open && (
           <EmptyState
-            title="No QR links yet"
+            title="No QR codes yet"
             description="Start with a welcome card for first-time guests, or a prayer link for the bulletin."
           />
         )

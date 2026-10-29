@@ -154,6 +154,8 @@ export interface Session {
   platformAdmin: boolean;
   /** Ids of modules switched on and available to this church. */
   modules: string[];
+  /** Whether churches can open the Modules page (a Pastora Admin feature flag). */
+  modulesVisible: boolean;
 }
 
 export type WorkspaceInputTheme = typeof WorkspaceInputTheme[keyof typeof WorkspaceInputTheme];
@@ -1486,6 +1488,7 @@ export interface ModuleSuggestion {
 
 export interface PlatformModules {
   earlyAccess: boolean;
+  modulesVisible: boolean;
   modules: PlatformModule[];
   suggestions: ModuleSuggestion[];
 }
@@ -1539,10 +1542,13 @@ export interface ModuleUpdate {
 export interface PlatformSettings {
   /** While true, every church can use every available module without a plan. */
   earlyAccess: boolean;
+  /** Feature flag. False keeps the Modules page hidden; churches get the core features plus any you grant them. */
+  modulesVisible: boolean;
 }
 
 export interface PlatformSettingsUpdate {
-  earlyAccess: boolean;
+  earlyAccess?: boolean;
+  modulesVisible?: boolean;
 }
 
 export interface WorkspaceAccessUpdate {

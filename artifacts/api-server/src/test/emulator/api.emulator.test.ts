@@ -153,6 +153,8 @@ describe("with real Firebase emulators", () => {
   test("modules: seeded once, switched per church and enforced", async () => {
     const pastor = await account();
     await call("POST", "/onboarding", pastor.token, workspace("Module Chapel"));
+    // The Modules page sits behind a Pastora Admin flag; this test covers it switched on.
+    await getFirebaseServices().db.collection("platformConfig").doc("settings").set({ modulesVisible: true }, { merge: true });
     const [a, b] = await Promise.all([call("GET", "/modules", pastor.token), call("GET", "/modules", pastor.token)]);
     assert.equal(a.status, 200);
     assert.equal(a.body.modules.length, b.body.modules.length, "concurrent first reads seed the catalog once");

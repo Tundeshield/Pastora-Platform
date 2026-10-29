@@ -7,5 +7,6 @@
  */
 
 export interface PlatformSettingsUpdate {
-  earlyAccess: boolean;
+  earlyAccess?: boolean;
+  modulesVisible?: boolean;
 }

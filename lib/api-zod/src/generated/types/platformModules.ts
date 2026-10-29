@@ -10,6 +10,7 @@ import type { PlatformModule } from './platformModule';
 
 export interface PlatformModules {
   earlyAccess: boolean;
+  modulesVisible: boolean;
   modules: PlatformModule[];
   suggestions: ModuleSuggestion[];
 }

@@ -442,7 +442,10 @@ function ChurchAccess({ churchId, plan, grants }: { churchId: string; plan: Plan
         },
       },
     );
-  const grantable = (modules.data?.modules ?? []).filter((m) => m.status !== "retired");
+  const core = ["expenses", "message-prep", "blog"];
+  const grantable = (modules.data?.modules ?? []).filter(
+    (m) => m.status !== "retired" && (modules.data?.modulesVisible || !core.includes(m.id)),
+  );
   return (
     <div className="admin-access">
       <div className="admin-access-row">
@@ -459,10 +462,14 @@ function ChurchAccess({ churchId, plan, grants }: { churchId: string; plan: Plan
             </option>
           ))}
         </select>
-        {modules.data?.earlyAccess && <small>Early access is on, so every church has every available module.</small>}
+        {modules.data && !modules.data.modulesVisible ? (
+          <small>The Modules page is hidden: every church gets Expenses, Sermons and Blog, plus anything ticked below.</small>
+        ) : (
+          modules.data?.earlyAccess && <small>Early access is on, so every church has every available module.</small>
+        )}
       </div>
       <div className="admin-access-row">
-        <b>Free modules</b>
+        <b>Extra features for this church (free)</b>
         <div className="admin-grants">
           {grantable.map((m) => {
             const on = grants.includes(m.id);
@@ -622,6 +629,29 @@ function ModulesAdmin() {
   const data = list.data!;
   return (
     <>
+      <div className="admin-card">
+        <div className="toggle-row">
+          <span>
+            <b>Modules page for churches</b>
+            <small>
+              {data.modulesVisible
+                ? "On: pastors see a Modules page and switch features on and off themselves."
+                : "Off (recommended for now): pastors get a short, simple menu with the core features. Give a church extra features from its page under Churches."}
+            </small>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={data.modulesVisible}
+            aria-label="Modules page for churches"
+            className={`switch ${data.modulesVisible ? "on" : ""}`}
+            disabled={settings.isPending}
+            onClick={() => settings.mutate({ data: { modulesVisible: !data.modulesVisible } }, { onSuccess: refresh })}
+          >
+            <i />
+          </button>
+        </div>
+      </div>
       <div className="admin-card">
         <div className="toggle-row">
           <span>

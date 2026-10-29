@@ -24,7 +24,7 @@ import {
 } from "../lib/pastora-data";
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
 import { appearanceFrom, can, canSeeRequest, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
-import { activeModules } from "../lib/modules";
+import { activeModules, getPlatformSettings } from "../lib/modules";
 import { emailConfigured, preferencesFrom } from "../lib/email";
 import {
   acceptPendingInvitation,
@@ -185,6 +185,7 @@ async function buildSession(user: DecodedIdToken) {
     churchSuspended: context?.suspended === true,
     platformAdmin: isPlatformAdmin(user),
     modules: context && !context.suspended ? await activeModules(context.churchId) : [],
+    modulesVisible: (await getPlatformSettings()).modulesVisible,
   });
 }
 

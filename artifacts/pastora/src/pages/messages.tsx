@@ -99,7 +99,7 @@ export function MessagesPage() {
     <>
       <PageHeading
         eyebrow="Private to you"
-        title="Message prep"
+        title="Sermons"
         subtitle="Prepare Sunday messages and Bible studies, from the first idea to the pulpit."
         action={
           <Button onClick={startMessage} disabled={create.isPending}>

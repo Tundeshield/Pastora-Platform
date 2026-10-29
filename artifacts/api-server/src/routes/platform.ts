@@ -60,7 +60,7 @@ import {
   loadCatalog,
   moduleFrom,
   moduleState,
-  setEarlyAccess,
+  updatePlatformSettings,
 } from "../lib/modules";
 
 const router: IRouter = Router();
@@ -458,7 +458,7 @@ async function platformModules() {
       interested: new Set<string>(),
     };
     for (const module of catalog) {
-      const state = moduleState(module, access, settings.earlyAccess);
+      const state = moduleState(module, access, settings.earlyAccess, settings.modulesVisible);
       const count = counts.get(module.id)!;
       if (state.active) count.active += 1;
       if (state.granted) count.granted += 1;
@@ -470,6 +470,7 @@ async function platformModules() {
   }
   return {
     earlyAccess: settings.earlyAccess,
+    modulesVisible: settings.modulesVisible,
     modules: catalog.map(({ defaultEnabled: _d, ...m }) => ({
       ...m,
       activeChurches: counts.get(m.id)!.active,
@@ -619,8 +620,17 @@ router.patch("/platform/settings", firebaseAuth, async (req, res): Promise<void>
     return;
   }
   try {
-    const saved = await setEarlyAccess(body.data.earlyAccess);
-    await platformAudit(actor, body.data.earlyAccess ? "early_access_on" : "early_access_off", "All churches");
+    if (body.data.earlyAccess === undefined && body.data.modulesVisible === undefined) {
+      res.status(400).json({ error: "Nothing to change." });
+      return;
+    }
+    const saved = await updatePlatformSettings(body.data);
+    if (body.data.earlyAccess !== undefined) {
+      await platformAudit(actor, body.data.earlyAccess ? "early_access_on" : "early_access_off", "All churches");
+    }
+    if (body.data.modulesVisible !== undefined) {
+      await platformAudit(actor, body.data.modulesVisible ? "modules_page_shown" : "modules_page_hidden", "All churches");
+    }
     res.json(UpdatePlatformSettingsResponse.parse(saved));
   } catch (error) {
     fail(res, error, "Unable to update settings.");

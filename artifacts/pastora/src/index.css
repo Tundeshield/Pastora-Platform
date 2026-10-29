@@ -875,3 +875,6 @@ button.under-link { background:none; border:0; border-bottom:1px solid hsl(var(-
 .email-pref:first-of-type { border-top:0; }
 .email-pref small { color:hsl(var(--muted-foreground)); font-size:calc(10px * var(--text-scale)); line-height:1.55; max-width:520px; }
 .email-pref .toggle-row { font-weight:600; }
+/* One simple list: larger, calmer items, no groups. */
+.sidebar-nav.simple { display:flex; flex-direction:column; gap:2px; padding-top:4px; }
+.sidebar-nav.simple .sidebar-link { min-height:42px; font-size:calc(12px * var(--text-scale)); gap:12px; }

@@ -1,3 +1,5 @@
+import { Redirect } from "wouter";
+import { useSession } from "@/auth";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetSessionQueryKey,
@@ -27,6 +29,12 @@ function whoUsesIt(module: ChurchModule) {
 
 /** Pastors and the workspace admin choose which optional modules their church uses. */
 export function ModulesPage() {
+  const session = useSession();
+  if (session.data && !session.data.modulesVisible) return <Redirect to="/app" />;
+  return <ModulesList />;
+}
+
+function ModulesList() {
   const list = useListChurchModules({ query: { queryKey: getListChurchModulesQueryKey(), retry: 1 } });
   const update = useUpdateChurchModule();
   const suggest = useSuggestModule();
