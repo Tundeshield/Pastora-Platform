@@ -219,6 +219,25 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
   /requests/{requestId}/notes:
+    get:
+      operationId: listRequestNotes
+      tags: [requests]
+      summary: A request's private notes, oldest first (pastors only)
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          description: Notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RequestNote"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
     post:
       operationId: addRequestNote
       tags: [requests]
@@ -1746,6 +1765,16 @@ components:
           type: boolean
         shareWithPrayerTeam:
           type: boolean
+        campaign:
+          type: ["string", "null"]
+          description: The event or QR link it came through, if any.
+        source:
+          type: ["string", "null"]
+          description: public_portal when sent from the care page.
+        preferredFormat:
+          type: ["string", "null"]
+        preferredAvailability:
+          type: ["string", "null"]
       required:
         - id
         - type
@@ -1808,6 +1837,8 @@ components:
           type: string
         note:
           type: string
+        authorName:
+          type: ["string", "null"]
         createdAt:
           type: string
           format: date-time

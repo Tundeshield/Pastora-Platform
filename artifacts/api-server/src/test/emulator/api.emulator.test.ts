@@ -29,6 +29,8 @@ before(async () => {
   await fetch(`http://${process.env.FIRESTORE_EMULATOR_HOST}/emulator/v1/projects/${process.env.FIREBASE_PROJECT_ID}/databases/(default)/documents`, {
     method: "DELETE",
   });
+  // These tests cover the full feature set, which sits behind Pastora Admin's Modules flag.
+  await getFirebaseServices().db.collection("platformConfig").doc("settings").set({ modulesVisible: true }, { merge: true });
 });
 after(() => server?.close());
 

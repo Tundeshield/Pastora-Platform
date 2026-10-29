@@ -60,3 +60,15 @@ export function useAccess(): Access {
   const user = useSession().data?.user;
   return accessFrom(user?.role, user?.permissions);
 }
+
+/** Areas that belong to a feature the church may not have switched on. */
+const AREA_MODULE: Partial<Record<Permission, string>> = { reports: "reports", expenses: "expenses", payments: "expenses" };
+
+/** The access areas worth showing: hides expenses and reports when the church doesn't have them. */
+export function useVisibleAreas(): typeof AREAS {
+  const modules = useSession().data?.modules ?? [];
+  return AREAS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => !AREA_MODULE[i.key] || modules.includes(AREA_MODULE[i.key]!)),
+  })).filter((g) => g.items.length > 0);
+}

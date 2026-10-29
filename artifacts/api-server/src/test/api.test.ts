@@ -741,7 +741,9 @@ describe("a simple menu (Modules hidden)", () => {
     await hide();
     const session = await call("GET", "/session", owner.token);
     assert.equal(session.body.modulesVisible, false);
-    assert.deepEqual([...session.body.modules].sort(), ["blog", "expenses", "message-prep"]);
+    assert.deepEqual([...session.body.modules].sort(), ["blog", "message-prep"]);
+    assert.equal((await call("GET", "/expenses", owner.token)).status, 403);
+    assert.equal((await call("GET", "/tasks", owner.token)).status, 403);
     assert.equal((await call("GET", "/modules", owner.token)).status, 404);
     assert.equal((await call("POST", "/reports", owner.token, { department: "Choir", period: "Oct", activities: "x" })).status, 403);
   });
@@ -758,6 +760,64 @@ describe("a simple menu (Modules hidden)", () => {
     assert.equal(shown.body.modulesVisible, true);
     assert.equal((await call("GET", "/modules", owner.token)).status, 200);
     delete process.env.PLATFORM_ADMIN_EMAILS;
+  });
+});
+
+describe("nothing goes missing", () => {
+  test("every way someone reaches out lands with the pastor, with a notification", async () => {
+    const owner = await ownerWithChurch();
+    const slug = owner.church.slug;
+    const qr = await call("POST", "/qr-codes", owner.token, { name: "Guests", destination: "welcome" });
+    const sends = [
+      { type: "prayer", name: "Ada", message: "Pray for my exams" },
+      { type: "prayer", message: "Anonymous prayer", anonymous: true },
+      { type: "prayer", name: "Ben", message: "Shared prayer", shareWithPrayerTeam: true },
+      { type: "counselling", name: "Chi", contact: "chi@example.test", message: "Need to talk" },
+      { type: "general", name: "Dayo", message: "Service times?" },
+      { type: "general", name: "Efe", category: "First-time guest", message: "First visit.", qrCodeId: qr.body.id },
+      { type: "appointment", name: "Femi", contact: "0800", message: "Wedding", preferredDate: new Date(Date.now() + 86_400_000).toISOString() },
+    ];
+    for (const body of sends) assert.equal((await publicRequest(slug, body)).status, 201, JSON.stringify(body));
+
+    const inbox = (await call("GET", "/requests", owner.token)).body as Json[];
+    assert.equal(inbox.length, 6, "all prayer, counselling, general and guest requests are in the inbox");
+    assert.ok(inbox.some((r) => r.type === "counselling" && r.message === "Need to talk"), "counselling details reach the pastor");
+    assert.ok(inbox.some((r) => r.message === "Anonymous prayer" && r.name === null));
+    const appts = (await call("GET", "/appointments", owner.token)).body as Json[];
+    assert.equal(appts.length, 1);
+    assert.equal(appts[0].topic, "Wedding");
+
+    const bell = (await call("GET", "/notifications", owner.token)).body as Json[];
+    assert.equal(bell.length, 7, "one notification per thing sent");
+  });
+
+  test("pastors read back their private notes; notifications open the exact request", async () => {
+    const owner = await ownerWithChurch();
+    const staff = await member(owner.token, "staff");
+    await publicRequest(owner.church.slug, { type: "prayer", name: "Ada", message: "Pray for me" });
+    const [req] = (await call("GET", "/requests", owner.token)).body as Json[];
+    const bell = (await call("GET", "/notifications", owner.token)).body as Json[];
+    assert.equal(bell[0].targetPath, `/app/requests?open=${req.id}`);
+    await call("POST", `/requests/${req.id}/notes`, owner.token, { note: "Called her on Tuesday" });
+    const notes = await call("GET", `/requests/${req.id}/notes`, owner.token);
+    assert.equal(notes.status, 200);
+    assert.equal(notes.body[0].note, "Called her on Tuesday");
+    assert.equal((await call("GET", `/requests/${req.id}/notes`, staff.token)).status, 403);
+  });
+
+  test("a busy church never loses older requests from the inbox", async () => {
+    const owner = await ownerWithChurch();
+    for (let i = 0; i < 320; i += 1) {
+      await db.collection("pastoralRequests").doc(`old${i}`).set({
+        churchId: owner.church.id, type: "prayer", name: `P${i}`, contact: null, category: null,
+        message: `Request ${i}`, status: "new", assignedTo: null, nextAction: null, dueAt: null,
+        anonymous: false, permissionToContact: false, shareWithPrayerTeam: false, isConfidential: false,
+        createdAt: new Date(Date.now() - i * 60_000),
+      });
+    }
+    const inbox = (await call("GET", "/requests", owner.token)).body as Json[];
+    assert.equal(inbox.length, 320);
+    assert.equal(inbox[0].message, "Request 0", "newest first");
   });
 });
 
@@ -1078,7 +1138,7 @@ describe("modules", () => {
   test("during early access, reports and expenses are on by default", async () => {
     const pastor = await ownerWithChurch();
     const session = await call("GET", "/session", pastor.token);
-    assert.deepEqual(session.body.modules.sort(), ["blog", "expenses", "message-prep", "reports"]);
+    assert.deepEqual(session.body.modules.sort(), ["blog", "expenses", "message-prep", "reports", "tasks"]);
     const list = await call("GET", "/modules", pastor.token);
     assert.equal(list.status, 200);
     assert.equal(list.body.earlyAccess, true);
@@ -1099,7 +1159,7 @@ describe("modules", () => {
     assert.equal(off.body.active, false);
     assert.equal((await call("GET", "/reports", staff.token)).status, 403);
     assert.equal((await call("POST", "/reports", staff.token, report)).status, 403);
-    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules.sort(), ["blog", "expenses", "message-prep"]);
+    assert.deepEqual((await call("GET", "/session", staff.token)).body.modules.sort(), ["blog", "expenses", "message-prep", "tasks"]);
     assert.ok(db.all("notifications").some((n) => n.uid === pastor.uid && /turned off/.test(String(n.title))));
 
     await call("PATCH", "/modules/reports", pastor.token, { enabled: true });
@@ -1116,7 +1176,7 @@ describe("modules", () => {
     assert.equal((await call("PATCH", "/platform/settings", ops.token, { earlyAccess: false })).status, 200);
 
     // Starter plan: only Starter modules (the blog); reports and expenses are Church plan.
-    assert.deepEqual((await call("GET", "/session", pastor.token)).body.modules, ["blog"]);
+    assert.deepEqual((await call("GET", "/session", pastor.token)).body.modules, ["blog", "tasks"]);
     assert.equal((await call("GET", "/reports", pastor.token)).status, 403);
     assert.equal((await call("PATCH", "/modules/reports", pastor.token, { enabled: true })).status, 403);
 

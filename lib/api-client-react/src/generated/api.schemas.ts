@@ -289,6 +289,20 @@ export interface PastoralRequest {
   anonymous: boolean;
   permissionToContact: boolean;
   shareWithPrayerTeam: boolean;
+  /**
+     * The event or QR link it came through, if any.
+     * @nullable
+     */
+  campaign?: string | null;
+  /**
+     * public_portal when sent from the care page.
+     * @nullable
+     */
+  source?: string | null;
+  /** @nullable */
+  preferredFormat?: string | null;
+  /** @nullable */
+  preferredAvailability?: string | null;
 }
 
 export interface DashboardSummary {
@@ -478,6 +492,8 @@ export interface RequestNote {
   id: string;
   requestId: string;
   note: string;
+  /** @nullable */
+  authorName?: string | null;
   createdAt: string;
 }
 

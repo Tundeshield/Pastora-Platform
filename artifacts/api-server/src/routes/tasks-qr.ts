@@ -15,6 +15,7 @@ import {
 } from "@workspace/api-zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { firebaseAuth } from "../middlewares/firebase-auth";
+import { moduleGate } from "../middlewares/module-gate";
 import {
   authenticatedUser,
   errorMessage,
@@ -43,7 +44,7 @@ async function validAssignee(churchId: string, uid: string | null | undefined) {
   return !memberships.empty;
 }
 
-router.get("/tasks", firebaseAuth, async (req, res): Promise<void> => {
+router.get("/tasks", firebaseAuth, moduleGate("tasks"), async (req, res): Promise<void> => {
   try {
     const context = await tenantFor(req);
     const user = authenticatedUser(req);
@@ -75,7 +76,7 @@ router.get("/tasks", firebaseAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.post("/tasks", firebaseAuth, async (req, res): Promise<void> => {
+router.post("/tasks", firebaseAuth, moduleGate("tasks"), async (req, res): Promise<void> => {
   const parsed = CreateTaskBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
@@ -135,7 +136,7 @@ router.post("/tasks", firebaseAuth, async (req, res): Promise<void> => {
   }
 });
 
-router.patch("/tasks/:taskId", firebaseAuth, async (req, res): Promise<void> => {
+router.patch("/tasks/:taskId", firebaseAuth, moduleGate("tasks"), async (req, res): Promise<void> => {
   const params = UpdateTaskParams.safeParse(req.params);
   const parsed = UpdateTaskBody.safeParse(req.body);
   if (!params.success) {

@@ -12,9 +12,10 @@ import {
 import { ChevronDown, LockKeyhole, Plus, SlidersHorizontal } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
-import { AREAS, AREA_LABEL, CARE_PERMISSIONS, PERMISSIONS, ROLE_DEFAULTS, useAccess } from "@/access";
+import { AREA_LABEL, CARE_PERMISSIONS, PERMISSIONS, ROLE_DEFAULTS, useAccess, useVisibleAreas } from "@/access";
 import { Badge, Button, EmptyState, ErrorPanel, Field, PageHeading, SkeletonRows } from "@/components/ui-kit";
 import { roleLabel } from "@/components/workspace-layout";
+import { useSession } from "@/auth";
 import { apiErrorMessage } from "@/firebase-auth";
 
 const ROLES: { value: MemberRole; label: string; help: string }[] = [
@@ -55,9 +56,10 @@ function AccessChecklist({
   original?: Permission[];
 }) {
   const toggle = (p: Permission) => onChange(value.includes(p) ? value.filter((x) => x !== p) : [...value, p]);
+  const areas = useVisibleAreas();
   return (
     <div className="access-list">
-      {AREAS.map((group) => (
+      {areas.map((group) => (
         <fieldset key={group.group}>
           <legend>
             {group.group}
@@ -95,6 +97,7 @@ function AccessChecklist({
 }
 
 export function TeamPage() {
+  const session = useSession();
   const access = useAccess();
   const isPastor = access.isPastor;
   const canManage = access.can("team");
@@ -102,7 +105,11 @@ export function TeamPage() {
   // Once a church has a pastor, only pastors add pastors or give access to requests.
   const hasPastor = (team.data?.members ?? []).some((m) => m.active && m.role === "pastor");
   const careLocked = !isPastor && hasPastor;
-  const grantable = ROLES.filter((r) => isPastor || r.value !== "pastor" || !hasPastor);
+  // The Finance role only makes sense when the church uses expenses.
+  const hasExpenses = (session.data?.modules ?? []).includes("expenses");
+  const grantable = ROLES.filter(
+    (r) => (isPastor || r.value !== "pastor" || !hasPastor) && (r.value !== "finance" || hasExpenses),
+  );
   const allowedDefaults = (role: MemberRole) =>
     ROLE_DEFAULTS[role].filter((p) => !careLocked || !CARE_PERMISSIONS.includes(p));
 

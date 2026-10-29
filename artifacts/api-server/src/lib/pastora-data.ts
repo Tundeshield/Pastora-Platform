@@ -134,13 +134,19 @@ export async function tenantDocument(
   return { ref, data: snapshot.data() ?? {} };
 }
 
+/**
+ * All of a church's records in a collection. Pass a limit only where dropping
+ * records is acceptable: an unordered limit drops arbitrary ones, so the care
+ * inbox and calendar always read everything.
+ */
 export async function listTenantDocuments(
   collection: string,
   churchId: string,
-  limit = 250,
+  limit?: number,
 ): Promise<DocumentData[]> {
   const { db } = getFirebaseServices();
-  const query = db.collection(collection).where("churchId", "==", churchId).limit(limit) as Query;
+  const base = db.collection(collection).where("churchId", "==", churchId);
+  const query = (limit ? base.limit(limit) : base) as Query;
   const result = await query.get();
   return result.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 }

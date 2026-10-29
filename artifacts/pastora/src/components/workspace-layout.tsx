@@ -65,7 +65,7 @@ export const navItems: NavItem[] = [
     module: "expenses",
   },
   { href: "/app/qr-codes", label: "QR codes", icon: QrCode, show: (a) => a.can("qr") },
-  { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone },
+  { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone, module: "tasks" },
   { href: "/app/reports", label: "Reports", icon: FileText, show: (a) => a.can("reports"), module: "reports" },
 ];
 

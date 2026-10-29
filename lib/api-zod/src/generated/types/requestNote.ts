@@ -10,5 +10,7 @@ export interface RequestNote {
   id: string;
   requestId: string;
   note: string;
+  /** @nullable */
+  authorName?: string | null;
   createdAt: Date;
 }

@@ -5,6 +5,7 @@ import {
   AddRequestNoteResponse,
   CreateRequestBody,
   CreateRequestResponse,
+  ListRequestNotesResponse,
   ListRequestsQueryParams,
   ListRequestsResponse,
   UpdateRequestBody,
@@ -78,6 +79,8 @@ router.get("/requests", firebaseAuth, async (req, res): Promise<void> => {
           result.contact = caseData.contact ?? null;
           result.category = caseData.category ?? null;
           result.message = caseData.message ?? "";
+          result.preferredFormat = caseData.preferredFormat ?? null;
+          result.preferredAvailability = caseData.preferredAvailability ?? null;
         } else {
           result.name = item.name ?? null;
           // The prayer team sees what to pray for, never how to reach the person.
@@ -236,6 +239,54 @@ router.patch("/requests/:requestId", firebaseAuth, async (req, res): Promise<voi
   } catch (error) {
     if (failFirebaseSetup(res, error)) return;
     res.status(400).json({ error: errorMessage(error, "Unable to update this request.") });
+  }
+});
+
+router.get("/requests/:requestId/notes", firebaseAuth, async (req, res): Promise<void> => {
+  const params = AddRequestNoteParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  try {
+    const context = await tenantFor(req);
+    if (!context) {
+      res.status(409).json({ error: "Complete church onboarding first." });
+      return;
+    }
+    if (!canViewPastoralCare(context.role)) {
+      res.status(403).json({ error: "Only pastors can read private notes." });
+      return;
+    }
+    const request = await tenantDocument("pastoralRequests", params.data.requestId, context.churchId);
+    if (!request) {
+      res.status(404).json({ error: "Request not found." });
+      return;
+    }
+    const { db } = getFirebaseServices();
+    const notes = await db
+      .collection("pastoralNotes")
+      .where("churchId", "==", context.churchId)
+      .where("requestId", "==", params.data.requestId)
+      .get();
+    const authors = [...new Set(notes.docs.map((d) => String(d.get("authorUid") ?? "")).filter(Boolean))];
+    const names = new Map<string, string>();
+    await Promise.all(
+      authors.map(async (uid) => {
+        const user = await db.collection("users").doc(uid).get();
+        if (user.exists && user.get("name")) names.set(uid, String(user.get("name")));
+      }),
+    );
+    const list = notes.docs
+      .map((d) => ({
+        ...recordWithId(d.id, d.data(), ["createdAt"]),
+        authorName: names.get(String(d.get("authorUid") ?? "")) ?? null,
+      }))
+      .sort((a, b) => String((a as { createdAt?: unknown }).createdAt).localeCompare(String((b as { createdAt?: unknown }).createdAt)));
+    res.json(ListRequestNotesResponse.parse(list));
+  } catch (error) {
+    if (failFirebaseSetup(res, error)) return;
+    res.status(400).json({ error: errorMessage(error, "Unable to load notes.") });
   }
 });
 

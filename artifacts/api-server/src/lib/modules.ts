@@ -98,6 +98,19 @@ export const DEFAULT_MODULES: ModuleRecord[] = [
     defaultEnabled: true,
   },
   {
+    id: "tasks",
+    name: "Tasks",
+    description:
+      "Keep track of visits, calls and errands: give each one a due date and assign it to the right person on your team.",
+    status: "available",
+    plan: "starter",
+    roles: ["pastor", "staff", "finance", "admin"],
+    priceNote: null,
+    builtin: true,
+    sortOrder: 38,
+    defaultEnabled: true,
+  },
+  {
     id: "messaging",
     name: "Messaging (SMS & WhatsApp)",
     description:
@@ -290,9 +303,10 @@ export type PlatformSettings = { earlyAccess: boolean; modulesVisible: boolean }
 
 /**
  * While the Modules page is hidden (the default), every church gets these and
- * nothing else, plus any module Pastora Admin grants it. Keeps the menu short.
+ * nothing else, plus any module Pastora Admin grants it (expenses, tasks, reports…).
+ * Keeps the menu short.
  */
-export const CORE_MODULES = ["expenses", "message-prep", "blog"];
+export const CORE_MODULES = ["message-prep", "blog"];
 
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   await ensureCatalog();

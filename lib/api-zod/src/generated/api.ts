@@ -148,7 +148,11 @@ export const GetDashboardResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "anonymous": zod.boolean(),
   "permissionToContact": zod.boolean(),
-  "shareWithPrayerTeam": zod.boolean()
+  "shareWithPrayerTeam": zod.boolean(),
+  "campaign": zod.string().nullish().describe('The event or QR link it came through, if any.'),
+  "source": zod.string().nullish().describe('public_portal when sent from the care page.'),
+  "preferredFormat": zod.string().nullish(),
+  "preferredAvailability": zod.string().nullish()
 }))
 })
 
@@ -249,7 +253,11 @@ export const ListRequestsResponseItem = zod.object({
   "createdAt": zod.coerce.date(),
   "anonymous": zod.boolean(),
   "permissionToContact": zod.boolean(),
-  "shareWithPrayerTeam": zod.boolean()
+  "shareWithPrayerTeam": zod.boolean(),
+  "campaign": zod.string().nullish().describe('The event or QR link it came through, if any.'),
+  "source": zod.string().nullish().describe('public_portal when sent from the care page.'),
+  "preferredFormat": zod.string().nullish(),
+  "preferredAvailability": zod.string().nullish()
 })
 export const ListRequestsResponse = zod.array(ListRequestsResponseItem)
 
@@ -283,7 +291,11 @@ export const CreateRequestResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "anonymous": zod.boolean(),
   "permissionToContact": zod.boolean(),
-  "shareWithPrayerTeam": zod.boolean()
+  "shareWithPrayerTeam": zod.boolean(),
+  "campaign": zod.string().nullish().describe('The event or QR link it came through, if any.'),
+  "source": zod.string().nullish().describe('public_portal when sent from the care page.'),
+  "preferredFormat": zod.string().nullish(),
+  "preferredAvailability": zod.string().nullish()
 })
 
 
@@ -315,8 +327,29 @@ export const UpdateRequestResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "anonymous": zod.boolean(),
   "permissionToContact": zod.boolean(),
-  "shareWithPrayerTeam": zod.boolean()
+  "shareWithPrayerTeam": zod.boolean(),
+  "campaign": zod.string().nullish().describe('The event or QR link it came through, if any.'),
+  "source": zod.string().nullish().describe('public_portal when sent from the care page.'),
+  "preferredFormat": zod.string().nullish(),
+  "preferredAvailability": zod.string().nullish()
 })
+
+
+/**
+ * @summary A request's private notes, oldest first (pastors only)
+ */
+export const ListRequestNotesParams = zod.object({
+  "requestId": zod.coerce.string()
+})
+
+export const ListRequestNotesResponseItem = zod.object({
+  "id": zod.string(),
+  "requestId": zod.string(),
+  "note": zod.string(),
+  "authorName": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+export const ListRequestNotesResponse = zod.array(ListRequestNotesResponseItem)
 
 
 /**
@@ -338,6 +371,7 @@ export const AddRequestNoteResponse = zod.object({
   "id": zod.string(),
   "requestId": zod.string(),
   "note": zod.string(),
+  "authorName": zod.string().nullish(),
   "createdAt": zod.coerce.date()
 })
 

@@ -410,7 +410,7 @@ router.post(
             : input.type === "general" && input.category === "First-time guest"
               ? "A first-time guest filled in a welcome card."
               : "A new pastoral care request needs review.";
-        targetPath = "/app/requests";
+        targetPath = `/app/requests?open=${requestRef.id}`;
       }
       try {
         if (qr) await qr.ref.update({ submissions: FieldValue.increment(1) });

@@ -50,6 +50,7 @@ const CARD_ACCESS: Record<string, (a: Access) => boolean> = {
 };
 /** Cards that belong to a module are hidden when the church has it switched off. */
 const MODULE_OF: Record<string, string> = {
+  "Tasks overdue": "tasks",
   "Reports to review": "reports",
   "Expenses awaiting": "expenses",
 };
@@ -70,7 +71,9 @@ export function DashboardPage() {
         ? "/app/team"
         : access.can("qr")
           ? "/app/qr-codes"
-          : "/app/tasks";
+          : modules.includes("tasks")
+            ? "/app/tasks"
+            : "/app/account";
   useEffect(() => {
     if (session.data && !hasOverview) setLocation(home, { replace: true });
   }, [session.data, hasOverview, home, setLocation]);
@@ -140,9 +143,15 @@ export function DashboardPage() {
         title={greeting()}
         subtitle="A clear view of what needs your attention, and what can wait."
         action={
-          <Link href="/app/tasks" className="button primary">
-            Open my tasks <ArrowRight size={15} />
-          </Link>
+          modules.includes("tasks") ? (
+            <Link href="/app/tasks" className="button primary">
+              Open my tasks <ArrowRight size={15} />
+            </Link>
+          ) : access.can("enquiries") || access.can("prayer") ? (
+            <Link href="/app/requests" className="button primary">
+              Open care inbox <ArrowRight size={15} />
+            </Link>
+          ) : undefined
         }
       />
       {dashboard.isLoading ? (

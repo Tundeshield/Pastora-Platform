@@ -950,6 +950,83 @@ export const useUpdateRequest = <TError = ErrorType<UnauthorizedResponse | NotFo
       return useMutation(getUpdateRequestMutationOptions(options));
     }
 
+export const getListRequestNotesUrl = (requestId: string,) => {
+
+
+
+
+  return `/api/requests/${requestId}/notes`
+}
+
+/**
+ * @summary A request's private notes, oldest first (pastors only)
+ */
+export const listRequestNotes = async (requestId: string, options?: Parameters<typeof customFetch>[1]): Promise<RequestNote[]> => {
+
+  return customFetch<RequestNote[]>(getListRequestNotesUrl(requestId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListRequestNotesQueryKey = (requestId: string,) => {
+    return [
+    `/api/requests/${requestId}/notes`
+    ] as const;
+    }
+
+
+export const getListRequestNotesQueryOptions = <TData = Awaited<ReturnType<typeof listRequestNotes>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(requestId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRequestNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListRequestNotesQueryKey(requestId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listRequestNotes>>> = ({ signal }) => listRequestNotes(requestId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: requestId !== null && requestId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRequestNotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListRequestNotesQueryResult = NonNullable<Awaited<ReturnType<typeof listRequestNotes>>>
+export type ListRequestNotesQueryError = ErrorType<ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary A request's private notes, oldest first (pastors only)
+ */
+
+export function useListRequestNotes<TData = Awaited<ReturnType<typeof listRequestNotes>>, TError = ErrorType<ForbiddenResponse | NotFoundResponse>>(
+ requestId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listRequestNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListRequestNotesQueryOptions(requestId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getAddRequestNoteUrl = (requestId: string,) => {
 
 
