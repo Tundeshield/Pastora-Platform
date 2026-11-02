@@ -122,9 +122,8 @@ modules are added automatically to catalogs that were seeded before they existed
 
 While the Modules page is hidden (the default), every church gets the core —
 **Tasks** and **Department reports** on top of care and appointments — plus whatever
-Pastora Admin grants. Sermons and the blog are not core: a church that already has
-sermons or posts keeps them (`KEPT_IF_USED` in `src/lib/modules.ts`), anyone else needs
-a grant.
+Pastora Admin grants. Sermons and the blog are not core: a church needs a grant to see
+them. Anything already written stays saved and reappears if the church is given them.
 
 Built-in modules today: **Department reports**, **Tasks**, **Expenses & approvals**, **Message
 Prep** (each pastor's private sermon and study notes, with a pulpit view) and

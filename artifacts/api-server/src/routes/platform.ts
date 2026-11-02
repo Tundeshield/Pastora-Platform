@@ -456,7 +456,6 @@ async function platformModules() {
       grants: Array.isArray(stored.grants) ? stored.grants.map(String) : [],
       enabled: (stored.enabled as Record<string, boolean>) ?? {},
       interested: new Set<string>(),
-      inUse: [] as string[],
     };
     for (const module of catalog) {
       const state = moduleState(module, access, settings.earlyAccess, settings.modulesVisible);

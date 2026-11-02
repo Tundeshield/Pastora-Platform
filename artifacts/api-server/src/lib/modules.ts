@@ -308,13 +308,6 @@ export type PlatformSettings = { earlyAccess: boolean; modulesVisible: boolean }
  */
 export const CORE_MODULES = ["tasks", "reports"];
 
-/**
- * Sermons and the blog are no longer part of the core product. A church that already
- * wrote something keeps them, so nobody loses their work; Pastora Admin can switch them
- * on for anyone else.
- */
-export const KEPT_IF_USED: Record<string, string> = { "message-prep": "sermons", blog: "posts" };
-
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   await ensureCatalog();
   const snap = await settingsRef().get();
@@ -333,21 +326,16 @@ export type ChurchAccess = {
   grants: string[];
   enabled: Record<string, boolean>;
   interested: Set<string>;
-  /** Optional modules this church has content in (see KEPT_IF_USED). */
-  inUse: string[];
 };
 
 export async function churchAccess(churchId: string, withInterest = false): Promise<ChurchAccess> {
   const { db } = getFirebaseServices();
-  const [subscription, settings, interest, ...used] = await Promise.all([
+  const [subscription, settings, interest] = await Promise.all([
     db.collection("subscriptions").doc(churchId).get(),
     db.collection(CHURCH_MODULES).doc(churchId).get(),
     withInterest
       ? db.collection(MODULE_INTEREST).where("churchId", "==", churchId).get()
       : Promise.resolve(null),
-    ...Object.values(KEPT_IF_USED).map((collection) =>
-      db.collection(collection).where("churchId", "==", churchId).limit(1).get(),
-    ),
   ]);
   const enabledRaw = settings.get("enabled");
   return {
@@ -355,7 +343,6 @@ export async function churchAccess(churchId: string, withInterest = false): Prom
     grants: Array.isArray(settings.get("grants")) ? (settings.get("grants") as unknown[]).map(String) : [],
     enabled: enabledRaw && typeof enabledRaw === "object" ? (enabledRaw as Record<string, boolean>) : {},
     interested: new Set(interest ? interest.docs.map((doc) => String(doc.get("moduleId"))) : []),
-    inUse: Object.keys(KEPT_IF_USED).filter((_, i) => !used[i].empty),
   };
 }
 
@@ -371,9 +358,7 @@ export function moduleState(
     module.plan !== "addon" && TIERS.indexOf(access.plan) >= TIERS.indexOf(module.plan as PlanTier);
   // With the Modules page hidden, churches can't switch anything, so the core set
   // plus Pastora Admin's grants decide what is on.
-  const entitled = modulesVisible
-    ? earlyAccess || granted || planIncludes
-    : CORE_MODULES.includes(module.id) || granted || access.inUse.includes(module.id);
+  const entitled = modulesVisible ? earlyAccess || granted || planIncludes : CORE_MODULES.includes(module.id) || granted;
   const enabled = modulesVisible ? (access.enabled[module.id] ?? module.defaultEnabled) : true;
   return {
     entitled,

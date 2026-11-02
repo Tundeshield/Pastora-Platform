@@ -463,7 +463,7 @@ function ChurchAccess({ churchId, plan, grants }: { churchId: string; plan: Plan
           ))}
         </select>
         {modules.data && !modules.data.modulesVisible ? (
-          <small>The Modules page is hidden: every church gets care, appointments, tasks and department reports, plus anything ticked below (e.g. Expenses, Sermons, Blog). A church that already wrote sermons or blog posts keeps them.</small>
+          <small>The Modules page is hidden: every church gets care, appointments, tasks and department reports, plus anything ticked below (e.g. Expenses, Sermons, Blog).</small>
         ) : (
           modules.data?.earlyAccess && <small>Early access is on, so every church has every available module.</small>
         )}

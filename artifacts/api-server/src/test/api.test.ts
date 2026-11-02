@@ -838,16 +838,14 @@ describe("a simple menu (Modules hidden)", () => {
     assert.equal(report.status, 201, JSON.stringify(report.body));
   });
 
-  test("a church that already wrote sermons or blog posts keeps them", async () => {
+  test("sermons and the blog are only for churches Pastora Admin gives them to; their writing stays saved", async () => {
     const owner = await ownerWithChurch();
     await hide();
     await db.collection("sermons").add({ churchId: owner.church.id, title: "Abide", authorUid: owner.uid });
-    await db.collection("posts").add({ churchId: owner.church.id, title: "New every morning", authorUid: owner.uid });
     const modules = (await call("GET", "/session", owner.token)).body.modules as string[];
-    assert.deepEqual([...modules].sort(), ["blog", "message-prep", "reports", "tasks"]);
-    assert.equal((await call("GET", "/messages", owner.token)).status, 200);
-    const other = await ownerWithChurch("Another Church");
-    assert.ok(!(await call("GET", "/session", other.token)).body.modules.includes("blog"), "only for the church that used it");
+    assert.deepEqual([...modules].sort(), ["reports", "tasks"]);
+    assert.equal((await call("GET", "/messages", owner.token)).status, 403);
+    assert.ok([...db.store.values()].some((v) => v.title === "Abide"), "nothing is deleted");
   });
 
   test("Pastora Admin can switch the Modules page on, or give one church an extra module", async () => {
