@@ -1528,6 +1528,9 @@ components:
         team:
           type: boolean
           description: Team and module changes.
+        includeDetails:
+          type: boolean
+          description: Put the request itself (name, message, time) in the email. Counselling is never included.
       required: [care, appointments, work, team]
     EmailPreferences:
       allOf:
@@ -1538,7 +1541,9 @@ components:
               type: ["string", "null"]
             emailConfigured:
               type: boolean
-          required: [email, emailConfigured]
+            includeDetails:
+              type: boolean
+          required: [email, emailConfigured, includeDetails]
     UserSummary:
       type: object
       properties:

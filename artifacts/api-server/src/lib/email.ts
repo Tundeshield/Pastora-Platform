@@ -1,6 +1,8 @@
 /**
- * Email for Pastora. Emails say THAT something happened and link into Pastora; they
- * never carry pastoral content (no prayer text, no counselling details, no notes).
+ * Email for Pastora. Team emails can carry the request itself (who, what, when) so a
+ * pastor can act from their inbox; each person can switch that off. Counselling content,
+ * private notes and contact details for the prayer team are never emailed. Emails to the
+ * person who wrote in never repeat what they wrote.
  *
  * Sending is off until RESEND_API_KEY and EMAIL_FROM are set, so nothing is sent from
  * development or tests unless a test installs its own sender.
@@ -85,6 +87,8 @@ export function layout(opts: {
   church: string;
   heading: string;
   lines: string[];
+  facts?: [string, string][];
+  quote?: string | null;
   button?: { label: string; url: string };
   footer: string;
 }): { html: string; text: string } {
@@ -96,6 +100,21 @@ export function layout(opts: {
 <tr><td style="padding:28px 28px 8px">
 <p style="margin:0 0 6px;font:600 12px/1.4 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8a6430">${escape(opts.church)}</p>
 <h1 style="margin:0 0 18px;font:500 26px/1.25 Georgia,'Times New Roman',serif;color:#22382d">${escape(opts.heading)}</h1>
+${
+  opts.facts?.length
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 14px;width:100%;border-collapse:collapse">${opts.facts
+        .map(
+          ([k, v]) =>
+            `<tr><td style="padding:6px 12px 6px 0;vertical-align:top;white-space:nowrap;font:600 12px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#8a918b">${escape(k)}</td><td style="padding:6px 0;font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#22382d">${escape(v)}</td></tr>`,
+        )
+        .join("")}</table>`
+    : ""
+}
+${
+  opts.quote
+    ? `<div style="margin:6px 0 16px;padding:14px 16px;border-left:3px solid #b8894a;background:#f6f1e7;border-radius:6px;font:16px/1.65 Georgia,'Times New Roman',serif;color:#22382d;white-space:pre-wrap">${escape(opts.quote)}</div>`
+    : ""
+}
 ${opts.lines.map(p).join("\n")}
 ${
   opts.button
@@ -113,6 +132,9 @@ ${
     "",
     opts.heading,
     "",
+    ...(opts.facts ?? []).map(([k, v]) => `${k}: ${v}`),
+    ...(opts.facts?.length ? [""] : []),
+    ...(opts.quote ? [`"${opts.quote}"`, ""] : []),
     ...opts.lines,
     ...(opts.button ? ["", `${opts.button.label}: ${opts.button.url}`] : []),
     "",
@@ -135,7 +157,16 @@ export function categoryOf(type: string): EmailCategory {
   return "work";
 }
 
-export type EmailPreferences = Record<EmailCategory, boolean>;
+export type EmailPreferences = Record<EmailCategory, boolean> & { includeDetails: boolean };
+
+/** What a team email may show about the thing that happened (already filtered for the recipient). */
+export type EmailDetails = {
+  subject?: string;
+  facts: [string, string][];
+  message?: string | null;
+};
+
+const MAX_QUOTE = 1500;
 
 export function preferencesFrom(stored: unknown): EmailPreferences {
   const s = (stored && typeof stored === "object" ? stored : {}) as Record<string, unknown>;
@@ -144,6 +175,7 @@ export function preferencesFrom(stored: unknown): EmailPreferences {
     appointments: s.appointments !== false,
     work: s.work !== false,
     team: s.team !== false,
+    includeDetails: s.includeDetails !== false,
   };
 }
 
@@ -157,6 +189,7 @@ export async function emailTeam(
   type: string,
   title: string,
   targetPath: string,
+  details?: Map<string, EmailDetails | null>,
 ): Promise<void> {
   if (!uids.length || !emailConfigured()) return;
   const { auth, db } = getFirebaseServices();
@@ -167,22 +200,33 @@ export async function emailTeam(
     auth.getUsers(uids.map((uid) => ({ uid }))),
   ]);
   const churchName = String(church.get("name") ?? "Your church");
-  const wanted = new Set(uids.filter((_, i) => preferencesFrom(prefs[i].data())[category]));
+  const prefOf = new Map(uids.map((uid, i) => [uid, preferencesFrom(prefs[i].data())]));
   const emails: Email[] = [];
   for (const account of accounts.users) {
-    if (!wanted.has(account.uid) || account.disabled || !account.email) continue;
+    const pref = prefOf.get(account.uid);
+    if (!pref || !pref[category] || account.disabled || !account.email) continue;
+    const detail = pref.includeDetails ? details?.get(account.uid) ?? null : null;
+    const quote = detail?.message?.trim()
+      ? detail.message.trim().length > MAX_QUOTE
+        ? `${detail.message.trim().slice(0, MAX_QUOTE)}…`
+        : detail.message.trim()
+      : null;
     const { html, text } = layout({
       church: churchName,
       heading: title,
-      lines: [
-        category === "care"
-          ? "For privacy, the details stay in Pastora. Sign in to read and respond."
-          : "Open Pastora to see the details and respond.",
-      ],
+      facts: detail?.facts,
+      quote,
+      lines: detail
+        ? ["Open Pastora to reply, add a note or mark it done."]
+        : [
+            category === "care"
+              ? "For privacy, the details stay in Pastora. Sign in to read and respond."
+              : "Open Pastora to see the details and respond.",
+          ],
       button: { label: "Open in Pastora", url: appUrl(targetPath) },
-      footer: `You’re getting this because you’re on ${churchName}’s team in Pastora. Choose which emails you get under Your account → Email.`,
+      footer: `You’re getting this because you’re on ${churchName}’s team in Pastora. Choose what you get, and whether emails include details, under Settings → Your email alerts.`,
     });
-    emails.push({ to: account.email, subject: `${title} · ${churchName}`, html, text });
+    emails.push({ to: account.email, subject: `${detail?.subject ?? title} · ${churchName}`, html, text });
   }
   await sendEmails(emails);
 }
@@ -191,7 +235,7 @@ export async function emailTeam(
 
 const FORMAT_LABEL: Record<string, string> = { "in-person": "In person", phone: "Phone call", video: "Video call" };
 
-function whenText(startAt: Date, minutes: number, timeZone: string): string {
+export function whenText(startAt: Date, minutes: number, timeZone: string): string {
   const tz = (() => {
     try {
       new Intl.DateTimeFormat("en-GB", { timeZone });

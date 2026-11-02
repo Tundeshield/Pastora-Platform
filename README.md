@@ -41,8 +41,11 @@ storage.rules          Deny-all: uploads are not enabled yet
 
 ## Email
 
-Pastora emails people when something needs them, with a button into the app. Emails never contain
-pastoral content (no prayer text, counselling details or notes).
+Pastora emails people when something needs them, with a button into the app. Team emails for new
+prayer requests, questions, guests and bookings include the request itself (who, what, when) so a
+pastor can read it from their inbox; each person can switch this off ("Show the message in my emails").
+Counselling content and private notes are never emailed, the prayer team never gets contact details,
+and the receipt sent to the person who wrote in never repeats what they wrote.
 
 - Team: new requests and bookings (to whoever handles them), tasks assigned or completed, reports to
   review or reviewed, expenses to approve, answered, ready to pay or paid, team changes, invitations.

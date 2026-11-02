@@ -11,4 +11,5 @@ export type EmailPreferences = EmailPreferencesInput & ({
   /** @nullable */
   email: string | null;
   emailConfigured: boolean;
+  includeDetails: boolean;
 });

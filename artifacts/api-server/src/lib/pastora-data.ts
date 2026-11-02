@@ -1,4 +1,4 @@
-import { emailTeam } from "./email";
+import { emailTeam, type EmailDetails } from "./email";
 import type { Request, Response } from "express";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import {
@@ -200,9 +200,16 @@ export function errorMessage(error: unknown, fallback: string): string {
 }
 
 /** Emails never block or fail the action that triggered them. */
-async function emailQuietly(churchId: string, uids: string[], type: string, title: string, targetPath: string) {
+async function emailQuietly(
+  churchId: string,
+  uids: string[],
+  type: string,
+  title: string,
+  targetPath: string,
+  details?: Map<string, EmailDetails | null>,
+) {
   try {
-    await emailTeam(churchId, uids, type, title, targetPath);
+    await emailTeam(churchId, uids, type, title, targetPath, details);
   } catch {
     // Email is a courtesy; the in-app notification is already saved.
   }
@@ -228,6 +235,8 @@ export async function notifyChurchMembers(
   title: string,
   targetPath: string,
   include: (role: ChurchRole, permissions: Permission[]) => boolean,
+  /** What each recipient's email may show; filtered per person (e.g. no contact details for the prayer team). */
+  details?: (role: ChurchRole, permissions: Permission[]) => EmailDetails | null,
 ): Promise<void> {
   const { db } = getFirebaseServices();
   const memberships = await db
@@ -237,6 +246,7 @@ export async function notifyChurchMembers(
     .get();
   const batch = db.batch();
   const recipients: string[] = [];
+  const detailMap = new Map<string, EmailDetails | null>();
   let writes = 0;
   for (const member of memberships.docs) {
     const data = member.data();
@@ -248,10 +258,11 @@ export async function notifyChurchMembers(
       { merge: true },
     );
     recipients.push(data.uid);
+    if (details) detailMap.set(data.uid, details(role, permissionsFor(role, data.permissions)));
     writes += 1;
   }
   if (writes > 0) await batch.commit();
-  await emailQuietly(churchId, recipients, type, title, targetPath);
+  await emailQuietly(churchId, recipients, type, title, targetPath, details ? detailMap : undefined);
 }
 
 export async function notifyChurchRoles(

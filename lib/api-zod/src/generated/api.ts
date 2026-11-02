@@ -448,10 +448,12 @@ export const GetEmailPreferencesResponse = zod.object({
   "care": zod.boolean().describe('Prayer requests, counselling and enquiries (never their content).'),
   "appointments": zod.boolean(),
   "work": zod.boolean().describe('Tasks, reports and expenses.'),
-  "team": zod.boolean().describe('Team and module changes.')
+  "team": zod.boolean().describe('Team and module changes.'),
+  "includeDetails": zod.boolean().describe('Put the request itself (name, message, time) in the email. Counselling is never included.')
 }).and(zod.object({
   "email": zod.string().nullable(),
-  "emailConfigured": zod.boolean()
+  "emailConfigured": zod.boolean(),
+  "includeDetails": zod.boolean()
 }))
 
 
@@ -462,17 +464,20 @@ export const SaveEmailPreferencesBody = zod.object({
   "care": zod.boolean().describe('Prayer requests, counselling and enquiries (never their content).'),
   "appointments": zod.boolean(),
   "work": zod.boolean().describe('Tasks, reports and expenses.'),
-  "team": zod.boolean().describe('Team and module changes.')
+  "team": zod.boolean().describe('Team and module changes.'),
+  "includeDetails": zod.boolean().optional().describe('Put the request itself (name, message, time) in the email. Counselling is never included.')
 })
 
 export const SaveEmailPreferencesResponse = zod.object({
   "care": zod.boolean().describe('Prayer requests, counselling and enquiries (never their content).'),
   "appointments": zod.boolean(),
   "work": zod.boolean().describe('Tasks, reports and expenses.'),
-  "team": zod.boolean().describe('Team and module changes.')
+  "team": zod.boolean().describe('Team and module changes.'),
+  "includeDetails": zod.boolean().describe('Put the request itself (name, message, time) in the email. Counselling is never included.')
 }).and(zod.object({
   "email": zod.string().nullable(),
-  "emailConfigured": zod.boolean()
+  "emailConfigured": zod.boolean(),
+  "includeDetails": zod.boolean()
 }))
 
 

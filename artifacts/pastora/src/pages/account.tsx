@@ -41,7 +41,14 @@ export function EmailAlertsSection() {
   const qc = useQueryClient();
   const set = (key: keyof EmailPreferencesInput, value: boolean) => {
     if (!q.data) return;
-    const next = { care: q.data.care, appointments: q.data.appointments, work: q.data.work, team: q.data.team, [key]: value };
+    const next = {
+      care: q.data.care,
+      appointments: q.data.appointments,
+      work: q.data.work,
+      team: q.data.team,
+      includeDetails: q.data.includeDetails,
+      [key]: value,
+    };
     qc.setQueryData(getGetEmailPreferencesQueryKey(), { ...q.data, ...next });
     save.mutate({ data: next }, { onSuccess: (r) => qc.setQueryData(getGetEmailPreferencesQueryKey(), r) });
   };
@@ -52,8 +59,8 @@ export function EmailAlertsSection() {
           <p className="eyebrow">Your email alerts</p>
           <h2 className="serif">What we email you</h2>
           <p>
-            Pastora emails you when something needs you, with a button straight to it. Private details always stay
-            inside Pastora. These choices are yours alone.
+            Pastora emails you when something needs you, with a button straight to it. Counselling and private notes
+            always stay inside Pastora. These choices are yours alone.
           </p>
         </div>
         <div className="settings-fields">
@@ -78,6 +85,17 @@ export function EmailAlertsSection() {
                   <small>{k.help}</small>
                 </div>
               ))}
+              <div className="email-pref email-pref-details">
+                <Toggle
+                  label="Show the message in my emails"
+                  value={q.data.includeDetails}
+                  onChange={(v) => set("includeDetails", v)}
+                />
+                <small>
+                  Read who wrote in, what they asked and when, right in your inbox. Turn off if others can see your
+                  email. Counselling is never included.
+                </small>
+              </div>
               <MutationError errors={[save.error]} />
               <div className="email-test">
                 <Button variant="outline" disabled={test.isPending} onClick={() => test.mutate()}>

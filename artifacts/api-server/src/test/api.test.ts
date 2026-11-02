@@ -665,21 +665,90 @@ describe("booking and QR links", () => {
 describe("emails", () => {
   const to = (addr: string) => sent.filter((e) => e.to === addr);
 
-  test("a prayer request emails the pastor and the person, without repeating what they wrote", async () => {
+  test("a prayer request emails the pastor the request itself; the person's receipt never repeats it", async () => {
     const owner = await ownerWithChurch();
     const r = await publicRequest(owner.church.slug, {
       type: "prayer",
       name: "Ola",
       contact: "ola@example.test",
-      message: "Secret burden about my family",
+      message: "Please pray for my <family> & job",
+    });
+    assert.equal(r.status, 201);
+    const pastor = to(owner.email);
+    assert.equal(pastor.length, 1);
+    assert.match(pastor[0].subject, /^Prayer request from Ola · /);
+    assert.ok(pastor[0].text.includes("Please pray for my <family> & job"), "the pastor can read it in the email");
+    assert.ok(pastor[0].html.includes("&lt;family&gt; &amp; job"), "what people write is escaped");
+    assert.ok(pastor[0].text.includes("ola@example.test"), "the pastor sees how to reach them");
+    assert.match(pastor[0].text, /Open in Pastora: https:\/\/.+\/app\/requests/);
+    const receipt = to("ola@example.test");
+    assert.equal(receipt.length, 1);
+    assert.ok(!receipt[0].text.includes("pray for my") && !receipt[0].html.includes("pray for my"));
+  });
+
+  test("counselling is never in any email", async () => {
+    const owner = await ownerWithChurch();
+    const r = await publicRequest(owner.church.slug, {
+      type: "counselling",
+      name: "Ada",
+      contact: "ada@example.test",
+      message: "Secret burden about my marriage",
+      permissionToContact: true,
     });
     assert.equal(r.status, 201);
     assert.equal(to(owner.email).length, 1);
-    assert.equal(to("ola@example.test").length, 1);
     for (const e of sent) {
-      assert.ok(!e.html.includes("Secret burden") && !e.text.includes("Secret burden"), "no pastoral content in email");
+      assert.ok(!e.html.includes("Secret burden") && !e.text.includes("Secret burden"), "no counselling content in email");
+      assert.ok(!e.text.includes("marriage"));
     }
-    assert.match(to(owner.email)[0].text, /Open in Pastora: https:\/\/.+\/app\/requests/);
+    assert.match(to(owner.email)[0].text, /details stay in Pastora/);
+  });
+
+  test("the prayer team reads shared prayers by email, but never contact details", async () => {
+    const owner = await ownerWithChurch();
+    const prayer = await member(owner.token, "prayer_team");
+    sent = [];
+    await publicRequest(owner.church.slug, {
+      type: "prayer",
+      name: "Kemi",
+      contact: "kemi@example.test",
+      message: "Healing for my mum",
+      shareWithPrayerTeam: true,
+    });
+    const team = to(prayer.email);
+    assert.equal(team.length, 1);
+    assert.ok(team[0].text.includes("Healing for my mum"));
+    assert.ok(!team[0].text.includes("kemi@example.test") && !team[0].html.includes("kemi@example.test"));
+    assert.ok(to(owner.email)[0].text.includes("kemi@example.test"));
+  });
+
+  test("bookings tell the pastor who, when and how", async () => {
+    const owner = await ownerWithChurch();
+    await call("PUT", "/availability", owner.token, {
+      bookingEnabled: true,
+      weekly: [0, 1, 2, 3, 4, 5, 6].map((day) => ({ day, start: "06:00", end: "22:00" })),
+      meetingMinutes: 30, bufferMinutes: 0, noticeHours: 0, horizonDays: 7,
+      autoConfirm: true, formats: ["video"], location: null, timeOff: [],
+    });
+    const slot = (await call("GET", `/public/churches/${owner.church.slug}/slots`)).body.days[0].slots[0];
+    sent = [];
+    await publicRequest(owner.church.slug, { type: "appointment", name: "Bayo", contact: "0803", message: "Baby dedication", preferredDate: slot });
+    const e = to(owner.email)[0];
+    assert.match(e.subject, /^Bayo booked time with you/);
+    assert.ok(e.text.includes("Video call") && e.text.includes("Baby dedication") && e.text.includes("0803"));
+    assert.match(e.text, /When: .+/);
+  });
+
+  test("anyone can keep the details out of their emails", async () => {
+    const owner = await ownerWithChurch();
+    const saved = await call("PUT", "/me/email-preferences", owner.token, {
+      care: true, appointments: true, work: true, team: true, includeDetails: false,
+    });
+    assert.equal(saved.body.includeDetails, false);
+    await publicRequest(owner.church.slug, { type: "prayer", name: "Ola", message: "Private words here" });
+    const e = to(owner.email)[0];
+    assert.ok(!e.text.includes("Private words") && !e.html.includes("Private words"));
+    assert.ok(!e.subject.includes("Ola"), "not even the name in the subject");
   });
 
   test("people choose which emails they get", async () => {
@@ -688,6 +757,7 @@ describe("emails", () => {
     assert.equal(prefs.status, 200);
     assert.equal(prefs.body.care, true);
     assert.equal(prefs.body.emailConfigured, true);
+    assert.equal(prefs.body.includeDetails, true, "details are on unless someone turns them off");
     const saved = await call("PUT", "/me/email-preferences", owner.token, { care: false, appointments: true, work: true, team: true });
     assert.equal(saved.body.care, false);
     await publicRequest(owner.church.slug, { type: "general", message: "Service times?" });

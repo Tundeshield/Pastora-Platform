@@ -14,4 +14,6 @@ export interface EmailPreferencesInput {
   work: boolean;
   /** Team and module changes. */
   team: boolean;
+  /** Put the request itself (name, message, time) in the email. Counselling is never included. */
+  includeDetails?: boolean;
 }

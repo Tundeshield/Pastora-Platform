@@ -15,7 +15,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { failFirebaseSetup, notifyChurchMembers } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isModuleActive } from "../lib/modules";
-import { emailBooking, emailVisitorReceipt } from "../lib/email";
+import { emailBooking, emailVisitorReceipt, whenText, type EmailDetails } from "../lib/email";
 import { availabilityFrom, busyFrom, computeSlots, isOpenSlot, validTimeZone } from "../lib/booking";
 
 const router: IRouter = Router();
@@ -74,6 +74,10 @@ async function publicChurch(slug: string) {
   const settings = (await db.collection("churchSettings").doc(church.id).get()).data() ?? {};
   if (settings.publicPortalEnabled === false) return null;
   return { church, settings };
+}
+
+function formatLabel(format: string): string {
+  return format === "in-person" ? "In person" : format === "phone" ? "Phone call" : format === "video" ? "Video call" : format;
 }
 
 async function bookingState(churchId: string, settings: Record<string, unknown>) {
@@ -286,6 +290,9 @@ router.post(
       let notificationType: "appointment" | "pastoral_request";
       let notificationTitle: string;
       let targetPath: string;
+      // What a team member's email may show. Built per recipient so the prayer team never
+      // sees contact details, and counselling content is never emailed at all.
+      let emailDetails: ((role: string) => EmailDetails | null) | undefined;
       if (input.type === "appointment") {
         if (settings.appointmentEnabled === false) {
           res.status(404).json({ error: "Appointment requests are not currently available." });
@@ -349,6 +356,20 @@ router.post(
             ? `${appointment.requesterName} booked a conversation.`
             : "A new appointment request needs review.";
         targetPath = "/app/appointments";
+        const booked = appointment;
+        emailDetails = () => ({
+          subject:
+            appointmentStatus === "confirmed"
+              ? `${booked.requesterName} booked time with you`
+              : `${booked.requesterName} asked to meet`,
+          facts: [
+            ["Who", booked.requesterName],
+            ["When", whenText(startAt, availability.meetingMinutes, timeZone)],
+            ["How", formatLabel(format)],
+            ...(booked.contact ? ([["Contact", booked.contact]] as [string, string][]) : []),
+          ],
+          message: booked.topic,
+        });
       } else {
         const requestRef = db.collection("pastoralRequests").doc();
         const requestData = {
@@ -411,6 +432,33 @@ router.post(
               ? "A first-time guest filled in a welcome card."
               : "A new pastoral care request needs review.";
         targetPath = `/app/requests?open=${requestRef.id}`;
+        if (input.type !== "counselling") {
+          const who = requestData.name ?? (input.anonymous ? "Anonymous" : "Someone");
+          const contact = input.anonymous ? null : input.contact?.trim() || null;
+          const category = input.category?.trim() || null;
+          const message = input.message.trim();
+          const kind =
+            input.type === "prayer"
+              ? "Prayer request"
+              : category === "First-time guest"
+                ? "First-time guest"
+                : "Question";
+          emailDetails = (role) => ({
+            subject: `${kind} from ${who}`,
+            facts: [
+              ["From", who],
+              ...(category && category !== kind ? ([["Topic", category]] as [string, string][]) : []),
+              ...(input.type === "prayer"
+                ? ([["Prayer team", requestData.shareWithPrayerTeam ? "Shared with the prayer team" : "Pastors only"]] as [string, string][])
+                : []),
+              // Contact details go to pastors and enquiries staff, never to the prayer team.
+              ...(contact && (role === "pastor" || input.type !== "prayer")
+                ? ([["Contact", contact]] as [string, string][])
+                : []),
+            ],
+            message,
+          });
+        }
       }
       try {
         if (qr) await qr.ref.update({ submissions: FieldValue.increment(1) });
@@ -425,7 +473,7 @@ router.post(
           if (input.type === "general") return permissions.includes("enquiries");
           if (input.type === "appointment") return permissions.includes("calendar");
           return sharedPrayer && permissions.includes("prayer");
-        });
+        }, emailDetails ? (role) => emailDetails!(role) : undefined);
       } catch (notificationError) {
         req.log.warn({ notificationError }, "Pastoral request saved without notifications");
       }
