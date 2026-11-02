@@ -161,7 +161,7 @@ async function createWorkspaceOnce(
       fontSize: "normal",
       welcomeMessage: "You are welcome to reach out. Our pastoral care team is here to listen.",
       emergencyNotice:
-        "Pastora is not an emergency response service or a replacement for professional healthcare.",
+        "This page isn't for emergencies. If you or someone else is in danger, call your local emergency number.",
       appointmentDurationMinutes: 45,
       appointmentEnabled: true,
       publicPortalEnabled: true,
@@ -305,4 +305,14 @@ export async function hasPendingInvitation(email: string | undefined): Promise<b
     .limit(1)
     .get();
   return !pending.empty;
+}
+
+const OLD_DEFAULT_NOTICE = "Pastora is not an emergency response service or a replacement for professional healthcare.";
+const DEFAULT_NOTICE =
+  "This page isn't for emergencies. If you or someone else is in danger, call your local emergency number.";
+
+/** The care page speaks as the church: the old default that named Pastora reads as the new one. */
+export function emergencyNoticeFor(stored: unknown): string {
+  if (typeof stored !== "string") return DEFAULT_NOTICE;
+  return stored.trim() === OLD_DEFAULT_NOTICE ? DEFAULT_NOTICE : stored;
 }

@@ -26,9 +26,10 @@ import {
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useParams, useSearch } from "wouter";
 
-import { Button, Field, Footer, Header, SkeletonRows, StatusLine, Toggle } from "@/components/ui-kit";
+import { Button, Field, SkeletonRows, StatusLine, Toggle } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
-import { churchLink } from "@/site";
+import { PastoraMark } from "@/components/logo";
+import { churchLink, mainUrl } from "@/site";
 import { dayOf, fmt, icsFile, shortDay, timeOf, zoneName } from "@/zoned";
 
 type Flow = "choose" | "prayer" | "counselling" | "appointment" | "general" | "welcome";
@@ -117,7 +118,7 @@ export function CarePortalPage({ slug: slugProp }: { slug?: string } = {}) {
 
   return (
     <div className="public-shell care-portal grain">
-      <Header />
+      <ChurchHeader name={church.data?.name} logoUrl={church.data?.logoUrl ?? null} />
       <main className="portal-main">
         {waiting ? (
           <SkeletonRows />
@@ -130,10 +131,6 @@ export function CarePortalPage({ slug: slugProp }: { slug?: string } = {}) {
         ) : (
           <>
             <div className="portal-welcome">
-              <span className="portal-seal">
-                <HeartHandshake size={24} />
-              </span>
-              <p className="eyebrow">{church.data.name}</p>
               <h1 className="serif">
                 You don't have to
                 <br />
@@ -195,7 +192,7 @@ export function CarePortalPage({ slug: slugProp }: { slug?: string } = {}) {
           </>
         )}
       </main>
-      <Footer />
+      <ChurchFooter />
     </div>
   );
 }
@@ -932,5 +929,38 @@ function BookingDetails({
       )}
       <PrivacyNote />
     </form>
+  );
+}
+
+/**
+ * The care page belongs to the church: its name at the top, no Pastora menu, sign-in
+ * or sign-up. Pastora appears only as a quiet line at the bottom.
+ */
+function ChurchHeader({ name, logoUrl }: { name?: string; logoUrl: string | null }) {
+  return (
+    <header className="church-top">
+      {name ? (
+        <span className="church-id">
+          {logoUrl ? (
+            <img src={logoUrl} alt="" className="church-logo" />
+          ) : (
+            <span className="church-initial serif">{name.trim().slice(0, 1).toUpperCase()}</span>
+          )}
+          <b className="serif">{name}</b>
+        </span>
+      ) : (
+        <span />
+      )}
+    </header>
+  );
+}
+
+function ChurchFooter() {
+  return (
+    <footer className="church-foot">
+      <a href={mainUrl("/")} className="powered-by">
+        <PastoraMark size={16} /> Powered by Pastora
+      </a>
+    </footer>
   );
 }

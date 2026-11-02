@@ -662,6 +662,22 @@ describe("booking and QR links", () => {
   });
 });
 
+describe("the care page speaks as the church", () => {
+  test("the old default notice that named Pastora is replaced; a church's own words are kept", async () => {
+    const owner = await ownerWithChurch();
+    const slug = owner.church.slug;
+    const fresh = await call("GET", `/public/churches/${slug}`);
+    assert.ok(!fresh.body.emergencyNotice.includes("Pastora"));
+    await db.collection("churchSettings").doc(owner.church.id).set(
+      { emergencyNotice: "Pastora is not an emergency response service or a replacement for professional healthcare." },
+      { merge: true },
+    );
+    assert.ok(!(await call("GET", `/public/churches/${slug}`)).body.emergencyNotice.includes("Pastora"));
+    await call("PATCH", "/settings", owner.token, { emergencyNotice: "Call the church office on 0800 in an emergency." });
+    assert.equal((await call("GET", `/public/churches/${slug}`)).body.emergencyNotice, "Call the church office on 0800 in an emergency.");
+  });
+});
+
 describe("emails", () => {
   const to = (addr: string) => sent.filter((e) => e.to === addr);
 

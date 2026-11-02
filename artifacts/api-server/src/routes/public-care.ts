@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { failFirebaseSetup, notifyChurchMembers } from "../lib/pastora-data";
+import { emergencyNoticeFor } from "../lib/workspace-service";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { isModuleActive } from "../lib/modules";
 import { emailBooking, emailVisitorReceipt, whenText, type EmailDetails } from "../lib/email";
@@ -212,9 +213,7 @@ router.get("/public/churches/:slug", async (req, res): Promise<void> => {
         welcomeMessage: settings.welcomeMessage ?? "You are welcome to reach out.",
         categories: Array.isArray(settings.categories) ? settings.categories : [],
         appointmentEnabled: settings.appointmentEnabled !== false,
-        emergencyNotice:
-          settings.emergencyNotice ??
-          "Pastora is not an emergency response service or a replacement for professional healthcare.",
+        emergencyNotice: emergencyNoticeFor(settings.emergencyNotice),
         blogEnabled: await isModuleActive(churchDoc.id, "blog"),
         bookingMode,
       }),

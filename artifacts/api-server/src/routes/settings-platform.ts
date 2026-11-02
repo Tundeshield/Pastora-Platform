@@ -17,6 +17,7 @@ import {
 } from "../lib/pastora-data";
 import { getFirebaseServices } from "../lib/firebase-admin";
 import { appearanceFrom, canManageTeam } from "../lib/policies";
+import { emergencyNoticeFor } from "../lib/workspace-service";
 
 const router: IRouter = Router();
 
@@ -54,7 +55,7 @@ router.get("/settings", firebaseAuth, async (req, res): Promise<void> => {
         },
         ...appearanceFrom(settings),
         welcomeMessage: settings.welcomeMessage ?? "",
-        emergencyNotice: settings.emergencyNotice ?? "",
+        emergencyNotice: emergencyNoticeFor(settings.emergencyNotice),
         appointmentDurationMinutes: settings.appointmentDurationMinutes ?? 45,
         appointmentEnabled: settings.appointmentEnabled !== false,
         publicPortalEnabled: settings.publicPortalEnabled !== false,
@@ -134,7 +135,7 @@ router.patch("/settings", firebaseAuth, async (req, res): Promise<void> => {
         },
         ...appearanceFrom(settings),
         welcomeMessage: settings.welcomeMessage ?? "",
-        emergencyNotice: settings.emergencyNotice ?? "",
+        emergencyNotice: emergencyNoticeFor(settings.emergencyNotice),
         appointmentDurationMinutes: settings.appointmentDurationMinutes ?? 45,
         appointmentEnabled: settings.appointmentEnabled !== false,
         publicPortalEnabled: settings.publicPortalEnabled !== false,
