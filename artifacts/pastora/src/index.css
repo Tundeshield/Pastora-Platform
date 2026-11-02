@@ -962,3 +962,7 @@ button.under-link { background:none; border:0; border-bottom:1px solid hsl(var(-
   .inbox-detail { padding:16px 18px 28px; }
   .inbox-detail h2 { font-size:calc(26px * var(--text-scale)); }
 }
+.email-test { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding-top:6px; }
+.email-test small { font-size:calc(10px * var(--text-scale)); line-height:1.5; }
+.email-test small.ok { color:hsl(var(--primary)); }
+.email-test small.bad { color:hsl(var(--destructive)); }

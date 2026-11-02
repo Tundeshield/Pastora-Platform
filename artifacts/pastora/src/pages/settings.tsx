@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { EmailAlertsSection } from "@/pages/account";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetSessionQueryKey,
@@ -178,6 +179,7 @@ export function SettingsPage() {
         </div>
       )}
       <div className="settings-stack">
+        <EmailAlertsSection />
         <section className="settings-section">
           <div>
             <p className="eyebrow">Church identity</p>

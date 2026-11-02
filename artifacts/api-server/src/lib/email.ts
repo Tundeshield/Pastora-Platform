@@ -52,7 +52,11 @@ async function resendSend(email: Email): Promise<void> {
       }),
       signal: controller.signal,
     });
-    if (!response.ok) throw new Error(`Email provider answered ${response.status}`);
+    if (!response.ok) {
+      // Resend explains refusals (e.g. an unverified domain); keep its words for the test button.
+      const detail = await response.json().then((b: { message?: string }) => b?.message).catch(() => undefined);
+      throw new Error(detail ? `${detail} (${response.status})` : `Email provider answered ${response.status}`);
+    }
   } finally {
     clearTimeout(timer);
   }
@@ -303,4 +307,24 @@ export async function emailInvitation(opts: {
     footer: "If you weren’t expecting this, you can ignore this email; nothing happens unless you sign up.",
   });
   await sendEmails([{ to, subject: heading, html, text }]);
+}
+
+/** A test email to the signed-in person, so whoever sets up email can see it works. Reports failures. */
+export async function sendTestEmail(to: string, churchName: string): Promise<{ sent: boolean; message: string }> {
+  if (!emailConfigured()) {
+    return { sent: false, message: "Email isn't connected yet: RESEND_API_KEY and EMAIL_FROM need to be set." };
+  }
+  const { html, text } = layout({
+    church: churchName,
+    heading: "Email is working.",
+    lines: ["This is a test from Pastora. From now on you’ll get an email when something needs you."],
+    button: { label: "Open Pastora", url: appUrl("/app") },
+    footer: "You asked for this test from Settings in Pastora.",
+  });
+  try {
+    await (testSender ?? resendSend)({ to, subject: "Pastora test email", html, text });
+    return { sent: true, message: `Sent to ${to}. Check your inbox (and spam, the first time).` };
+  } catch (error) {
+    return { sent: false, message: `The email service refused it: ${error instanceof Error ? error.message : "unknown error"}.` };
+  }
 }

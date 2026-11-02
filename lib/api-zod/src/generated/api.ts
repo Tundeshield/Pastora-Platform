@@ -433,6 +433,15 @@ export const CreateAppointmentResponse = zod.object({
 
 
 /**
+ * @summary Send yourself a test email to check that email works
+ */
+export const SendTestEmailResponse = zod.object({
+  "sent": zod.boolean(),
+  "message": zod.string()
+})
+
+
+/**
  * @summary Which emails the signed-in person gets
  */
 export const GetEmailPreferencesResponse = zod.object({

@@ -3,12 +3,13 @@ import {
   getGetEmailPreferencesQueryKey,
   useGetEmailPreferences,
   useSaveEmailPreferences,
+  useSendTestEmail,
   type EmailPreferencesInput,
 } from "@workspace/api-client-react";
 import { Mail } from "lucide-react";
 
 import { useSession } from "@/auth";
-import { ErrorPanel, MutationError, PageHeading, SkeletonRows, Toggle } from "@/components/ui-kit";
+import { Button, ErrorPanel, MutationError, PageHeading, SkeletonRows, Toggle } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 
 const KINDS: { key: keyof EmailPreferencesInput; label: string; help: string }[] = [
@@ -24,8 +25,19 @@ const KINDS: { key: keyof EmailPreferencesInput; label: string; help: string }[]
 
 export function AccountPage() {
   const session = useSession();
+  return (
+    <>
+      <PageHeading eyebrow="Your account" title={session.data?.user.name || "Your account"} subtitle={session.data?.user.email ?? ""} />
+      <EmailAlertsSection />
+    </>
+  );
+}
+
+/** Each person's own email alerts; shown on Your account and at the top of Settings. */
+export function EmailAlertsSection() {
   const q = useGetEmailPreferences({ query: { queryKey: getGetEmailPreferencesQueryKey(), retry: 1 } });
   const save = useSaveEmailPreferences();
+  const test = useSendTestEmail();
   const qc = useQueryClient();
   const set = (key: keyof EmailPreferencesInput, value: boolean) => {
     if (!q.data) return;
@@ -35,10 +47,9 @@ export function AccountPage() {
   };
   return (
     <>
-      <PageHeading eyebrow="Your account" title={session.data?.user.name || "Your account"} subtitle={session.data?.user.email ?? ""} />
       <section className="settings-section">
         <div>
-          <p className="eyebrow">Email</p>
+          <p className="eyebrow">Your email alerts</p>
           <h2 className="serif">What we email you</h2>
           <p>
             Pastora emails you when something needs you, with a button straight to it. Private details always stay
@@ -68,6 +79,12 @@ export function AccountPage() {
                 </div>
               ))}
               <MutationError errors={[save.error]} />
+              <div className="email-test">
+                <Button variant="outline" disabled={test.isPending} onClick={() => test.mutate()}>
+                  {test.isPending ? "Sending…" : "Send me a test email"}
+                </Button>
+                {test.data && <small className={test.data.sent ? "ok" : "bad"}>{test.data.message}</small>}
+              </div>
             </>
           )}
         </div>

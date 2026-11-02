@@ -300,6 +300,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /me/test-email:
+    post:
+      operationId: sendTestEmail
+      tags: [settings]
+      summary: Send yourself a test email to check that email works
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestEmailResult"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
   /me/email-preferences:
     get:
       operationId: getEmailPreferences
@@ -1492,6 +1506,14 @@ components:
           type: boolean
           description: Pastora can send emails (an email provider is connected).
       required: [firebaseConfigured, publicPortalEnabled, billingProviderConfigured, emailConfigured]
+    TestEmailResult:
+      type: object
+      properties:
+        sent:
+          type: boolean
+        message:
+          type: string
+      required: [sent, message]
     EmailPreferencesInput:
       type: object
       properties:

@@ -6,6 +6,7 @@ import {
   GetEmailPreferencesResponse,
   SaveEmailPreferencesBody,
   SaveEmailPreferencesResponse,
+  SendTestEmailResponse,
   GetSessionResponse,
   GetSetupStatusResponse,
   ListPlansResponse,
@@ -25,7 +26,7 @@ import {
 import { getFirebaseServices, isFirebaseConfigured } from "../lib/firebase-admin";
 import { appearanceFrom, can, canSeeRequest, canViewPastoralCare, isPlatformAdmin } from "../lib/policies";
 import { activeModules, getPlatformSettings } from "../lib/modules";
-import { emailConfigured, preferencesFrom } from "../lib/email";
+import { emailConfigured, preferencesFrom, sendTestEmail } from "../lib/email";
 import {
   acceptPendingInvitation,
   createWorkspaceForUser,
@@ -93,6 +94,24 @@ router.put("/me/email-preferences", firebaseAuth, async (req, res): Promise<void
   } catch (error) {
     if (failFirebaseSetup(res, error)) return;
     res.status(400).json({ error: errorMessage(error, "Unable to save your email settings.") });
+  }
+});
+
+router.post("/me/test-email", firebaseAuth, async (req, res): Promise<void> => {
+  const user = authenticatedUser(req);
+  if (!user?.email) {
+    res.status(401).json({ error: "Sign in first." });
+    return;
+  }
+  try {
+    const context = await tenantFor(req);
+    const church = context
+      ? (await getFirebaseServices().db.collection("churches").doc(context.churchId).get()).get("name")
+      : null;
+    res.json(SendTestEmailResponse.parse(await sendTestEmail(user.email, String(church ?? "Pastora"))));
+  } catch (error) {
+    if (failFirebaseSetup(res, error)) return;
+    res.status(400).json({ error: errorMessage(error, "Unable to send a test email.") });
   }
 });
 

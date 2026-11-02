@@ -137,6 +137,7 @@ export * from './taskUpdateStatus';
 export * from './teamInvitation';
 export * from './teamMember';
 export * from './teamOverview';
+export * from './testEmailResult';
 export * from './timeOff';
 export * from './unauthorizedResponse';
 export * from './userSummary';

@@ -21,6 +21,11 @@ export interface SetupStatus {
   emailConfigured: boolean;
 }
 
+export interface TestEmailResult {
+  sent: boolean;
+  message: string;
+}
+
 export interface EmailPreferencesInput {
   /** Prayer requests, counselling and enquiries (never their content). */
   care: boolean;

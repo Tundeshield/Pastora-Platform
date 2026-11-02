@@ -724,6 +724,19 @@ describe("emails", () => {
     assert.ok(to(finance.email).some((e) => /ready to be paid/.test(e.subject)));
   });
 
+  test("anyone can send themselves a test email from Settings", async () => {
+    const owner = await ownerWithChurch();
+    const r = await call("POST", "/me/test-email", owner.token);
+    assert.equal(r.body.sent, true);
+    assert.equal(to(owner.email).length, 1);
+    setEmailSenderForTesting(async () => {
+      throw new Error("You can only send testing emails to your own email address (403)");
+    });
+    const refused = await call("POST", "/me/test-email", owner.token);
+    assert.equal(refused.body.sent, false);
+    assert.match(refused.body.message, /only send testing emails/);
+  });
+
   test("nothing is sent and nothing breaks when email isn't connected", async () => {
     setEmailSenderForTesting(null);
     const owner = await ownerWithChurch();
