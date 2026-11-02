@@ -32,7 +32,7 @@ export const AREAS: { group: string; items: { key: Permission; label: string; he
   {
     group: "Church office",
     items: [
-      { key: "qr", label: "QR links", help: "Create and print QR codes for the care page." },
+      { key: "qr", label: "Care page & QR codes", help: "Share the care page and print QR codes for it." },
       { key: "reports", label: "Department reports", help: "Submit reports for their department." },
       { key: "expenses", label: "Submit expenses", help: "Ask for money to be spent, for a pastor to approve." },
       { key: "payments", label: "Record payments", help: "Mark approved expenses as paid, with a reference." },
@@ -40,7 +40,7 @@ export const AREAS: { group: string; items: { key: Permission; label: string; he
   },
   {
     group: "Administration",
-    items: [{ key: "team", label: "Team, settings & modules", help: "Invite people, change access and settings." }],
+    items: [{ key: "team", label: "Team & church settings", help: "Invite people, change access and church settings." }],
   },
 ];
 

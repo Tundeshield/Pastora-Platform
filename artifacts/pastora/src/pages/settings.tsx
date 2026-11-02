@@ -1,5 +1,3 @@
-import { Link } from "wouter";
-import { EmailAlertsSection } from "@/pages/account";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   getGetSessionQueryKey,
@@ -10,12 +8,12 @@ import {
   type FontSize,
   type Palette,
 } from "@workspace/api-client-react";
-import { Landmark, Leaf, Moon, Sun, Trees, type LucideIcon } from "lucide-react";
+import { Copy, ExternalLink, HeartHandshake, Landmark, Leaf, Moon, Sun, Trees, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 
 import {
   Button,
-  EmptyState,
   ErrorPanel,
   Field,
   MutationError,
@@ -23,7 +21,11 @@ import {
   SkeletonRows,
   Toggle,
 } from "@/components/ui-kit";
+import { useAccess } from "@/access";
+import { useSession } from "@/auth";
 import { apiErrorMessage } from "@/firebase-auth";
+import { EmailAlertsSection } from "@/pages/account";
+import { QrCodesSection, publicFormUrl } from "@/pages/qr-codes";
 import { applyAppearance, storedAppearance, type Appearance } from "@/theme";
 
 const PALETTE_OPTIONS: {
@@ -83,45 +85,53 @@ const SIZE_OPTIONS: { value: FontSize; label: string; preview: string }[] = [
   { value: "large", label: "Large", preview: "19px" },
 ];
 
+type Tab = "care" | "email" | "church";
+
+/**
+ * Everything you set up once, in three places: your care page (and the QR codes that
+ * point to it), the emails you get, and your church's details. Each person sees only
+ * the tabs their access covers.
+ */
 export function SettingsPage() {
-  const q = useGetSettings({ query: { queryKey: getGetSettingsQueryKey(), retry: 1 } });
+  const access = useAccess();
+  const [, setLocation] = useLocation();
+  const asked = new URLSearchParams(useSearch()).get("tab") as Tab | null;
+  const tabs: { id: Tab; label: string }[] = [
+    ...(access.can("qr") || access.can("team") ? [{ id: "care" as const, label: "Care page" }] : []),
+    { id: "email", label: "Your emails" },
+    ...(access.can("team") ? [{ id: "church" as const, label: "Church" }] : []),
+  ];
+  const tab = tabs.find((t) => t.id === asked)?.id ?? tabs[0].id;
+  return (
+    <>
+      <PageHeading eyebrow="Set up once" title="Settings" subtitle="Your care page, your emails and your church." />
+      <div className="admin-tabs settings-tabs" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setLocation(`/app/settings?tab=${t.id}`, { replace: true })}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="settings-stack">
+        {tab === "care" && <CarePageTab canEdit={access.can("team")} />}
+        {tab === "email" && <EmailAlertsSection />}
+        {tab === "church" && <ChurchTab />}
+      </div>
+    </>
+  );
+}
+
+function useChurchSettings(enabled: boolean) {
+  const q = useGetSettings({ query: { queryKey: getGetSettingsQueryKey(), retry: 1, enabled } });
   const update = useUpdateSettings();
   const qc = useQueryClient();
-  const [local, setLocal] = useState<any>(null);
-  useEffect(() => {
-    if (q.data && !local) setLocal({ ...q.data });
-  }, [q.data, local]);
-  const [appearance, setAppearance] = useState<Appearance>(storedAppearance());
-  useEffect(() => {
-    if (q.data) {
-      setAppearance({
-        theme: q.data.theme as Palette,
-        fontFamily: q.data.fontFamily,
-        fontSize: q.data.fontSize,
-      });
-    }
-  }, [q.data]);
-  // Each choice applies immediately and saves only that one field, so changing the
-  // font never overwrites the palette (or vice versa). A failed save is rolled back.
-  const choose = (change: Partial<Appearance>) => {
-    const previous = appearance;
-    const next = applyAppearance({ ...appearance, ...change });
-    setAppearance(next);
-    update.mutate(
-      { data: change },
-      {
-        onSuccess: (data) => {
-          qc.setQueryData(getGetSettingsQueryKey(), data);
-          void qc.invalidateQueries({ queryKey: getGetSessionQueryKey() });
-          setSaved(true);
-          setTimeout(() => setSaved(false), 2500);
-        },
-        onError: () => setAppearance(applyAppearance(previous)),
-      },
-    );
-  };
   const [saved, setSaved] = useState(false);
-  const save = (payload: Record<string, unknown>) =>
+  const save = (payload: Record<string, unknown>, onDone?: () => void) =>
     update.mutate(
       { data: payload },
       {
@@ -130,237 +140,261 @@ export function SettingsPage() {
           setTimeout(() => setSaved(false), 2500);
           qc.setQueryData(getGetSettingsQueryKey(), data);
           void qc.invalidateQueries({ queryKey: getGetSessionQueryKey() });
+          onDone?.();
         },
       },
     );
-  if (q.isLoading)
-    return (
-      <>
-        <PageHeading
-          eyebrow="Make it yours"
-          title="Settings"
-          subtitle="Church details and workspace preferences."
-        />
-        <SkeletonRows />
-      </>
-    );
-  if (q.isError)
-    return (
-      <>
-        <PageHeading
-          eyebrow="Make it yours"
-          title="Settings"
-          subtitle="Church details and workspace preferences."
-        />
-        <ErrorPanel
-          text={apiErrorMessage(q.error, "Church settings are unavailable.")}
-          retry={() => void q.refetch()}
-        />
-      </>
-    );
-  if (!local)
-    return (
-      <EmptyState
-        title="Settings not returned"
-        description="No church settings are available for this workspace."
-      />
-    );
+  return { q, update, save, saved };
+}
+
+function Saved({ show }: { show: boolean }) {
+  return show ? (
+    <div className="inline-success" role="status">
+      Saved.
+    </div>
+  ) : null;
+}
+
+function CareLink() {
+  const slug = useSession().data?.church?.slug ?? "";
+  const [copied, setCopied] = useState(false);
+  if (!slug) return null;
+  const url = publicFormUrl(slug, "care");
+  return (
+    <div className="booking-link care-link">
+      <HeartHandshake size={18} />
+      <div>
+        <b>Your care page</b>
+        <code>{url}</code>
+        <small>Share it anywhere. People can ask for prayer, book time with you, talk in confidence or ask a question.</small>
+      </div>
+      <Button
+        variant="outline"
+        onClick={() => {
+          void navigator.clipboard
+            .writeText(url)
+            .then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            })
+            .catch(() => window.prompt("Copy this link", url));
+        }}
+      >
+        <Copy size={14} /> {copied ? "Copied" : "Copy"}
+      </Button>
+      <a className="button quiet" href={url} target="_blank" rel="noreferrer">
+        <ExternalLink size={14} /> Open
+      </a>
+    </div>
+  );
+}
+
+function CarePageTab({ canEdit }: { canEdit: boolean }) {
+  const { q, update, save, saved } = useChurchSettings(canEdit);
+  const [local, setLocal] = useState<{
+    welcomeMessage: string;
+    emergencyNotice: string;
+    categories: string;
+    publicPortalEnabled: boolean;
+  } | null>(null);
+  useEffect(() => {
+    if (q.data && !local)
+      setLocal({
+        welcomeMessage: q.data.welcomeMessage,
+        emergencyNotice: q.data.emergencyNotice,
+        categories: q.data.categories.join(", "),
+        publicPortalEnabled: q.data.publicPortalEnabled,
+      });
+  }, [q.data, local]);
   return (
     <>
-      <PageHeading
-        eyebrow="Make it yours"
-        title="Settings"
-        subtitle="Church details, public care and workspace preferences."
-      />
-      <MutationError errors={[update.error]} />
-      {saved && (
-        <div className="inline-success" role="status">
-          Settings saved.
-        </div>
-      )}
-      <div className="settings-stack">
-        <EmailAlertsSection />
+      <CareLink />
+      {canEdit && (
         <section className="settings-section">
           <div>
-            <p className="eyebrow">Church identity</p>
-            <h2 className="serif">The essentials</h2>
-            <p>Update the details connected to your church workspace.</p>
-          </div>
-          <div className="settings-fields">
-            <Field label="Church name">
-              <input
-                value={local.church.name}
-                onChange={(e) => setLocal({ ...local, church: { ...local.church, name: e.target.value } })}
-              />
-            </Field>
-            <Field label="Country">
-              <input
-                value={local.church.country}
-                onChange={(e) => setLocal({ ...local, church: { ...local.church, country: e.target.value } })}
-              />
-            </Field>
-            <Field label="Time zone">
-              <input
-                value={local.church.timeZone}
-                onChange={(e) =>
-                  setLocal({ ...local, church: { ...local.church, timeZone: e.target.value } })
-                }
-              />
-            </Field>
-            <Button
-              onClick={() =>
-                save({
-                  name: local.church.name,
-                  country: local.church.country,
-                  timeZone: local.church.timeZone,
-                })
-              }
-            >
-              Save church details
-            </Button>
-          </div>
-        </section>
-        <section className="settings-section">
-          <div>
-            <p className="eyebrow">Public care portal</p>
-            <h2 className="serif">A welcoming front door</h2>
-            <p>These messages are visible to people reaching out.</p>
-          </div>
-          <div className="settings-fields">
-            <Field label="Welcome message">
-              <textarea
-                value={local.welcomeMessage}
-                onChange={(e) => setLocal({ ...local, welcomeMessage: e.target.value })}
-              />
-            </Field>
-            <Field label="Emergency notice">
-              <textarea
-                value={local.emergencyNotice}
-                onChange={(e) => setLocal({ ...local, emergencyNotice: e.target.value })}
-              />
-            </Field>
-            <Field label="Request categories (comma separated)">
-              <input
-                value={local.categories.join(", ")}
-                onChange={(e) =>
-                  setLocal({
-                    ...local,
-                    categories: e.target.value
-                      .split(",")
-                      .map((s: string) => s.trim())
-                      .filter(Boolean),
-                  })
-                }
-              />
-            </Field>
-            <Toggle
-              label="Enable public care portal"
-              value={local.publicPortalEnabled}
-              onChange={(v) => setLocal({ ...local, publicPortalEnabled: v })}
-            />
-            <p className="settings-note">
-              Booking hours and online appointments are set in <Link href="/app/appointments">Appointments → Availability</Link>.
+            <h2 className="serif">What people see</h2>
+            <p>
+              The words at the top of your care page. Booking hours are set in{" "}
+              <Link href="/app/appointments?tab=availability">Appointments</Link>.
             </p>
-            <Button
-              onClick={() =>
-                save({
-                  welcomeMessage: local.welcomeMessage,
-                  emergencyNotice: local.emergencyNotice,
-                  categories: local.categories,
-                  publicPortalEnabled: local.publicPortalEnabled,
-                })
-              }
-            >
-              Save portal settings
-            </Button>
+          </div>
+          <div className="settings-fields">
+            {q.isLoading || (!local && !q.isError) ? (
+              <SkeletonRows />
+            ) : q.isError || !local ? (
+              <ErrorPanel text={apiErrorMessage(q.error, "Care page settings are unavailable.")} retry={() => void q.refetch()} />
+            ) : (
+              <>
+                <Field label="Welcome message">
+                  <textarea
+                    value={local.welcomeMessage}
+                    onChange={(e) => setLocal({ ...local, welcomeMessage: e.target.value })}
+                  />
+                </Field>
+                <Field label="Emergency notice">
+                  <textarea
+                    value={local.emergencyNotice}
+                    onChange={(e) => setLocal({ ...local, emergencyNotice: e.target.value })}
+                  />
+                </Field>
+                <Field label="Topics people can choose (separate with commas)">
+                  <input value={local.categories} onChange={(e) => setLocal({ ...local, categories: e.target.value })} />
+                </Field>
+                <Toggle
+                  label="Care page is open to the public"
+                  value={local.publicPortalEnabled}
+                  onChange={(v) => setLocal({ ...local, publicPortalEnabled: v })}
+                />
+                <MutationError errors={[update.error]} />
+                <Saved show={saved} />
+                <Button
+                  onClick={() =>
+                    save({
+                      welcomeMessage: local.welcomeMessage,
+                      emergencyNotice: local.emergencyNotice,
+                      categories: local.categories
+                        .split(",")
+                        .map((c) => c.trim())
+                        .filter(Boolean),
+                      publicPortalEnabled: local.publicPortalEnabled,
+                    })
+                  }
+                >
+                  Save
+                </Button>
+              </>
+            )}
           </div>
         </section>
-        <section className="settings-section">
-          <div>
-            <p className="eyebrow">Workspace feel</p>
-            <h2 className="serif">Choose your palette</h2>
-            <p>Applies to everyone in this workspace and follows you to any device.</p>
+      )}
+      <QrCodesSection />
+    </>
+  );
+}
+
+function ChurchTab() {
+  const { q, update, save, saved } = useChurchSettings(true);
+  const qc = useQueryClient();
+  const [local, setLocal] = useState<{ name: string; country: string; timeZone: string } | null>(null);
+  useEffect(() => {
+    if (q.data && !local) setLocal({ name: q.data.church.name, country: q.data.church.country, timeZone: q.data.church.timeZone });
+  }, [q.data, local]);
+  const [appearance, setAppearance] = useState<Appearance>(storedAppearance());
+  useEffect(() => {
+    if (q.data)
+      setAppearance({ theme: q.data.theme as Palette, fontFamily: q.data.fontFamily, fontSize: q.data.fontSize });
+  }, [q.data]);
+  // Each look choice applies at once and saves only that field; a failed save rolls back.
+  const choose = (change: Partial<Appearance>) => {
+    const previous = appearance;
+    setAppearance(applyAppearance({ ...appearance, ...change }));
+    update.mutate(
+      { data: change },
+      {
+        onSuccess: (data) => {
+          qc.setQueryData(getGetSettingsQueryKey(), data);
+          void qc.invalidateQueries({ queryKey: getGetSessionQueryKey() });
+        },
+        onError: () => setAppearance(applyAppearance(previous)),
+      },
+    );
+  };
+  if (q.isLoading || (!local && !q.isError)) return <SkeletonRows />;
+  if (q.isError || !local)
+    return <ErrorPanel text={apiErrorMessage(q.error, "Church settings are unavailable.")} retry={() => void q.refetch()} />;
+  const zones = (Intl as unknown as { supportedValuesOf?: (k: string) => string[] }).supportedValuesOf?.("timeZone") ?? [];
+  return (
+    <>
+      <section className="settings-section">
+        <div>
+          <h2 className="serif">Your church</h2>
+          <p>Appointment times and emails use your church's time zone.</p>
+        </div>
+        <div className="settings-fields">
+          <Field label="Church name">
+            <input value={local.name} onChange={(e) => setLocal({ ...local, name: e.target.value })} />
+          </Field>
+          <Field label="Country">
+            <input value={local.country} onChange={(e) => setLocal({ ...local, country: e.target.value })} />
+          </Field>
+          <Field label="Time zone">
+            {zones.length ? (
+              <select value={local.timeZone} onChange={(e) => setLocal({ ...local, timeZone: e.target.value })}>
+                {!zones.includes(local.timeZone) && <option value={local.timeZone}>{local.timeZone}</option>}
+                {zones.map((z) => (
+                  <option key={z} value={z}>
+                    {z.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input value={local.timeZone} onChange={(e) => setLocal({ ...local, timeZone: e.target.value })} />
+            )}
+          </Field>
+          <MutationError errors={[update.error]} />
+          <Saved show={saved} />
+          <Button onClick={() => save({ name: local.name.trim(), country: local.country.trim(), timeZone: local.timeZone })}>
+            Save
+          </Button>
+        </div>
+      </section>
+      <details className="settings-section settings-more">
+        <summary>
+          <span>
+            <h2 className="serif">Look and feel</h2>
+            <p>Colours and text size for everyone in your church.</p>
+          </span>
+        </summary>
+        <div className="workspace-feel">
+          <div className="theme-options">
+            {PALETTE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={appearance.theme === option.value}
+                className={`theme-option ${option.className} ${appearance.theme === option.value ? "selected" : ""}`}
+                onClick={() => choose({ theme: option.value })}
+              >
+                <option.icon />
+                <b>{option.label}</b>
+                <small>{option.description}</small>
+              </button>
+            ))}
           </div>
-          <div className="workspace-feel">
-            <div className="theme-options">
-              {PALETTE_OPTIONS.map((option) => (
+          <div className="typography-settings">
+            <div className="option-group" role="radiogroup" aria-label="Font">
+              {FONT_OPTIONS.map((option) => (
                 <button
                   key={option.value}
                   type="button"
-                  aria-pressed={appearance.theme === option.value}
-                  className={`theme-option ${option.className} ${appearance.theme === option.value ? "selected" : ""}`}
-                  onClick={() => choose({ theme: option.value })}
+                  role="radio"
+                  aria-checked={appearance.fontFamily === option.value}
+                  className={`choice-chip ${appearance.fontFamily === option.value ? "selected" : ""}`}
+                  style={{ fontFamily: option.stack }}
+                  onClick={() => choose({ fontFamily: option.value })}
                 >
-                  <option.icon />
-                  <b>{option.label}</b>
-                  <small>{option.description}</small>
+                  {option.label}
                 </button>
               ))}
             </div>
-            <div className="typography-settings">
-              <h3>Typography</h3>
-              <p>The font and text size used across the workspace for everyone in your church.</p>
-              <div className="option-group" role="radiogroup" aria-label="Font">
-                {FONT_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={appearance.fontFamily === option.value}
-                    className={`choice-chip ${appearance.fontFamily === option.value ? "selected" : ""}`}
-                    style={{ fontFamily: option.stack }}
-                    onClick={() => choose({ fontFamily: option.value })}
-                  >
-                    {option.label}
-                    {option.value === "inter" && <small>Default</small>}
-                  </button>
-                ))}
-              </div>
-              <div className="option-group" role="radiogroup" aria-label="Text size">
-                {SIZE_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    role="radio"
-                    aria-checked={appearance.fontSize === option.value}
-                    className={`choice-chip size-chip ${appearance.fontSize === option.value ? "selected" : ""}`}
-                    onClick={() => choose({ fontSize: option.value })}
-                  >
-                    <span style={{ fontSize: option.preview }}>Aa</span>
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+            <div className="option-group" role="radiogroup" aria-label="Text size">
+              {SIZE_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={appearance.fontSize === option.value}
+                  className={`choice-chip size-chip ${appearance.fontSize === option.value ? "selected" : ""}`}
+                  onClick={() => choose({ fontSize: option.value })}
+                >
+                  <span style={{ fontSize: option.preview }}>Aa</span>
+                  {option.label}
+                </button>
+              ))}
             </div>
           </div>
-        </section>
-        <section className="settings-section">
-          <div>
-            <p className="eyebrow">Privacy</p>
-            <h2 className="serif">Retention preference</h2>
-            <p>Choose how long records are retained where supported.</p>
-          </div>
-          <div className="settings-fields">
-            <Field label="Retention days">
-              <input
-                type="number"
-                min="0"
-                value={local.retentionDays}
-                onChange={(e) => setLocal({ ...local, retentionDays: Number(e.target.value) })}
-              />
-            </Field>
-            <Button
-              onClick={() =>
-                save({
-                  retentionDays: local.retentionDays,
-                })
-              }
-            >
-              Save privacy settings
-            </Button>
-          </div>
-        </section>
-      </div>
+        </div>
+      </details>
     </>
   );
 }

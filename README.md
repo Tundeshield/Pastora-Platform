@@ -1,9 +1,18 @@
 # Pastora
 
-Pastoral care and church operations for multiple churches: a public care portal
-(prayer, counselling, appointments, enquiries) reachable by QR code, and a private
-workspace for pastors and their teams — care inbox, appointments, tasks, department
-reports, expense approvals and team roles.
+A focused pastoral workspace for churches. People reach out through a public care page
+(prayer, counselling, booking time, questions, a welcome card), shared as a link or a
+printed QR code. Pastors and their teams work from five places:
+
+- **Today** — what needs you now: new requests, bookings to confirm, follow-ups due,
+  your tasks and reports to read, each one click from done.
+- **Care inbox** — every request, with private notes and follow-up reminders.
+- **Appointments** — your weekly hours, time off and bookings.
+- **Tasks** — visits, calls and errands for you or your team.
+- **Reports** — department updates to read or ask a follow-up on.
+
+Team and Settings (care page and QR codes, your emails, church details) sit at the bottom
+of the menu. Expenses, Sermons and the blog are optional extras (see Modules below).
 
 ## Architecture
 
@@ -51,7 +60,7 @@ and the receipt sent to the person who wrote in never repeats what they wrote.
   review or reviewed, expenses to approve, answered, ready to pay or paid, team changes, invitations.
 - Visitors who give an email: a receipt for prayer/counselling/questions, and booking emails (held,
   confirmed, declined, cancelled).
-- Each person chooses categories under **Your account** (click your name in the sidebar).
+- Each person chooses categories under **Settings → Your emails** (or click your name in the sidebar).
 
 Sending uses [Resend](https://resend.com). Set in Netlify: `RESEND_API_KEY`, `EMAIL_FROM` (e.g.
 `Pastora <notifications@your-domain>`; the domain must be verified in Resend), optional `EMAIL_REPLY_TO`
@@ -111,7 +120,13 @@ module is closed even to direct API calls. To make new code a module, add it to
 `DEFAULT_MODULES` as built in and guard its routes with `moduleGate("<id>")`; built-in
 modules are added automatically to catalogs that were seeded before they existed.
 
-Built-in modules today: **Department reports**, **Expenses & approvals**, **Message
+While the Modules page is hidden (the default), every church gets the core —
+**Tasks** and **Department reports** on top of care and appointments — plus whatever
+Pastora Admin grants. Sermons and the blog are not core: a church that already has
+sermons or posts keeps them (`KEPT_IF_USED` in `src/lib/modules.ts`), anyone else needs
+a grant.
+
+Built-in modules today: **Department reports**, **Tasks**, **Expenses & approvals**, **Message
 Prep** (each pastor's private sermon and study notes, with a pulpit view) and
 **Pastor's blog** (published posts appear at `/blog/<church-address>` for anyone to
 read). Formatted text in notes and posts is cleaned to a small safe subset of HTML on

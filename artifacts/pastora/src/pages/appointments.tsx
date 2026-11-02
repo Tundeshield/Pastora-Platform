@@ -15,6 +15,7 @@ import {
   type WeeklyHours,
 } from "@workspace/api-client-react";
 import { CalendarCheck, CalendarClock, Check, Copy, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { useSearch } from "wouter";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
 import { useSession } from "@/auth";
@@ -63,7 +64,7 @@ export function AppointmentsPage() {
   const session = useSession();
   const slug = session.data?.church?.slug ?? "";
   const tz = session.data?.church?.timeZone ?? "UTC";
-  const [tab, setTab] = useState<Tab>("schedule");
+  const [tab, setTab] = useState<Tab>(new URLSearchParams(useSearch()).get("tab") === "availability" ? "availability" : "schedule");
   const availability = useGetAvailability({ query: { queryKey: getGetAvailabilityQueryKey(), retry: 1 } });
   return (
     <>

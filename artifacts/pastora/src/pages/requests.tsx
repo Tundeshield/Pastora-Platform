@@ -19,6 +19,7 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  Clock3,
   HandHeart,
   Inbox,
   LockKeyhole,
@@ -41,9 +42,9 @@ import { apiErrorMessage } from "@/firebase-auth";
 
 /* ------------------------------------------------------------------ model */
 
-type Kind = "prayer" | "counselling" | "question" | "guest" | "booking" | "appointment";
+export type Kind = "prayer" | "counselling" | "question" | "guest" | "booking" | "appointment";
 
-const KINDS: Record<Kind, { label: string; plural: string; icon: typeof HandHeart }> = {
+export const KINDS: Record<Kind, { label: string; plural: string; icon: typeof HandHeart }> = {
   prayer: { label: "Prayer", plural: "Prayer", icon: HandHeart },
   counselling: { label: "Counselling", plural: "Counselling", icon: LockKeyhole },
   question: { label: "Question", plural: "Questions", icon: MessageCircle },
@@ -64,24 +65,24 @@ type Item = {
   booking?: Appointment;
 };
 
-function kindOf(r: PastoralRequest): Kind {
+export function kindOf(r: PastoralRequest): Kind {
   if (r.type === "general") return r.category === "First-time guest" ? "guest" : "question";
   if (r.type === "appointment") return "appointment";
   return r.type as Kind;
 }
 
-function senderOf(r: PastoralRequest): string {
+export function senderOf(r: PastoralRequest): string {
   if (r.anonymous) return "Anonymous";
   return r.name?.trim() || "No name given";
 }
 
-function snippetOf(text: string): string {
+export function snippetOf(text: string): string {
   const line = text.replace(/\s+/g, " ").trim();
   return line.length > 110 ? `${line.slice(0, 108)}…` : line;
 }
 
 /** Email-style time: "10:15" today, "Yesterday", "Mon" this week, then "12 Oct". */
-function shortWhen(iso: string): string {
+export function shortWhen(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
@@ -267,7 +268,15 @@ export function RequestsPage() {
                             <b>{i.sender}</b>
                             <time>{shortWhen(i.at)}</time>
                           </span>
-                          <span className="inbox-row-kind">{KINDS[i.kind].label}</span>
+                          <span className="inbox-row-kind">
+                            {KINDS[i.kind].label}
+                            {i.request?.dueAt && !i.done && (
+                              <em className="inbox-follow">
+                                <Clock3 size={10} /> Follow up{" "}
+                                {new Date(i.request.dueAt).toLocaleDateString(undefined, { weekday: "short" })}
+                              </em>
+                            )}
+                          </span>
                           <span className="inbox-row-snippet">{i.snippet}</span>
                         </span>
                         {i.unread && <i className="inbox-dot" aria-label="New" />}
@@ -303,11 +312,8 @@ export function RequestsPage() {
                     isPastor={isPastor}
                     prayerTeam={prayerTeam}
                     onStatus={(s) => setStatus(selected.request!, s)}
-                    onNextStep={(nextAction) =>
-                      updateRequest.mutate(
-                        { requestId: selected.request!.id, data: { nextAction } },
-                        { onSuccess: refresh },
-                      )
+                    onFollowUp={(data) =>
+                      updateRequest.mutate({ requestId: selected.request!.id, data }, { onSuccess: refresh })
                     }
                   />
                 ) : selected.booking ? (
@@ -373,7 +379,7 @@ function RequestDetail({
   isPastor,
   prayerTeam,
   onStatus,
-  onNextStep,
+  onFollowUp,
 }: {
   r: PastoralRequest;
   kind: Kind;
@@ -381,10 +387,8 @@ function RequestDetail({
   isPastor: boolean;
   prayerTeam: boolean;
   onStatus: (s: PastoralRequest["status"]) => void;
-  onNextStep: (s: string | null) => void;
+  onFollowUp: (data: { nextAction: string | null; dueAt: string | null }) => void;
 }) {
-  const [next, setNext] = useState(r.nextAction ?? "");
-  useEffect(() => setNext(r.nextAction ?? ""), [r.id, r.nextAction]);
   const done = r.status === "resolved" || r.status === "closed";
   const Icon = KINDS[kind].icon;
   return (
@@ -422,31 +426,103 @@ function RequestDetail({
               <Check size={15} /> Mark as done
             </Button>
           )}
-          <form
-            className="inbox-next"
-            onSubmit={(e) => {
-              e.preventDefault();
-              onNextStep(next.trim() || null);
-            }}
-          >
-            <input
-              aria-label="Next step"
-              placeholder="Next step, e.g. Call on Thursday"
-              maxLength={300}
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-            />
-            {next !== (r.nextAction ?? "") && (
-              <button type="submit" aria-label="Save next step">
-                <ArrowRight size={15} />
-              </button>
-            )}
-          </form>
         </div>
       )}
+      {canUpdate && !done && <FollowUp key={r.id} r={r} onSave={onFollowUp} />}
 
       {isPastor && <PrivateNotes requestId={r.id} />}
     </article>
+  );
+}
+
+const dayFrom = (days: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(9, 0, 0, 0);
+  return d.toISOString();
+};
+
+/** A follow-up is a next step and a day. It shows on Today when that day comes. */
+function FollowUp({
+  r,
+  onSave,
+}: {
+  r: PastoralRequest;
+  onSave: (data: { nextAction: string | null; dueAt: string | null }) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [step, setStep] = useState(r.nextAction ?? "");
+  const [day, setDay] = useState(1);
+  if (r.dueAt && !editing) {
+    const late = new Date(r.dueAt).getTime() < new Date().setHours(0, 0, 0, 0);
+    return (
+      <div className={`follow-set ${late ? "late" : ""}`}>
+        <Clock3 size={16} />
+        <span>
+          <b>{r.nextAction || "Follow up"}</b>
+          <small>
+            {late ? "Overdue · was due " : "Due "}
+            {new Date(r.dueAt).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" })}
+          </small>
+        </span>
+        <button className="plain-button" onClick={() => setEditing(true)}>
+          Change
+        </button>
+        <button className="plain-button" onClick={() => onSave({ nextAction: null, dueAt: null })}>
+          Clear
+        </button>
+      </div>
+    );
+  }
+  if (!editing)
+    return (
+      <button className="follow-add" onClick={() => setEditing(true)}>
+        <Clock3 size={15} /> Remind me to follow up
+      </button>
+    );
+  return (
+    <form
+      className="follow-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({ nextAction: step.trim() || null, dueAt: dayFrom(day) });
+        setEditing(false);
+      }}
+    >
+      <input
+        aria-label="What to do"
+        placeholder="What to do, e.g. Call to check in"
+        maxLength={300}
+        value={step}
+        onChange={(e) => setStep(e.target.value)}
+        autoFocus
+      />
+      <div className="follow-days" role="radiogroup" aria-label="When">
+        {[
+          [0, "Today"],
+          [1, "Tomorrow"],
+          [3, "In 3 days"],
+          [7, "Next week"],
+        ].map(([n, label]) => (
+          <button
+            type="button"
+            role="radio"
+            aria-checked={day === n}
+            key={n}
+            className={day === n ? "on" : ""}
+            onClick={() => setDay(n as number)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="form-actions">
+        <Button type="submit">Save reminder</Button>
+        <Button variant="quiet" onClick={() => setEditing(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 

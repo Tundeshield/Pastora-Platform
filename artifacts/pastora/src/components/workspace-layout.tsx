@@ -12,21 +12,20 @@ import {
   ClipboardList,
   FileText,
   HeartHandshake,
-  LayoutDashboard,
   LogOut,
   Menu,
   PenLine,
-  QrCode,
   Receipt,
   Puzzle,
   Settings2,
+  Sun,
   ShieldCheck,
   Users,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, Redirect, useLocation } from "wouter";
 
 import { RequireWorkspace, useAuth, useSession } from "@/auth";
 import { Brand } from "@/components/ui-kit";
@@ -35,28 +34,26 @@ import { applyAppearance } from "@/theme";
 
 /**
  * `show` mirrors the API's access checks so people only see pages they can use;
- * `module` hides the item unless that module is switched on for the church.
+ * `module` hides the item unless that module is on for the church (optional extras).
  */
 type NavItem = { href: string; label: string; icon: LucideIcon; show: (a: Access) => boolean; module?: string };
 
 const anyone = () => true;
 const pastors = (a: Access) => a.isPastor;
+const seesCare = (a: Access) => a.can("enquiries") || a.can("calendar") || a.can("prayer");
 
 /**
- * One short list in everyday words, most-used first. No groups to open or close:
- * pastors told us the menu felt like too much. Admin things sit at the bottom.
+ * Pastora is a pastoral workspace: what needs you today, people's requests, your
+ * appointments, the work you've handed out and the reports that come back. Anything
+ * else is an extra a church only sees once it has it.
  */
 export const navItems: NavItem[] = [
-  {
-    href: "/app",
-    label: "Home",
-    icon: LayoutDashboard,
-    show: (a) => a.can("enquiries") || a.can("calendar") || a.can("prayer"),
-  },
+  { href: "/app", label: "Today", icon: Sun, show: seesCare },
   { href: "/app/requests", label: "Care inbox", icon: HeartHandshake, show: (a) => a.can("enquiries") || a.can("prayer") },
   { href: "/app/appointments", label: "Appointments", icon: CalendarDays, show: (a) => a.can("calendar") },
-  { href: "/app/messages", label: "Sermons", icon: BookOpen, show: pastors, module: "message-prep" },
-  { href: "/app/blog", label: "Blog", icon: PenLine, show: pastors, module: "blog" },
+  { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone, module: "tasks" },
+  { href: "/app/reports", label: "Reports", icon: FileText, show: (a) => a.can("reports"), module: "reports" },
+  // Extras: only for churches that have them switched on.
   {
     href: "/app/expenses",
     label: "Expenses",
@@ -64,10 +61,16 @@ export const navItems: NavItem[] = [
     show: (a) => a.can("expenses") || a.can("payments"),
     module: "expenses",
   },
-  { href: "/app/qr-codes", label: "QR codes", icon: QrCode, show: (a) => a.can("qr") },
-  { href: "/app/tasks", label: "Tasks", icon: ClipboardList, show: anyone, module: "tasks" },
-  { href: "/app/reports", label: "Reports", icon: FileText, show: (a) => a.can("reports"), module: "reports" },
+  { href: "/app/messages", label: "Sermons", icon: BookOpen, show: pastors, module: "message-prep" },
+  { href: "/app/blog", label: "Blog", icon: PenLine, show: pastors, module: "blog" },
 ];
+
+/** Sends people home when a page belongs to an extra their church doesn't have. */
+export function RequireModule({ id, children }: { id: string; children: ReactNode }) {
+  const session = useSession();
+  if (!session.data) return null;
+  return session.data.modules.includes(id) ? <>{children}</> : <Redirect to="/app" replace />;
+}
 
 const ROLE_LABELS: Record<MemberRole, string> = {
   pastor: "Pastor",
@@ -87,11 +90,10 @@ export function pageTitle(path: string) {
   return (
     (
       {
-        "/app": "Home",
+        "/app": "Today",
         "/app/requests": "Care inbox",
         "/app/appointments": "Appointments",
         "/app/tasks": "Tasks",
-        "/app/qr-codes": "QR codes",
         "/app/reports": "Reports",
         "/app/expenses": "Expenses",
         "/app/team": "Team",
@@ -99,7 +101,6 @@ export function pageTitle(path: string) {
         "/app/modules": "Modules",
         "/app/messages": "Sermons",
         "/app/blog": "Blog",
-        "/app/account": "Your account",
       } as Record<string, string>
     )[path] || "Workspace"
   );
@@ -245,16 +246,14 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
               <span>Modules</span>
             </Link>
           )}
-          {access.can("team") && (
-            <Link
-              href="/app/settings"
-              onClick={() => setMobile(false)}
-              className={`sidebar-link ${loc === "/app/settings" ? "active" : ""}`}
-            >
-              <Settings2 size={17} />
-              <span>Settings</span>
-            </Link>
-          )}
+          <Link
+            href="/app/settings"
+            onClick={() => setMobile(false)}
+            className={`sidebar-link ${loc === "/app/settings" ? "active" : ""}`}
+          >
+            <Settings2 size={17} />
+            <span>Settings</span>
+          </Link>
           {session.data?.platformAdmin && (
             <Link href="/admin" className="sidebar-link" onClick={() => setMobile(false)}>
               <ShieldCheck size={17} />
@@ -263,7 +262,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
           )}
           <div className="profile-row">
             <span className="profile-avatar">{userName.slice(0, 1).toUpperCase()}</span>
-            <Link href="/app/account" className="profile-link" title="Your account and email settings">
+            <Link href="/app/settings?tab=email" className="profile-link" title="Your email alerts" onClick={() => setMobile(false)}>
               <b>{userName}</b>
               <small>{session.data?.user.email}</small>
             </Link>
@@ -298,9 +297,6 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
             >
               <Bell size={18} />
               {unread.length > 0 && <i />}
-            </button>
-            <button className="button outline small-signout" onClick={() => void signOutNow()}>
-              <LogOut size={15} /> Sign out
             </button>
           </div>
           {showNotices && (
@@ -337,7 +333,7 @@ function WorkspaceShell({ children }: { children: ReactNode }) {
                   </button>
                 ))
               )}
-              <Link href="/app/account" className="notice-settings" onClick={() => setShowNotices(false)}>
+              <Link href="/app/settings?tab=email" className="notice-settings" onClick={() => setShowNotices(false)}>
                 Email settings
               </Link>
             </div>

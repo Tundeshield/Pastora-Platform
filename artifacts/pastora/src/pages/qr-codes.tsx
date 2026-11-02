@@ -15,6 +15,7 @@ import {
   HeartHandshake,
   LockKeyhole,
   MessageCircle,
+  MoreHorizontal,
   Pencil,
   Plus,
   Printer,
@@ -24,7 +25,7 @@ import QRCode from "qrcode";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 
 import { useSession } from "@/auth";
-import { Badge, Button, EmptyState, ErrorPanel, Field, MutationError, PageHeading, SkeletonRows } from "@/components/ui-kit";
+import { Badge, Button, EmptyState, ErrorPanel, Field, MutationError, SkeletonRows } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 import { churchUrl } from "@/site";
 
@@ -206,6 +207,7 @@ function QrCard({
   const [image, setImage] = useState("");
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [more, setMore] = useState(false);
   const [edit, setEdit] = useState({ name: item.name, headline: item.headline ?? "", message: item.message ?? "" });
   useEffect(() => {
     let cancelled = false;
@@ -290,30 +292,39 @@ function QrCard({
         )}
       </div>
       <div className="qr-actions">
-        <Button variant="outline" onClick={() => void downloadPoster()}>
-          <Printer size={15} /> Poster
+        <Button onClick={() => void downloadPoster()}>
+          <Printer size={15} /> Print poster
         </Button>
         <Button variant="outline" onClick={() => void copy()}>
           <Copy size={15} /> {copied ? "Copied" : "Copy link"}
         </Button>
-        <a className="button quiet" href={image || undefined} download={fileName(item.name, "qr")} aria-disabled={!image}>
-          <Download size={15} /> QR only
-        </a>
-        <a className="button quiet" href={url} target="_blank" rel="noreferrer">
-          <ExternalLink size={15} /> Preview
-        </a>
-        <Button variant="quiet" onClick={() => setEditing(!editing)}>
-          <Pencil size={14} /> Edit
-        </Button>
-        <Button variant="quiet" onClick={onToggle}>
-          {item.active ? "Pause" : "Turn on"}
-        </Button>
+        {more ? (
+          <>
+            <a className="button quiet" href={image || undefined} download={fileName(item.name, "qr")} aria-disabled={!image}>
+              <Download size={15} /> QR image only
+            </a>
+            <a className="button quiet" href={url} target="_blank" rel="noreferrer">
+              <ExternalLink size={15} /> Preview
+            </a>
+            <Button variant="quiet" onClick={() => setEditing(!editing)}>
+              <Pencil size={14} /> Edit words
+            </Button>
+            <Button variant="quiet" onClick={onToggle}>
+              {item.active ? "Pause" : "Turn on"}
+            </Button>
+          </>
+        ) : (
+          <Button variant="quiet" onClick={() => setMore(true)}>
+            <MoreHorizontal size={15} /> More
+          </Button>
+        )}
       </div>
     </article>
   );
 }
 
-export function QrPage() {
+/** QR codes for print, shown in Settings → Care page. */
+export function QrCodesSection() {
   const session = useSession();
   const slug = session.data?.church?.slug ?? "";
   const churchName = session.data?.church?.name ?? "";
@@ -349,16 +360,20 @@ export function QrPage() {
   };
   return (
     <>
-      <PageHeading
-        eyebrow="A simple way in"
-        title="QR codes"
-        subtitle="Each link opens a page made for one purpose — a welcome card, prayer, booking time with you — with your own words on it."
-        action={
-          <Button onClick={() => (open ? reset() : setOpen(true))}>
+      <div className="qr-section-head">
+        <div>
+          <h2 className="serif">QR codes to print</h2>
+          <p>
+            Put one on a bulletin, a seat back or your office door. Each opens a page for one thing — prayer, booking
+            time with you, a welcome card — with your own words on it.
+          </p>
+        </div>
+        {!open && (
+          <Button variant="outline" onClick={() => setOpen(true)}>
             <Plus size={16} /> New QR code
           </Button>
-        }
-      />
+        )}
+      </div>
       {open && (
         <div className="qr-create">
           {!destination ? (
@@ -458,14 +473,9 @@ export function QrPage() {
         !open && (
           <EmptyState
             title="No QR codes yet"
-            description="Start with a welcome card for first-time guests, or a prayer link for the bulletin."
+            description="Start with a welcome card for first-time guests, or a prayer card for the bulletin."
           />
         )
-      )}
-      {slug && (
-        <p className="role-help">
-          Your whole care page: <a href={publicFormUrl(slug, "care")}>{publicFormUrl(slug, "care")}</a>
-        </p>
       )}
     </>
   );

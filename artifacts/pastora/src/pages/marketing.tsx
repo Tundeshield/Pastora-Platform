@@ -181,27 +181,15 @@ export function HomePage() {
 export function FeaturesPage() {
   const modules = [
     [
-      "Pastoral care",
-      "A private inbox for prayer, counselling and general care requests. Keep next steps and follow-up visible without exposing sensitive details elsewhere.",
+      "Care inbox",
+      "Prayer requests, counselling, questions and first-time guests in one private inbox. Counselling stays with pastors.",
       "01",
     ],
-    ["Appointments", "Receive requests, confirm a time and keep the coming conversations in view.", "02"],
-    [
-      "Tasks & follow-through",
-      "A clear place for your own work and responsibilities assigned across the workspace.",
-      "03",
-    ],
-    ["QR links", "Create destination links for care, prayer, counselling and appointments.", "04"],
-    [
-      "Reports & expenses",
-      "Give each department a place to report progress and submit expenses for review.",
-      "05",
-    ],
-    [
-      "Church settings",
-      "Shape the public portal, appointment options, theme and retention preferences.",
-      "06",
-    ],
+    ["Appointments", "Set your hours once. People pick an open time from your care page, and you confirm in one tap.", "02"],
+    ["Follow-ups", "Set a reminder on any request. On the day, it's on your Today list, so nobody falls through the cracks.", "03"],
+    ["Tasks for your team", "Hand a visit, a call or an errand to someone on your team, with a day, and see when it's done.", "04"],
+    ["Department reports", "Leaders send a short update. You read it, or ask for a follow-up, from the same place.", "05"],
+    ["Your care page & QR codes", "One link and printable QR codes for bulletins, seats and your office door.", "06"],
   ];
   return (
     <PublicFrame>

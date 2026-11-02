@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { Route, Switch, Router as WouterRouter } from "wouter";
+import { Redirect, Route, Switch, Router as WouterRouter } from "wouter";
 
 import { AuthProvider } from "@/auth";
-import { WorkspaceLayout } from "@/components/workspace-layout";
+import { RequireModule, WorkspaceLayout } from "@/components/workspace-layout";
 import { AdminPage } from "@/pages/admin";
 import { AppointmentsPage } from "@/pages/appointments";
 import { AuthPage } from "@/pages/auth";
@@ -16,8 +16,6 @@ import { BlogPage, PostEditorPage, PublicBlogPage, PublicPostPage } from "@/page
 import { MessageEditorPage, MessagesPage, PulpitPage } from "@/pages/messages";
 import { ModulesPage } from "@/pages/modules";
 import { OnboardingPage } from "@/pages/onboarding";
-import { QrPage } from "@/pages/qr-codes";
-import { AccountPage } from "@/pages/account";
 import { ReportsPage } from "@/pages/reports";
 import { RequestsPage } from "@/pages/requests";
 import { SettingsPage } from "@/pages/settings";
@@ -114,10 +112,9 @@ function Router() {
           <TasksPage />
         </WorkspaceLayout>
       </Route>
+      {/* QR codes and email settings now live in Settings; old links still work. */}
       <Route path="/app/qr-codes">
-        <WorkspaceLayout>
-          <QrPage />
-        </WorkspaceLayout>
+        <Redirect to="/app/settings?tab=care" replace />
       </Route>
       <Route path="/app/reports">
         <WorkspaceLayout>
@@ -126,7 +123,9 @@ function Router() {
       </Route>
       <Route path="/app/expenses">
         <WorkspaceLayout>
-          <ExpensesPage />
+          <RequireModule id="expenses">
+            <ExpensesPage />
+          </RequireModule>
         </WorkspaceLayout>
       </Route>
       <Route path="/app/team">
@@ -134,25 +133,37 @@ function Router() {
           <TeamPage />
         </WorkspaceLayout>
       </Route>
-      <Route path="/app/messages/:id/pulpit" component={PulpitPage} />
+      <Route path="/app/messages/:id/pulpit">
+        <RequireModule id="message-prep">
+          <PulpitPage />
+        </RequireModule>
+      </Route>
       <Route path="/app/messages/:id">
         <WorkspaceLayout>
-          <MessageEditorPage />
+          <RequireModule id="message-prep">
+            <MessageEditorPage />
+          </RequireModule>
         </WorkspaceLayout>
       </Route>
       <Route path="/app/messages">
         <WorkspaceLayout>
-          <MessagesPage />
+          <RequireModule id="message-prep">
+            <MessagesPage />
+          </RequireModule>
         </WorkspaceLayout>
       </Route>
       <Route path="/app/blog/:id">
         <WorkspaceLayout>
-          <PostEditorPage />
+          <RequireModule id="blog">
+            <PostEditorPage />
+          </RequireModule>
         </WorkspaceLayout>
       </Route>
       <Route path="/app/blog">
         <WorkspaceLayout>
-          <BlogPage />
+          <RequireModule id="blog">
+            <BlogPage />
+          </RequireModule>
         </WorkspaceLayout>
       </Route>
       <Route path="/app/modules">
@@ -161,9 +172,7 @@ function Router() {
         </WorkspaceLayout>
       </Route>
       <Route path="/app/account">
-        <WorkspaceLayout>
-          <AccountPage />
-        </WorkspaceLayout>
+        <Redirect to="/app/settings?tab=email" replace />
       </Route>
       <Route path="/app/settings">
         <WorkspaceLayout>

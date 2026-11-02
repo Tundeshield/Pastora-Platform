@@ -828,11 +828,26 @@ describe("a simple menu (Modules hidden)", () => {
     await hide();
     const session = await call("GET", "/session", owner.token);
     assert.equal(session.body.modulesVisible, false);
-    assert.deepEqual([...session.body.modules].sort(), ["blog", "message-prep"]);
+    assert.deepEqual([...session.body.modules].sort(), ["reports", "tasks"]);
     assert.equal((await call("GET", "/expenses", owner.token)).status, 403);
-    assert.equal((await call("GET", "/tasks", owner.token)).status, 403);
+    assert.equal((await call("GET", "/messages", owner.token)).status, 403, "sermons aren't part of the core");
+    assert.equal((await call("GET", "/posts", owner.token)).status, 403, "nor is the blog");
+    assert.equal((await call("GET", "/tasks", owner.token)).status, 200);
     assert.equal((await call("GET", "/modules", owner.token)).status, 404);
-    assert.equal((await call("POST", "/reports", owner.token, { department: "Choir", period: "Oct", activities: "x" })).status, 403);
+    const report = await call("POST", "/reports", owner.token, { department: "Choir", period: "Oct", activities: "x", challenges: null, supportNeeded: null, nextPlans: "y" });
+    assert.equal(report.status, 201, JSON.stringify(report.body));
+  });
+
+  test("a church that already wrote sermons or blog posts keeps them", async () => {
+    const owner = await ownerWithChurch();
+    await hide();
+    await db.collection("sermons").add({ churchId: owner.church.id, title: "Abide", authorUid: owner.uid });
+    await db.collection("posts").add({ churchId: owner.church.id, title: "New every morning", authorUid: owner.uid });
+    const modules = (await call("GET", "/session", owner.token)).body.modules as string[];
+    assert.deepEqual([...modules].sort(), ["blog", "message-prep", "reports", "tasks"]);
+    assert.equal((await call("GET", "/messages", owner.token)).status, 200);
+    const other = await ownerWithChurch("Another Church");
+    assert.ok(!(await call("GET", "/session", other.token)).body.modules.includes("blog"), "only for the church that used it");
   });
 
   test("Pastora Admin can switch the Modules page on, or give one church an extra module", async () => {
@@ -840,9 +855,9 @@ describe("a simple menu (Modules hidden)", () => {
     await hide();
     const admin = user({ email: "tundeshield@gmail.com" });
     process.env.PLATFORM_ADMIN_EMAILS = "tundeshield@gmail.com";
-    const granted = await call("PATCH", `/platform/workspaces/${owner.church.id}/access`, admin.token, { grants: ["reports"] });
+    const granted = await call("PATCH", `/platform/workspaces/${owner.church.id}/access`, admin.token, { grants: ["blog"] });
     assert.equal(granted.status, 200, JSON.stringify(granted.body));
-    assert.ok((await call("GET", "/session", owner.token)).body.modules.includes("reports"));
+    assert.ok((await call("GET", "/session", owner.token)).body.modules.includes("blog"));
     const shown = await call("PATCH", "/platform/settings", admin.token, { modulesVisible: true });
     assert.equal(shown.body.modulesVisible, true);
     assert.equal((await call("GET", "/modules", owner.token)).status, 200);

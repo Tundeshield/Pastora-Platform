@@ -442,7 +442,7 @@ function ChurchAccess({ churchId, plan, grants }: { churchId: string; plan: Plan
         },
       },
     );
-  const core = ["message-prep", "blog"];
+  const core = ["tasks", "reports"];
   const grantable = (modules.data?.modules ?? []).filter(
     (m) => m.status !== "retired" && (modules.data?.modulesVisible || !core.includes(m.id)),
   );
@@ -463,7 +463,7 @@ function ChurchAccess({ churchId, plan, grants }: { churchId: string; plan: Plan
           ))}
         </select>
         {modules.data && !modules.data.modulesVisible ? (
-          <small>The Modules page is hidden: every church gets Sermons and Blog, plus anything ticked below (e.g. Expenses, Tasks, Department reports).</small>
+          <small>The Modules page is hidden: every church gets care, appointments, tasks and department reports, plus anything ticked below (e.g. Expenses, Sermons, Blog). A church that already wrote sermons or blog posts keeps them.</small>
         ) : (
           modules.data?.earlyAccess && <small>Early access is on, so every church has every available module.</small>
         )}

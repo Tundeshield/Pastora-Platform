@@ -34,12 +34,11 @@ const sameSet = (a: readonly Permission[], b: readonly Permission[]) =>
   a.length === b.length && a.every((p) => b.includes(p));
 
 /** "Enquiries, Calendar, Expenses" or "Own tasks only". */
-function accessSummary(role: MemberRole, permissions: Permission[]) {
+function accessSummary(role: MemberRole, permissions: Permission[], shown: Permission[]) {
   if (role === "pastor") return "Full access";
-  if (!permissions.length) return "Own tasks only";
-  return PERMISSIONS.filter((p) => permissions.includes(p))
-    .map((p) => AREA_LABEL[p])
-    .join(" · ");
+  const visible = PERMISSIONS.filter((p) => permissions.includes(p) && shown.includes(p));
+  if (!visible.length) return "Own tasks only";
+  return visible.map((p) => AREA_LABEL[p]).join(" · ");
 }
 
 /** The access checkboxes. Care areas are locked for people who can't give them. */
@@ -98,6 +97,7 @@ function AccessChecklist({
 
 export function TeamPage() {
   const session = useSession();
+  const shown = useVisibleAreas().flatMap((g) => g.items.map((i) => i.key));
   const access = useAccess();
   const isPastor = access.isPastor;
   const canManage = access.can("team");
@@ -256,7 +256,7 @@ export function TeamPage() {
                         {roleLabel(inv.role)} · invited {new Date(inv.createdAt).toLocaleDateString()}
                         {inv.department ? ` · ${inv.department}` : ""}
                       </small>
-                      <span className="access-summary">{accessSummary(inv.role, inv.permissions)}</span>
+                      <span className="access-summary">{accessSummary(inv.role, inv.permissions, shown)}</span>
                     </div>
                     <div className="member-actions">
                       {canManage && (inv.role !== "pastor" || isPastor || !hasPastor) ? (
@@ -299,6 +299,7 @@ function MemberRow({
   careLocked: boolean;
   onSaved: () => void;
 }) {
+  const shown = useVisibleAreas().flatMap((g) => g.items.map((i) => i.key));
   const update = useUpdateMember();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Permission[]>(m.permissions);
@@ -326,7 +327,7 @@ function MemberRow({
             {m.department ? ` · ${m.department}` : ""}
           </small>
           <span className="access-summary">
-            {m.active ? accessSummary(m.role, m.permissions) : "No access"}
+            {m.active ? accessSummary(m.role, m.permissions, shown) : "No access"}
             {m.customAccess && m.active ? <em> · adjusted</em> : null}
           </span>
         </div>

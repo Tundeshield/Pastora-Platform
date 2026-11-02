@@ -8,32 +8,21 @@ import {
 } from "@workspace/api-client-react";
 import { Mail } from "lucide-react";
 
-import { useSession } from "@/auth";
-import { Button, ErrorPanel, MutationError, PageHeading, SkeletonRows, Toggle } from "@/components/ui-kit";
+import { Button, ErrorPanel, MutationError, SkeletonRows, Toggle } from "@/components/ui-kit";
 import { apiErrorMessage } from "@/firebase-auth";
 
 const KINDS: { key: keyof EmailPreferencesInput; label: string; help: string }[] = [
   {
     key: "care",
     label: "People reaching out",
-    help: "New prayer requests, counselling requests, questions and guest cards. The email never includes what they wrote.",
+    help: "New prayer requests, counselling requests, questions and first-time guests.",
   },
   { key: "appointments", label: "Appointments", help: "New bookings and requests for your time." },
   { key: "work", label: "Tasks, reports and expenses", help: "Tasks given to you, reports to review, expenses to approve or pay, and answers to yours." },
   { key: "team", label: "Team changes", help: "Invitations, role and access changes, and modules switched on or off." },
 ];
 
-export function AccountPage() {
-  const session = useSession();
-  return (
-    <>
-      <PageHeading eyebrow="Your account" title={session.data?.user.name || "Your account"} subtitle={session.data?.user.email ?? ""} />
-      <EmailAlertsSection />
-    </>
-  );
-}
-
-/** Each person's own email alerts; shown on Your account and at the top of Settings. */
+/** Each person's own email alerts, in Settings. */
 export function EmailAlertsSection() {
   const q = useGetEmailPreferences({ query: { queryKey: getGetEmailPreferencesQueryKey(), retry: 1 } });
   const save = useSaveEmailPreferences();
