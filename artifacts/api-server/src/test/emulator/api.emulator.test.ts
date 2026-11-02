@@ -8,6 +8,10 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { after, before, describe, test } from "node:test";
 
+// Tests must never reach the real email service, even when a build has its key set.
+delete process.env.RESEND_API_KEY;
+delete process.env.EMAIL_FROM;
+delete process.env.EMAIL_REPLY_TO;
 process.env.LOG_LEVEL = "silent";
 process.env.PUBLIC_SUBMISSIONS_PER_MINUTE = "10000";
 process.env.FIREBASE_PROJECT_ID ??= "demo-pastora";
